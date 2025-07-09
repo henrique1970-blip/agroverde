@@ -61,3 +61,18 @@ form button:hover {
     color: green;
     font-weight: bold;
 }
+
+/* Novo estilo para a mensagem de status da conexão */
+.status-message {
+    margin-bottom: 15px;
+    font-size: 0.9em;
+    color: #666;
+}
+
+.status-online {
+    color: green;
+}
+
+.status-offline {
+    color: orange;
+}
