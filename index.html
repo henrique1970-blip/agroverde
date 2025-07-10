@@ -3,11 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Coletor de Dados</title>
-    <link rel="stylesheet" href="cadastro2.css">
+    <title>Ordem de Serviço</title>
+    <link rel="stylesheet" href="style.css">
     <link rel="manifest" href="manifest.json">
     <script>
-        // Registrar o Service Worker
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('/service-worker.js')
@@ -18,21 +17,19 @@
     </script>
 </head>
 <body>
+    <header class="app-header">
+        <div class="logo"></div>
+        <h1>Ordem de Serviço</h1>
+    </header>
+
     <div class="container">
-        <h1>Coletor de Dados Pessoal</h1>
-        <p id="connectionStatus" class="status-message"></p> <form id="dataForm">
-            <label for="nome">Nome:</label>
-            <input type="text" id="nome" name="nome" required>
-
-            <label for="dataNascimento">Data de Nascimento:</label>
-            <input type="date" id="dataNascimento" name="dataNascimento" required>
-
-            <label for="telefone">Telefone:</label>
-            <input type="tel" id="telefone" name="telefone" required>
-
-            <button type="submit">Enviar Dados</button>
-        </form>
-        <p id="message"></p>
+        <p id="connectionStatus" class="status-message"></p>
+        <div id="activitySelection" class="activity-buttons">
+            </div>
+        <div id="formContainer" class="form-container">
+            <button id="backToActivities" class="back-button" style="display: none;">← Voltar para Atividades</button>
+            <p id="message" class="info-message"></p>
+        </div>
     </div>
     <script src="script.js"></script>
 </body>

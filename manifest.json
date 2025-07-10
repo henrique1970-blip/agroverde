@@ -1,7 +1,7 @@
 {
-  "name": "Coletor de Dados",
-  "short_name": "Coletor",
-  "description": "Um PWA simples para coletar dados e salvar no Google Sheets.",
+  "name": "Ordem de Serviço Agro",
+  "short_name": "OSAgro",
+  "description": "Aplicativo para registro de ordens de serviço agrícolas.",
   "start_url": "/index.html",
   "display": "standalone",
   "background_color": "#ffffff",

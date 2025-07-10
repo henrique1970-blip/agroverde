@@ -1,8 +1,9 @@
-const CACHE_NAME = 'coletor-dados-cache-v2'; // Incrementado a versão do cache
+const CACHE_NAME = 'os-agro-cache-v3'; // Incrementado a versão do cache
 const urlsToCache = [
   '/',
   '/index.html',
   '/style.css',
+  '/logoFAVbase64.css', // Adicionado o CSS do logo ao cache
   '/script.js',
   '/manifest.json',
   '/icon-192x192.png',
@@ -10,16 +11,16 @@ const urlsToCache = [
 ];
 
 // URL do seu Apps Script (precisa ser o mesmo do script.js)
-const appsScriptUrl = 'https://script.google.com/macros/s/AKfycbzQrCQR9hBR4zGMCylDKFoIXtxSh6oL8PYv198mMD7rFIYiw1wSiWqxNlI2rm4-bkNM/exec'; // <-- COLOQUE SEU URL AQUI!
+const appsScriptUrl = 'https://script.google.com/macros/s/AKfycbz-5rT0uL3kvAdXKf8FFNwaN2X_nbWgXkC4kHiRqerF4KBT-3FjXC20Znzs5VONKnTgPw/exec'; // <-- COLOQUE SEU URL AQUI!
 
-const DB_NAME = 'agroverdeDB';
-const STORE_NAME = 'pendingData';
+const DB_NAME = 'osAgroDB'; // Nome do DB igual ao script.js
+const STORE_NAME = 'pendingOSData'; // Nome da store igual ao script.js
 
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => {
-        console.log('Cache opened');
+        console.log('Service Worker: Cache opened');
         return cache.addAll(urlsToCache);
       })
   );
@@ -44,6 +45,7 @@ self.addEventListener('activate', event => {
       return Promise.all(
         cacheNames.map(cacheName => {
           if (cacheWhitelist.indexOf(cacheName) === -1) {
+            console.log('Service Worker: Deletando cache antigo:', cacheName);
             return caches.delete(cacheName); // Deleta caches antigos
           }
         })
@@ -55,22 +57,22 @@ self.addEventListener('activate', event => {
 // --- Lógica de Sincronização em Segundo Plano (Background Sync) ---
 
 self.addEventListener('sync', event => {
-  if (event.tag === 'sync-pending-data') {
-    console.log('Evento de sincronização disparado!');
+  if (event.tag === 'sync-os-data') { // Nova tag de sincronização
+    console.log('Service Worker: Evento de sincronização "sync-os-data" disparado!');
     event.waitUntil(syncDataFromIndexedDB());
   }
 });
 
 async function syncDataFromIndexedDB() {
-    let db;
+    let dbInstance; // Variável local para a instância do DB
     try {
-        db = await openDatabase();
+        dbInstance = await openDatabase();
     } catch (error) {
         console.error('Service Worker: Erro ao abrir IndexedDB para sincronização:', error);
         return;
     }
 
-    const pendingData = await getLocalData(db);
+    const pendingData = await getLocalData(dbInstance);
 
     if (pendingData.length === 0) {
         console.log('Service Worker: Nenhum dado pendente para sincronizar.');
@@ -82,18 +84,18 @@ async function syncDataFromIndexedDB() {
     for (const item of pendingData) {
         const success = await sendToAppsScript(item.data);
         if (success) {
-            await deleteLocalData(db, item.id);
+            await deleteLocalData(dbInstance, item.id);
             console.log(`Service Worker: Item ${item.id} sincronizado.`);
         } else {
             console.warn(`Service Worker: Falha ao sincronizar item ${item.id}. Será tentado novamente.`);
             // Se falhar, para a sincronização e deixa o item no IndexedDB para próxima tentativa
-            break;
+            break; // Importante: para de tentar se um item falha para evitar loop infinito
         }
     }
     console.log('Service Worker: Tentativa de sincronização concluída.');
 }
 
-// --- Funções de IndexedDB para o Service Worker (copiadas do script.js, mas com 'db' como parâmetro) ---
+// --- Funções de IndexedDB para o Service Worker (com 'dbInstance' como parâmetro) ---
 
 function openDatabase() {
     return new Promise((resolve, reject) => {
@@ -116,9 +118,9 @@ function openDatabase() {
     });
 }
 
-function getLocalData(db) {
+function getLocalData(dbInstance) {
     return new Promise((resolve, reject) => {
-        const transaction = db.transaction([STORE_NAME], 'readonly');
+        const transaction = dbInstance.transaction([STORE_NAME], 'readonly');
         const store = transaction.objectStore(STORE_NAME);
         const request = store.getAll();
 
@@ -132,9 +134,9 @@ function getLocalData(db) {
     });
 }
 
-function deleteLocalData(db, id) {
+function deleteLocalData(dbInstance, id) {
     return new Promise((resolve, reject) => {
-        const transaction = db.transaction([STORE_NAME], 'readwrite');
+        const transaction = dbInstance.transaction([STORE_NAME], 'readwrite');
         const store = transaction.objectStore(STORE_NAME);
         const request = store.delete(id);
 
@@ -150,6 +152,7 @@ function deleteLocalData(db, id) {
 
 async function sendToAppsScript(data) {
     try {
+        // Usa o appsScriptUrl definido no Service Worker
         const response = await fetch(appsScriptUrl, {
             method: 'POST',
             mode: 'no-cors',

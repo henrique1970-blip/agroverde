@@ -1,0 +1,63 @@
+function doPost(e) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var data = e.parameter;
+  var activity = data.activity; // Nome da atividade será o nome da aba
+
+  if (!activity) {
+    return ContentService.createTextOutput("Erro: Atividade não especificada.").setMimeType(ContentService.MimeType.TEXT);
+  }
+
+  var sheet;
+  if (ss.getSheetByName(activity)) {
+    sheet = ss.getSheetByName(activity);
+  } else {
+    // Se a aba não existe, cria e adiciona cabeçalhos
+    sheet = ss.insertSheet(activity);
+    var headers = [];
+
+    // Define os cabeçalhos com base na atividade
+    if (activity === "PreparodeArea") { // Sem espaços para nome da aba
+      headers = ["Timestamp", "Local", "Talhoes (Area)", "Maquina", "Operador(es)", "Implemento", "Observacao"];
+    } else if (activity === "TratamentodeSementes") {
+      headers = ["Timestamp", "Local", "Talhoes (Area)", "Cultura e Cultivar", "Quantidade de Sementes (Kg)", "Data de Inicio", "Data de Termino", "Produtos e Dosagens", "Maquina", "Operadores", "Observacao"];
+    } else if (activity === "Plantio") {
+      headers = ["Timestamp", "Local", "Talhoes (Area)", "Cultura e Cultivar", "Quantidade/ha - Maximo", "Quantidade/ha - Minimo", "Insumos", "Data de Inicio", "Data de Termino", "Trator", "Implemento", "Plantas por Metro", "Espacamento entre Plantas", "Peso de Mil Sementes (PMS)", "Operador(es)", "Observacao"];
+    } else if (activity === "Pulverizacao") {
+      headers = ["Timestamp", "Local", "Talhoes (Area)", "Cultura e Cultivar", "Produtos e Quantidade/ha", "Data de Inicio", "Data de Termino", "Maquina", "Bico", "Capacidade do Tanque", "Vazao (L/ha)", "Operador(es)", "Pressao", "Dose/ha", "Dose/tanque", "Implemento", "Observacao"];
+    } else if (activity === "Colheita") {
+      headers = ["Timestamp", "Local", "Talhoes (Area)", "Cultura e Cultivar", "Produtividade Estimada", "Data de Inicio", "Data de Termino", "Maquina", "Operador(es) Maquina", "Caminhao(oes)", "Motorista(s)", "Trator", "Operador(es) Trator", "Implemento", "Observacao"];
+    } else if (activity === "Lancas") {
+      headers = ["Timestamp", "Local", "Talhoes (Area)", "Cultura e Cultivar", "Data de Inicio", "Data de Termino", "Quantidade de Produto/Hectare", "Maquina", "Operador(es)", "Implemento", "Observacao"];
+    } else {
+      // Cabeçalhos padrão ou erro se a atividade não for reconhecida
+      headers = ["Timestamp", "Atividade", "Local", "Talhoes (Area)", "Dados Desconhecidos"];
+    }
+    sheet.appendRow(headers);
+  }
+
+  // Prepara os dados para a linha
+  var rowData = [
+    new Date().toLocaleString(), // Timestamp
+    data.local,
+    data.talhoes, // Já virá como string formatada do PWA
+  ];
+
+  // Adiciona os campos específicos da atividade
+  if (activity === "PreparodeArea") {
+    rowData.push(data.maquina, data.operadores, data.implemento, data.observacao);
+  } else if (activity === "TratamentodeSementes") {
+    rowData.push(data.culturaCultivar, data.qtdSementesKg, data.dataInicio, data.dataTermino, data.produtosDosagens, data.maquina, data.operadores, data.observacao);
+  } else if (activity === "Plantio") {
+    rowData.push(data.culturaCultivar, data.qtdHaMax, data.qtdHaMin, data.insumos, data.dataInicio, data.dataTermino, data.trator, data.implemento, data.plantasPorMetro, data.espacamentoPlantas, data.pms, data.operadores, data.observacao);
+  } else if (activity === "Pulverizacao") {
+    rowData.push(data.culturaCultivar, data.produtosQtdHa, data.dataInicio, data.dataTermino, data.maquina, data.bico, data.capacidadeTanque, data.vazaoLHa, data.operadores, data.pressao, data.doseHa, data.doseTanque, data.implemento, data.observacao);
+  } else if (activity === "Colheita") {
+    rowData.push(data.culturaCultivar, data.produtividadeEstimada, data.dataInicio, data.dataTermino, data.maquina, data.operadoresMaquina, data.caminhao, data.motoristas, data.trator, data.operadoresTrator, data.implemento, data.observacao);
+  } else if (activity === "Lancas") {
+    rowData.push(data.culturaCultivar, data.dataInicio, data.dataTermino, data.qtdProdutoHectare, data.maquina, data.operadores, data.implemento, data.observacao);
+  }
+
+  sheet.appendRow(rowData);
+
+  return ContentService.createTextOutput("Dados recebidos com sucesso!").setMimeType(ContentService.MimeType.TEXT);
+}
