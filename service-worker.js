@@ -1,169 +1,120 @@
-const CACHE_NAME = 'os-agro-cache-v3'; // Incrementado a versão do cache
+const CACHE_NAME = 'agro-os-cache-v3'; // Aumentamos a versão do cache para forçar a atualização
 const urlsToCache = [
-  '/',
-  '/index.html',
-  '/style.css',
-  '/logoFAVbase64.css', // Adicionado o CSS do logo ao cache
-  '/script.js',
-  '/manifest.json',
-  '/icon-192x192.png',
-  '/icon-512x512.png'
+    '/', // Garante que a raiz do site seja cacheada
+    '/index.html',
+    '/style.css',
+    '/script.js',
+    '/manifest.json',
+    '/icon-192x192.png',
+    '/icon-512x512.png',
+    '/logoFAVbase64.css' // Confirma que o CSS da logo está na lista
 ];
 
+
+
+// ********* as linhas a seguir foram incluidas manualmente, além das geradas por IA
 // URL do seu Apps Script (precisa ser o mesmo do script.js)
 const appsScriptUrl = 'https://script.google.com/macros/s/AKfycbz-5rT0uL3kvAdXKf8FFNwaN2X_nbWgXkC4kHiRqerF4KBT-3FjXC20Znzs5VONKnTgPw/exec'; // <-- COLOQUE SEU URL AQUI!
 
 const DB_NAME = 'osAgroDB'; // Nome do DB igual ao script.js
 const STORE_NAME = 'pendingOSData'; // Nome da store igual ao script.js
 
+// Termino de inclusão de linhas além das geradas por IA *****************
+
+
 self.addEventListener('install', event => {
-  event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then(cache => {
-        console.log('Service Worker: Cache opened');
-        return cache.addAll(urlsToCache);
-      })
-  );
+    console.log('Service Worker: Evento de instalação iniciado.');
+    event.waitUntil(
+        caches.open(CACHE_NAME)
+            .then(cache => {
+                console.log('Service Worker: Cache aberto. Adicionando shell do aplicativo.');
+                return cache.addAll(urlsToCache);
+            })
+            .catch(error => {
+                console.error('Service Worker: Falha ao cachear durante a instalação:', error);
+            })
+    );
 });
 
 self.addEventListener('fetch', event => {
-  event.respondWith(
-    caches.match(event.request)
-      .then(response => {
-        if (response) {
-          return response; // Retorna do cache se encontrado
-        }
-        return fetch(event.request); // Se não, busca na rede
-      })
-  );
+    // Ignora requisições que não sejam HTTP/HTTPS (ex: chrome-extension://)
+    if (!event.request.url.startsWith('http')) {
+        return;
+    }
+
+    event.respondWith(
+        caches.match(event.request)
+            .then(response => {
+                // Se a requisição está no cache, retorna a resposta do cache (Cache First)
+                if (response) {
+                    console.log('Service Worker: Servindo do cache:', event.request.url);
+                    return response;
+                }
+
+                // Se não está no cache, tenta buscar da rede (Network Fallback)
+                console.log('Service Worker: Buscando da rede:', event.request.url);
+                return fetch(event.request).then(
+                    networkResponse => {
+                        // Verifica se a resposta da rede é válida para cachear
+                        if(!networkResponse || networkResponse.status !== 200 || networkResponse.type !== 'basic') {
+                            return networkResponse; // Não cacheia respostas inválidas
+                        }
+
+                        // Clona a resposta para que ela possa ser consumida tanto pelo navegador quanto pelo cache
+                        const responseToCache = networkResponse.clone();
+
+                        caches.open(CACHE_NAME)
+                            .then(cache => {
+                                cache.put(event.request, responseToCache);
+                            });
+
+                        return networkResponse;
+                    }
+                ).catch(error => {
+                    // Esta parte é acionada se a busca na rede falhar (provavelmente offline)
+                    console.error('Service Worker: Falha na busca e não encontrado no cache:', event.request.url, error);
+                    // Para requisições de navegação (como recarregar a página), você pode retornar uma página offline customizada
+                    if (event.request.mode === 'navigate') {
+                        // Se você tiver uma página offline.html, pode retorná-la aqui
+                        // return caches.match('/offline.html');
+                        console.log('Service Worker: Requisição de navegação falhou e offline. Nenhuma página offline customizada servida.');
+                    }
+                    // Se não for uma requisição de navegação ou não houver fallback, re-lança o erro.
+                    throw error; 
+                });
+            })
+    );
 });
 
 self.addEventListener('activate', event => {
-  const cacheWhitelist = [CACHE_NAME];
-  event.waitUntil(
-    caches.keys().then(cacheNames => {
-      return Promise.all(
-        cacheNames.map(cacheName => {
-          if (cacheWhitelist.indexOf(cacheName) === -1) {
-            console.log('Service Worker: Deletando cache antigo:', cacheName);
-            return caches.delete(cacheName); // Deleta caches antigos
-          }
+    console.log('Service Worker: Evento de ativação iniciado.');
+    event.waitUntil(
+        caches.keys().then(cacheNames => {
+            return Promise.all(
+                cacheNames.map(cacheName => {
+                    if (cacheName !== CACHE_NAME) { // Deleta caches antigos que não correspondem à versão atual
+                        console.log('Service Worker: Deletando cache antigo:', cacheName);
+                        return caches.delete(cacheName);
+                    }
+                })
+            );
         })
-      );
-    })
-  );
+    );
 });
 
-// --- Lógica de Sincronização em Segundo Plano (Background Sync) ---
-
+// Listener para o evento 'sync' (sincronização em segundo plano)
 self.addEventListener('sync', event => {
-  if (event.tag === 'sync-os-data') { // Nova tag de sincronização
-    console.log('Service Worker: Evento de sincronização "sync-os-data" disparado!');
-    event.waitUntil(syncDataFromIndexedDB());
-  }
+    if (event.tag === 'sync-os-data') { // Verifica a tag registrada em script.js
+        console.log('Service Worker: Evento de sincronização em segundo plano acionado para:', event.tag);
+        event.waitUntil(self.clients.matchAll().then(clients => {
+            // Encontra todos os clientes (abas) abertos da aplicação
+            clients.forEach(client => {
+                console.log('Service Worker: Enviando mensagem para o cliente iniciar a sincronização.');
+                // Envia uma mensagem para o cliente (script.js)
+                client.postMessage({ type: 'SYNC_PENDING_DATA' });
+            });
+        }).catch(error => {
+            console.error('Service Worker: Erro em clients.matchAll no evento sync:', error);
+        }));
+    }
 });
-
-async function syncDataFromIndexedDB() {
-    let dbInstance; // Variável local para a instância do DB
-    try {
-        dbInstance = await openDatabase();
-    } catch (error) {
-        console.error('Service Worker: Erro ao abrir IndexedDB para sincronização:', error);
-        return;
-    }
-
-    const pendingData = await getLocalData(dbInstance);
-
-    if (pendingData.length === 0) {
-        console.log('Service Worker: Nenhum dado pendente para sincronizar.');
-        return;
-    }
-
-    console.log(`Service Worker: Tentando sincronizar ${pendingData.length} item(s) pendente(s)...`);
-
-    for (const item of pendingData) {
-        const success = await sendToAppsScript(item.data);
-        if (success) {
-            await deleteLocalData(dbInstance, item.id);
-            console.log(`Service Worker: Item ${item.id} sincronizado.`);
-        } else {
-            console.warn(`Service Worker: Falha ao sincronizar item ${item.id}. Será tentado novamente.`);
-            // Se falhar, para a sincronização e deixa o item no IndexedDB para próxima tentativa
-            break; // Importante: para de tentar se um item falha para evitar loop infinito
-        }
-    }
-    console.log('Service Worker: Tentativa de sincronização concluída.');
-}
-
-// --- Funções de IndexedDB para o Service Worker (com 'dbInstance' como parâmetro) ---
-
-function openDatabase() {
-    return new Promise((resolve, reject) => {
-        const request = indexedDB.open(DB_NAME, 1);
-
-        request.onupgradeneeded = function(event) {
-            const db = event.target.result;
-            if (!db.objectStoreNames.contains(STORE_NAME)) {
-                db.createObjectStore(STORE_NAME, { keyPath: 'id', autoIncrement: true });
-            }
-        };
-
-        request.onsuccess = function(event) {
-            resolve(event.target.result);
-        };
-
-        request.onerror = function(event) {
-            reject(event.target.errorCode);
-        };
-    });
-}
-
-function getLocalData(dbInstance) {
-    return new Promise((resolve, reject) => {
-        const transaction = dbInstance.transaction([STORE_NAME], 'readonly');
-        const store = transaction.objectStore(STORE_NAME);
-        const request = store.getAll();
-
-        request.onsuccess = function() {
-            resolve(request.result);
-        };
-
-        request.onerror = function(event) {
-            reject(event.target.errorCode);
-        };
-    });
-}
-
-function deleteLocalData(dbInstance, id) {
-    return new Promise((resolve, reject) => {
-        const transaction = dbInstance.transaction([STORE_NAME], 'readwrite');
-        const store = transaction.objectStore(STORE_NAME);
-        const request = store.delete(id);
-
-        request.onsuccess = function() {
-            resolve();
-        };
-
-        request.onerror = function(event) {
-            reject(event.target.errorCode);
-        };
-    });
-}
-
-async function sendToAppsScript(data) {
-    try {
-        // Usa o appsScriptUrl definido no Service Worker
-        const response = await fetch(appsScriptUrl, {
-            method: 'POST',
-            mode: 'no-cors',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-            },
-            body: new URLSearchParams(data).toString()
-        });
-        return true;
-    } catch (error) {
-        console.error('Service Worker: Erro ao enviar os dados para Apps Script:', error);
-        return false;
-    }
-}

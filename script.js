@@ -509,6 +509,16 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     updateConnectionStatus(); // Atualiza o status da conexão
 
+    // --- Service Worker Message Listener ---
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.addEventListener('message', event => {
+            if (event.data && event.data.type === 'SYNC_PENDING_DATA') {
+                console.log('App: Recebeu SYNC_PENDING_DATA mensagem do Service Worker.');
+                attemptSync(); // Chama a função de sincronização
+            }
+        });
+    }
+
     // Adiciona listeners para mudanças de conexão
     window.addEventListener('online', () => {
         updateConnectionStatus();
