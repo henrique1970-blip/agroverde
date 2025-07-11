@@ -368,7 +368,7 @@ function renderForm(activityKey) {
             <input type="hidden" id="userNameField" name="userName" value="${userName}">
             <p>Registrando como: <strong>${userName || 'N/A'}</strong></p>
 
-            <label for="local">${localLabelText}</label>
+            <label for="local">${localLabelText} <span class="required">*</span></label>
             <select id="local" name="local" required>
                 <option value="">Selecione o Local</option>
     `;
@@ -379,7 +379,7 @@ function renderForm(activityKey) {
             </select>
 
             <div id="talhoesSelection" style="display: none;">
-                <label>Talhões (e suas áreas em hectares):</label>
+                <label>Talhões (e suas áreas em hectares): <span class="required">*</span></label>
                 <div class="checkbox-group">
                     <input type="checkbox" id="allTalhoes" name="allTalhoes">
                     <label for="allTalhoes">Todos</label>
@@ -391,11 +391,13 @@ function renderForm(activityKey) {
     `;
 
     formFields.forEach(field => {
-        formHtml += `<label for="${field.name}">${field.label}:</label>`;
+        // Adiciona o asterisco de obrigatoriedade, exceto para "observacao"
+        const isRequired = field.name !== 'observacao';
+        formHtml += `<label for="${field.name}">${field.label}: ${isRequired ? '<span class="required">*</span>' : ''}</label>`;
         if (field.type === "textarea") {
-            formHtml += `<textarea id="${field.name}" name="${field.name}"></textarea>`;
+            formHtml += `<textarea id="${field.name}" name="${field.name}" ${isRequired ? 'required' : ''}></textarea>`;
         } else {
-            formHtml += `<input type="${field.type}" id="${field.name}" name="${field.name}" ${field.type === 'number' ? 'step="any"' : ''} ${field.required ? 'required' : ''}>`;
+            formHtml += `<input type="${field.type}" id="${field.name}" name="${field.name}" ${field.type === 'number' ? 'step="any"' : ''} ${isRequired ? 'required' : ''}>`;
         }
     });
 
@@ -469,6 +471,56 @@ async function handleFormSubmit(event) {
 
     const form = event.target;
     const formData = new FormData(form);
+
+    // --- Lógica de Validação ---
+    let isValid = true;
+    let errorMessage = '';
+
+    // Valida o campo 'local'
+    if (!formData.get('local')) {
+        isValid = false;
+        errorMessage += 'Por favor, selecione o Local da Atividade.\n';
+    }
+
+    // Valida os talhões
+    const selectedTalhoes = [];
+    const talhaoCheckboxes = form.querySelectorAll('input[name="talhoes"]:checked');
+    talhaoCheckboxes.forEach(cb => selectedTalhoes.push(cb.value));
+    if (selectedTalhoes.length === 0 && form.querySelector('#talhoesSelection').style.display !== 'none') {
+        isValid = false;
+        errorMessage += 'Por favor, selecione pelo menos um Talhão.\n';
+    }
+
+    // Valida outros campos dinâmicos (exceto 'observacao' e campos ocultos)
+    FORM_FIELDS[currentActivityKey].forEach(field => {
+        if (field.name !== 'observacao' && field.name !== 'userName') { // userName já é um hidden field
+            const fieldValue = formData.get(field.name);
+            if (!fieldValue || String(fieldValue).trim() === '') {
+                isValid = false;
+                errorMessage += `Por favor, preencha o campo "${field.label}".\n`;
+            }
+            // Validação específica para campos numéricos vazios
+            if (field.type === 'number' && (fieldValue === null || fieldValue === '')) {
+                isValid = false;
+                errorMessage += `Por favor, preencha o campo "${field.label}" com um número.\n`;
+            }
+        }
+    });
+
+    if (!isValid) {
+        messageElement.textContent = 'Erro de validação:\n' + errorMessage;
+        messageElement.style.backgroundColor = '#f8d7da'; // Vermelho claro para erro
+        messageElement.style.color = '#721c24';
+        setTimeout(() => {
+            messageElement.textContent = '';
+            messageElement.style.backgroundColor = '';
+            messageElement.style.color = '';
+        }, 8000); // Mensagem visível por 8 segundos
+        return; // Impede o envio do formulário
+    }
+    // --- Fim da Lógica de Validação ---
+
+
     const data = {
         activity: currentActivityKey, // Adiciona a atividade aos dados a serem enviados
         userName: userName // Adiciona o nome do usuário coletado
@@ -477,11 +529,8 @@ async function handleFormSubmit(event) {
     // Pega o local
     data.local = formData.get('local');
 
-    // Pega os talhões selecionados
-    const selectedTalhoes = [];
-    const talhaoCheckboxes = form.querySelectorAll('input[name="talhoes"]:checked');
-    talhaoCheckboxes.forEach(cb => selectedTalhoes.push(cb.value));
-    data.talhoes = selectedTalhoes.join('; '); // Junta os talhões em uma string
+    // Junta os talhões em uma string
+    data.talhoes = selectedTalhoes.join('; ');
 
     // Pega os outros campos dinâmicos
     FORM_FIELDS[currentActivityKey].forEach(field => {
@@ -489,6 +538,8 @@ async function handleFormSubmit(event) {
     });
 
     messageElement.textContent = 'Enviando dados...';
+    messageElement.style.backgroundColor = ''; // Limpa o estilo de erro
+    messageElement.style.color = '';
 
     if (navigator.onLine) {
         const success = await sendToAppsScript(data);
