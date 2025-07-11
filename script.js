@@ -2,9 +2,11 @@
 const appsScriptUrl = 'https://script.google.com/macros/s/AKfycbz-5rT0uL3kvAdXKf8FFNwaN2X_nbWgXkC4kHiRqerF4KBT-3FjXC20Znzs5VONKnTgPw/exec';
 
 const DB_NAME = 'osAgroDB';
-const STORE_NAME = 'pendingOSData'; // Renomeado para refletir "Ordem de Serviço"
+const STORE_NAME = 'pendingOSData';
 let db;
 
+// Variável global para armazenar o nome do usuário
+let userName = '';
 
 // --- Dados Fixos (Configurações) ---
 const ACTIVITIES = {
@@ -272,7 +274,7 @@ async function attemptSync() {
             break; // Importante: para de tentar se um item falha para evitar loop infinito
         }
     }
-    // CORREÇÃO AQUI: Parênteses adicionais para agrupar (await getLocalData())
+    // Verifica novamente se ainda há dados pendentes após a tentativa de sincronização
     if ((await getLocalData()).length === 0) {
         messageElement.textContent = 'Todos os dados pendentes sincronizados com sucesso! ✅';
     }
@@ -363,6 +365,9 @@ function renderForm(activityKey) {
     let formHtml = `
         <h2>${ACTIVITIES[activityKey]}</h2>
         <form id="dynamicForm">
+            <input type="hidden" id="userNameField" name="userName" value="${userName}">
+            <p>Registrando como: <strong>${userName || 'N/A'}</strong></p>
+
             <label for="local">${localLabelText}</label>
             <select id="local" name="local" required>
                 <option value="">Selecione o Local</option>
@@ -465,7 +470,8 @@ async function handleFormSubmit(event) {
     const form = event.target;
     const formData = new FormData(form);
     const data = {
-        activity: currentActivityKey // Adiciona a atividade aos dados a serem enviados
+        activity: currentActivityKey, // Adiciona a atividade aos dados a serem enviados
+        userName: userName // Adiciona o nome do usuário coletado
     };
 
     // Pega o local
@@ -526,10 +532,32 @@ function updateConnectionStatus() {
     }
 }
 
+// --- Funções de Inicialização e Lógica do Usuário ---
+
+// Função para obter ou pedir o nome do usuário
+function getOrSetUserName() {
+    userName = localStorage.getItem('userName');
+    if (!userName) {
+        let inputName = prompt('Olá! Por favor, digite seu nome para registrar as ordens de serviço:');
+        if (inputName) {
+            userName = inputName.trim();
+            localStorage.setItem('userName', userName);
+        } else {
+            // Caso o usuário não digite nada ou cancele
+            userName = 'Usuário Anônimo';
+            alert('Nome não fornecido. Você será registrado como "Usuário Anônimo".');
+        }
+    }
+    console.log('Nome do usuário:', userName);
+}
+
+
 // --- Event Listeners e Inicialização ---
 
 document.addEventListener('DOMContentLoaded', async () => {
     await openDatabase(); // Abre o banco de dados ao carregar a página
+    getOrSetUserName(); // Obtém ou pede o nome do usuário
+
     displayPendingDataMessage(); // Exibe mensagem se há dados pendentes
 
     renderActivityButtons(); // Mostra os botões de seleção de atividade
