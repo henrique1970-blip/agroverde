@@ -5,6 +5,7 @@ const DB_NAME = 'osAgroDB';
 const STORE_NAME = 'pendingOSData'; // Renomeado para refletir "Ordem de Serviço"
 let db;
 
+
 // --- Dados Fixos (Configurações) ---
 const ACTIVITIES = {
     "PreparodeArea": "Preparo de Área",
@@ -277,6 +278,24 @@ async function attemptSync() {
     }
 }
 
+// Nova função: Exibe mensagem se há dados pendentes (chamada ao carregar o app)
+async function displayPendingDataMessage() {
+    const pendingData = await getLocalData();
+    if (pendingData.length > 0) {
+        messageElement.textContent = `Há ${pendingData.length} ordem(ns) de serviço pendente(s) para sincronização.`;
+        messageElement.style.backgroundColor = '#fffacd'; // Amarelo claro para destaque
+        messageElement.style.color = '#8a6d3b';
+        setTimeout(() => { // Limpa a mensagem após um tempo, a menos que a sincronização ocorra
+            if (messageElement.textContent.includes('pendente(s)')) { // Só limpa se ainda for a mensagem de pendente
+                messageElement.textContent = '';
+                messageElement.style.backgroundColor = '';
+                messageElement.style.color = '';
+            }
+        }, 5000); // Mensagem visível por 5 segundos
+    }
+}
+
+
 // --- Funções de UI Dinâmica ---
 
 function showActivitySelection() {
@@ -284,6 +303,8 @@ function showActivitySelection() {
     formContainerDiv.style.display = 'none';
     backToActivitiesBtn.style.display = 'none';
     messageElement.textContent = ''; // Limpa a mensagem
+    messageElement.style.backgroundColor = ''; // Remove cor de fundo
+    messageElement.style.color = ''; // Remove cor de texto
 }
 
 function showForm() {
@@ -291,6 +312,8 @@ function showForm() {
     formContainerDiv.style.display = 'block';
     backToActivitiesBtn.style.display = 'block';
     messageElement.textContent = ''; // Limpa a mensagem
+    messageElement.style.backgroundColor = ''; // Remove cor de fundo
+    messageElement.style.color = ''; // Remove cor de texto
 }
 
 function renderActivityButtons() {
@@ -334,10 +357,13 @@ function renderForm(activityKey) {
         return;
     }
 
+    // Define a label do campo 'Local' dinamicamente
+    const localLabelText = (activityKey === "TratamentodeSementes") ? "Local de destino:" : "Local da Atividade:";
+
     let formHtml = `
         <h2>${ACTIVITIES[activityKey]}</h2>
         <form id="dynamicForm">
-            <label for="local">Local da Atividade:</label>
+            <label for="local">${localLabelText}</label>
             <select id="local" name="local" required>
                 <option value="">Selecione o Local</option>
     `;
@@ -504,6 +530,8 @@ function updateConnectionStatus() {
 
 document.addEventListener('DOMContentLoaded', async () => {
     await openDatabase(); // Abre o banco de dados ao carregar a página
+    displayPendingDataMessage(); // Exibe mensagem se há dados pendentes
+
     renderActivityButtons(); // Mostra os botões de seleção de atividade
     showActivitySelection(); // Garante que a tela inicial seja a seleção de atividade
 
