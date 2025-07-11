@@ -477,32 +477,37 @@ async function handleFormSubmit(event) {
     let errorMessage = '';
 
     // Valida o campo 'local'
-    if (!formData.get('local')) {
+    const selectedLocal = formData.get('local');
+    if (!selectedLocal) {
         isValid = false;
         errorMessage += 'Por favor, selecione o Local da Atividade.\n';
     }
 
-    // Valida os talhões
-    const selectedTalhoes = [];
-    const talhaoCheckboxes = form.querySelectorAll('input[name="talhoes"]:checked');
-    talhaoCheckboxes.forEach(cb => selectedTalhoes.push(cb.value));
-    if (selectedTalhoes.length === 0 && form.querySelector('#talhoesSelection').style.display !== 'none') {
-        isValid = false;
-        errorMessage += 'Por favor, selecione pelo menos um Talhão.\n';
+    // Valida os talhões APENAS se um local foi selecionado
+    if (selectedLocal) {
+        const selectedTalhoes = [];
+        const talhaoCheckboxes = form.querySelectorAll('input[name="talhoes"]:checked');
+        talhaoCheckboxes.forEach(cb => selectedTalhoes.push(cb.value));
+        
+        if (selectedTalhoes.length === 0) {
+            isValid = false;
+            errorMessage += 'Por favor, selecione pelo menos um Talhão.\n';
+        }
     }
 
     // Valida outros campos dinâmicos (exceto 'observacao' e campos ocultos)
     FORM_FIELDS[currentActivityKey].forEach(field => {
-        if (field.name !== 'observacao' && field.name !== 'userName') { // userName já é um hidden field
+        if (field.name !== 'observacao' && field.name !== 'userName') {
             const fieldValue = formData.get(field.name);
+            // Verifica se o campo está vazio ou contém apenas espaços em branco
             if (!fieldValue || String(fieldValue).trim() === '') {
                 isValid = false;
                 errorMessage += `Por favor, preencha o campo "${field.label}".\n`;
             }
-            // Validação específica para campos numéricos vazios
-            if (field.type === 'number' && (fieldValue === null || fieldValue === '')) {
+            // Validação específica para campos numéricos que podem ser 0, mas não vazios
+            if (field.type === 'number' && (fieldValue === null || fieldValue === '' || isNaN(Number(fieldValue)))) {
                 isValid = false;
-                errorMessage += `Por favor, preencha o campo "${field.label}" com um número.\n`;
+                errorMessage += `Por favor, preencha o campo "${field.label}" com um número válido.\n`;
             }
         }
     });
@@ -527,10 +532,13 @@ async function handleFormSubmit(event) {
     };
 
     // Pega o local
-    data.local = formData.get('local');
+    data.local = selectedLocal; // Usa a variável já validada
 
-    // Junta os talhões em uma string
-    data.talhoes = selectedTalhoes.join('; ');
+    // Pega os talhões selecionados (garantido que selectedTalhoes existe e tem valor aqui)
+    const finalSelectedTalhoes = [];
+    form.querySelectorAll('input[name="talhoes"]:checked').forEach(cb => finalSelectedTalhoes.push(cb.value));
+    data.talhoes = finalSelectedTalhoes.join('; '); // Junta os talhões em uma string
+
 
     // Pega os outros campos dinâmicos
     FORM_FIELDS[currentActivityKey].forEach(field => {
