@@ -243,3 +243,350 @@ async function sendToAppsScript(data) {
         // Como usamos 'no-cors', a resposta será opaca. Não podemos ler o corpo da resposta.
         // Apenas confirmamos que a requisição foi feita.
         console.log('Requisição para Apps Script enviada (resposta opaca).');
+        return true; // Consideramos sucesso se a requisição foi feita
+    } catch (error) {
+        console.error('Erro ao enviar os dados para Apps Script:', error);
+        messageElement.textContent = 'Erro ao enviar os dados. Tente novamente. ❌';
+        return false;
+    }
+}
+
+// --- Lógica de Sincronização ---
+
+async function attemptSync() {
+    const pendingData = await getLocalData();
+
+    if (pendingData.length === 0) {
+        messageElement.textContent = 'Nenhum dado pendente para sincronizar.';
+        return;
+    }
+
+    messageElement.textContent = `Sincronizando ${pendingData.length} item(s) pendente(s)...`;
+
+    for (const item of pendingData) {
+        const success = await sendToAppsScript(item.data);
+        if (success) {
+            await deleteLocalData(item.id);
+            messageElement.textContent = `Item ${item.id} sincronizado.`;
+        } else {
+            // Se falhar, para a sincronização e tenta novamente mais tarde
+            messageElement.textContent = `Falha ao sincronizar item ${item.id}. Será tentado novamente.`;
+            break; // Importante: para de tentar se um item falha para evitar loop infinito
+        }
+    }
+    // Verifica novamente se ainda há dados pendentes após a tentativa de sincronização
+    if ((await getLocalData()).length === 0) {
+        messageElement.textContent = 'Todos os dados pendentes sincronizados com sucesso! ✅';
+    }
+}
+
+// Nova função: Exibe mensagem se há dados pendentes (chamada ao carregar o app)
+async function displayPendingDataMessage() {
+    const pendingData = await getLocalData();
+    if (pendingData.length > 0) {
+        messageElement.textContent = `Há ${pendingData.length} ordem(ns) de serviço pendente(s) para sincronização.`;
+        messageElement.style.backgroundColor = '#fffacd'; // Amarelo claro para destaque
+        messageElement.style.color = '#8a6d3b';
+        setTimeout(() => { // Limpa a mensagem após um tempo, a menos que a sincronização ocorra
+            if (messageElement.textContent.includes('pendente(s)')) { // Só limpa se ainda for a mensagem de pendente
+                messageElement.textContent = '';
+                messageElement.style.backgroundColor = '';
+                messageElement.style.color = '';
+            }
+        }, 5000); // Mensagem visível por 5 segundos
+    }
+}
+
+
+// --- Funções de UI Dinâmica ---
+
+function showActivitySelection() {
+    activitySelectionDiv.style.display = 'grid';
+    formContainerDiv.style.display = 'none';
+    backToActivitiesBtn.style.display = 'none';
+    messageElement.textContent = ''; // Limpa a mensagem
+    messageElement.style.backgroundColor = ''; // Remove cor de fundo
+    messageElement.style.color = ''; // Remove cor de texto
+}
+
+function showForm() {
+    activitySelectionDiv.style.display = 'none';
+    formContainerDiv.style.display = 'block';
+    backToActivitiesBtn.style.display = 'block';
+    messageElement.textContent = ''; // Limpa a mensagem
+    messageElement.style.backgroundColor = ''; // Remove cor de fundo
+    messageElement.style.color = ''; // Remove cor de texto
+}
+
+function renderActivityButtons() {
+    activitySelectionDiv.innerHTML = ''; // Limpa botões existentes
+    for (const key in ACTIVITIES) {
+        const button = document.createElement('button');
+        button.className = 'activity-button';
+        button.textContent = ACTIVITIES[key];
+        button.dataset.activityKey = key; // Armazena a chave para fácil acesso
+        button.addEventListener('click', () => {
+            currentActivityKey = key;
+            renderForm(key);
+            showForm();
+        });
+        activitySelectionDiv.appendChild(button);
+    }
+}
+
+// Nova função para atualizar a área total
+function updateTotalArea(talhoesListElement) {
+    const totalAreaDisplay = document.getElementById('totalAreaDisplay');
+    let total = 0;
+    const selectedCheckboxes = talhoesListElement.querySelectorAll('input[name="talhoes"]:checked');
+
+    selectedCheckboxes.forEach(checkbox => {
+        // Extrai a área do valor do checkbox (ex: "P33 (32.5 ha)" -> 32.5)
+        const match = checkbox.value.match(/\(([\d.]+) ha\)/);
+        if (match && match[1]) {
+            total += parseFloat(match[1]);
+        }
+    });
+
+    totalAreaDisplay.textContent = `TOTAL (ha): ${total.toFixed(2)}`;
+}
+
+
+function renderForm(activityKey) {
+    const formFields = FORM_FIELDS[activityKey];
+    if (!formFields) {
+        formContainerDiv.innerHTML = `<p>Formulário para "${ACTIVITIES[activityKey]}" não encontrado.</p>`;
+        return;
+    }
+
+    // Define a label do campo 'Local' dinamicamente
+    const localLabelText = (activityKey === "TratamentodeSementes") ? "Local de destino:" : "Local da Atividade:";
+
+    let formHtml = `
+        <h2>${ACTIVITIES[activityKey]}</h2>
+        <form id="dynamicForm">
+            <input type="hidden" id="userNameField" name="userName" value="${userName}">
+            <p>Registrando como: <strong>${userName || 'N/A'}</strong></p>
+
+            <label for="local">${localLabelText}</label>
+            <select id="local" name="local" required>
+                <option value="">Selecione o Local</option>
+    `;
+    for (const locationName in LOCATIONS_AND_FIELDS) {
+        formHtml += `<option value="${locationName}">${locationName}</option>`;
+    }
+    formHtml += `
+            </select>
+
+            <div id="talhoesSelection" style="display: none;">
+                <label>Talhões (e suas áreas em hectares):</label>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="allTalhoes" name="allTalhoes">
+                    <label for="allTalhoes">Todos</label>
+                </div>
+                <div id="talhoesList" class="talhoes-list">
+                    </div>
+                <div id="totalAreaDisplay" class="total-area-display">TOTAL (ha): 0.00</div>
+            </div>
+    `;
+
+    formFields.forEach(field => {
+        formHtml += `<label for="${field.name}">${field.label}:</label>`;
+        if (field.type === "textarea") {
+            formHtml += `<textarea id="${field.name}" name="${field.name}"></textarea>`;
+        } else {
+            formHtml += `<input type="${field.type}" id="${field.name}" name="${field.name}" ${field.type === 'number' ? 'step="any"' : ''} ${field.required ? 'required' : ''}>`;
+        }
+    });
+
+    formHtml += `<button type="submit">Registrar Ordem de Serviço</button></form>`;
+    formContainerDiv.innerHTML = formHtml; // HTML do formulário injetado aqui
+
+    // IMPORTANT: Get references to dynamically created elements AFTER they are in the DOM
+    const localSelect = document.getElementById('local');
+    const talhoesSelectionDiv = document.getElementById('talhoesSelection');
+    const talhoesListDiv = document.getElementById('talhoesList');
+    const allTalhoesCheckbox = document.getElementById('allTalhoes');
+    const dynamicForm = document.getElementById('dynamicForm');
+    const totalAreaDisplay = document.getElementById('totalAreaDisplay'); // Get reference to the total display
+
+    localSelect.addEventListener('change', () => {
+        const selectedLocation = localSelect.value;
+        if (selectedLocation) {
+            renderTalhoesCheckboxes(selectedLocation, talhoesListDiv, allTalhoesCheckbox);
+            talhoesSelectionDiv.style.display = 'block';
+            updateTotalArea(talhoesListDiv); // Update total when location changes
+        } else {
+            talhoesSelectionDiv.style.display = 'none';
+            talhoesListDiv.innerHTML = '';
+            updateTotalArea(talhoesListDiv); // Clear total when no location selected
+        }
+    });
+
+    // Event listener for the "Todos" checkbox
+    allTalhoesCheckbox.addEventListener('change', () => {
+        const checkboxes = talhoesListDiv.querySelectorAll('input[name="talhoes"]');
+        checkboxes.forEach(cb => {
+            cb.checked = allTalhoesCheckbox.checked;
+        });
+        updateTotalArea(talhoesListDiv); // Update total when "Todos" changes
+    });
+
+    dynamicForm.addEventListener('submit', handleFormSubmit);
+}
+
+// Modify renderTalhoesCheckboxes to accept the DOM elements as arguments
+function renderTalhoesCheckboxes(locationName, talhoesListElement, allTalhoesCheckboxElement) {
+    talhoesListElement.innerHTML = ''; // Limpa talhões existentes
+    const talhoes = LOCATIONS_AND_FIELDS[locationName];
+    if (talhoes) {
+        for (const talhaoName in talhoes) {
+            const area = talhoes[talhaoName];
+            const div = document.createElement('div');
+            const input = document.createElement('input');
+            input.type = 'checkbox';
+            input.id = `talhao-${talhaoName.replace(/\s+/g, '-')}`; // Cria um ID único e válido
+            input.name = 'talhoes';
+            input.value = `${talhaoName} (${area} ha)`; // Valor a ser salvo
+
+            const label = document.createElement('label');
+            label.htmlFor = input.id;
+            label.textContent = `${talhaoName} (${area} ha)`;
+
+            div.appendChild(input);
+            div.appendChild(label);
+            talhoesListElement.appendChild(div);
+
+            // Add event listener to individual talhão checkbox
+            input.addEventListener('change', () => updateTotalArea(talhoesListElement));
+        }
+    }
+    allTalhoesCheckboxElement.checked = false; // Reseta o "Todos"
+}
+
+async function handleFormSubmit(event) {
+    event.preventDefault();
+
+    const form = event.target;
+    const formData = new FormData(form);
+    const data = {
+        activity: currentActivityKey, // Adiciona a atividade aos dados a serem enviados
+        userName: userName // Adiciona o nome do usuário coletado
+    };
+
+    // Pega o local
+    data.local = formData.get('local');
+
+    // Pega os talhões selecionados
+    const selectedTalhoes = [];
+    const talhaoCheckboxes = form.querySelectorAll('input[name="talhoes"]:checked');
+    talhaoCheckboxes.forEach(cb => selectedTalhoes.push(cb.value));
+    data.talhoes = selectedTalhoes.join('; '); // Junta os talhões em uma string
+
+    // Pega os outros campos dinâmicos
+    FORM_FIELDS[currentActivityKey].forEach(field => {
+        data[field.name] = formData.get(field.name);
+    });
+
+    messageElement.textContent = 'Enviando dados...';
+
+    if (navigator.onLine) {
+        const success = await sendToAppsScript(data);
+        if (success) {
+            messageElement.textContent = 'Ordem de serviço registrada com sucesso! ✅';
+            form.reset(); // Limpa o formulário
+            // Opcional: Voltar para seleção de atividade após sucesso online
+            setTimeout(showActivitySelection, 2000);
+        } else {
+            // Se online mas falhou o envio (ex: Apps Script inacessível), salva localmente
+            await saveDataLocally({ data: data });
+            messageElement.textContent = 'Falha ao enviar online. Dados salvos localmente para sincronização futura. 💾';
+            form.reset();
+        }
+    } else {
+        // Se offline, salva diretamente no IndexedDB
+        await saveDataLocally({ data: data });
+        messageElement.textContent = 'Offline. Dados salvos localmente para sincronização futura. 💾';
+        form.reset();
+    }
+
+    // Tenta registrar um evento de sincronização em segundo plano (se suportado)
+    if ('serviceWorker' in navigator && 'SyncManager' in window) {
+        try {
+            const registration = await navigator.serviceWorker.ready;
+            await registration.sync.register('sync-os-data'); // Tag específica para OS
+            console.log('Evento de sincronização em segundo plano para OS registrado.');
+        } catch (error) {
+            console.warn('Falha ao registrar sync em segundo plano para OS:', error);
+        }
+    }
+}
+
+function updateConnectionStatus() {
+    if (navigator.onLine) {
+        connectionStatusElement.textContent = 'Status: Online';
+        connectionStatusElement.className = 'status-message status-online';
+    } else {
+        connectionStatusElement.textContent = 'Status: Offline (dados serão sincronizados)';
+        connectionStatusElement.className = 'status-message status-offline';
+    }
+}
+
+// --- Funções de Inicialização e Lógica do Usuário ---
+
+// Função para obter ou pedir o nome do usuário
+function getOrSetUserName() {
+    userName = localStorage.getItem('userName');
+    if (!userName) {
+        let inputName = prompt('Olá! Por favor, digite seu nome para registrar as ordens de serviço:');
+        if (inputName) {
+            userName = inputName.trim();
+            localStorage.setItem('userName', userName);
+        } else {
+            // Caso o usuário não digite nada ou cancele
+            userName = 'Usuário Anônimo';
+            alert('Nome não fornecido. Você será registrado como "Usuário Anônimo".');
+        }
+    }
+    console.log('Nome do usuário:', userName);
+}
+
+
+// --- Event Listeners e Inicialização ---
+
+document.addEventListener('DOMContentLoaded', async () => {
+    await openDatabase(); // Abre o banco de dados ao carregar a página
+    getOrSetUserName(); // Obtém ou pede o nome do usuário
+
+    displayPendingDataMessage(); // Exibe mensagem se há dados pendentes
+
+    renderActivityButtons(); // Mostra os botões de seleção de atividade
+    showActivitySelection(); // Garante que a tela inicial seja a seleção de atividade
+
+    updateConnectionStatus(); // Atualiza o status da conexão
+
+    // --- Service Worker Message Listener ---
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.addEventListener('message', event => {
+            if (event.data && event.data.type === 'SYNC_PENDING_DATA') {
+                console.log('App: Recebeu SYNC_PENDING_DATA mensagem do Service Worker.');
+                attemptSync(); // Chama a função de sincronização
+            }
+        });
+    }
+
+    // Adiciona listeners para mudanças de conexão
+    window.addEventListener('online', () => {
+        updateConnectionStatus();
+        attemptSync(); // Tenta sincronizar quando a conexão volta
+    });
+    window.addEventListener('offline', updateConnectionStatus);
+
+    // Adiciona listener para o botão "Voltar para Atividades"
+    backToActivitiesBtn.addEventListener('click', showActivitySelection);
+
+    // Tenta sincronizar dados pendentes ao carregar a página (se online)
+    if (navigator.onLine) {
+        attemptSync();
+    }
+});
