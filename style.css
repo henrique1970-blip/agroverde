@@ -224,3 +224,15 @@ body {
     text-align: center;
     color: #006600; /* Cor do texto mais escura */
 }
+
+
+/* Mensagem de status de registro de dados na planilha */
+.form-message {
+    margin-top: 15px;
+    margin-bottom: 15px;
+    padding: 10px;
+    border-radius: 5px;
+    font-weight: bold;
+    text-align: center;
+    /* As cores serão definidas via JavaScript, mas você pode ter padrões aqui */
+}

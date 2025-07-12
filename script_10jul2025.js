@@ -1,16 +1,9 @@
 // ** Importante: Substitua este URL pelo seu Apps Script Web App URL **
 const appsScriptUrl = 'https://script.google.com/macros/s/AKfycbz-5rT0uL3kvAdXKf8FFNwaN2X_nbWgXkC4kHiRqerF4KBT-3FjXC20Znzs5VONKnTgPw/exec';
 
-
 const DB_NAME = 'osAgroDB';
-const STORE_NAME = 'pendingOSData';
+const STORE_NAME = 'pendingOSData'; // Renomeado para refletir "Ordem de Serviço"
 let db;
-
-// Variável global para armazenar o nome do usuário
-let userName = '';
-
-// Constante para o número máximo de produtos/insumos
-const MAX_PRODUCTS = 5; // Deve ser o mesmo valor definido no appsScript.js
 
 // --- Dados Fixos (Configurações) ---
 const ACTIVITIES = {
@@ -67,6 +60,7 @@ const LOCATIONS_AND_FIELDS = {
     }
 };
 
+
 // --- Estrutura dos Campos do Formulário por Atividade ---
 const FORM_FIELDS = {
     "PreparodeArea": [
@@ -80,10 +74,7 @@ const FORM_FIELDS = {
         { label: "Quantidade de Sementes (Kg)", name: "qtdSementesKg", type: "number" },
         { label: "Data de Início", name: "dataInicio", type: "date" },
         { label: "Data de Término", name: "dataTermino", type: "date" },
-        // Campos para produtos/insumos
-        { label: "Número de Produtos", name: "numProducts", type: "number", min: 0, max: MAX_PRODUCTS },
-        { label: "Produtos", name: "productsContainer", type: "div" }, // Placeholder para campos dinâmicos
-        // Fim dos campos de produtos/insumos
+        { label: "Produtos e Dosagens/Proporções", name: "produtosDosagens", type: "textarea" },
         { label: "Máquina - Identificação", name: "maquina", type: "text" },
         { label: "Operadores", name: "operadores", type: "text" },
         { label: "Observação", name: "observacao", type: "textarea" }
@@ -92,10 +83,7 @@ const FORM_FIELDS = {
         { label: "Cultura e Cultivar", name: "culturaCultivar", type: "text" },
         { label: "Quantidade/ha - Máximo", name: "qtdHaMax", type: "number" },
         { label: "Quantidade/ha - Mínimo", name: "qtdHaMin", type: "number" },
-        // Campos para produtos/insumos
-        { label: "Número de Insumos", name: "numProducts", type: "number", min: 0, max: MAX_PRODUCTS },
-        { label: "Insumos", name: "productsContainer", type: "div" }, // Placeholder para campos dinâmicos
-        // Fim dos campos de produtos/insumos
+        { label: "Insumos a serem usados e quantidades", name: "insumos", type: "textarea" },
         { label: "Data de Início", name: "dataInicio", type: "date" },
         { label: "Data de Término", name: "dataTermino", type: "date" },
         { label: "Trator - identificação", name: "trator", type: "text" },
@@ -108,14 +96,11 @@ const FORM_FIELDS = {
     ],
     "Pulverizacao": [
         { label: "Cultura e Cultivar", name: "culturaCultivar", type: "text" },
-        // Campos para produtos/insumos
-        { label: "Número de Produtos", name: "numProducts", type: "number", min: 0, max: MAX_PRODUCTS },
-        { label: "Produtos", name: "productsContainer", type: "div" }, // Placeholder para campos dinâmicos
-        // Fim dos campos de produtos/insumos
+        { label: "Produto(s) e quantidade/ha", name: "produtosQtdHa", type: "textarea" },
         { label: "Data de Início", name: "dataInicio", type: "date" },
         { label: "Data de Término", name: "dataTermino", type: "date" },
         { label: "Máquina - Identificação", name: "maquina", type: "text" },
-        { label: "Bico", name: "bico", "type": "text" },
+        { label: "Bico", name: "bico", type: "text" },
         { label: "Capacidade do tanque", name: "capacidadeTanque", type: "number" },
         { label: "Vazão (L/ha)", name: "vazaoLHa", type: "number" },
         { label: "Operador(es)", name: "operadores", type: "text" },
@@ -141,12 +126,9 @@ const FORM_FIELDS = {
     ],
     "Lancas": [
         { label: "Cultura e Cultivar", name: "culturaCultivar", type: "text" },
-        // Campos para produtos/insumos
-        { label: "Número de Produtos", name: "numProducts", type: "number", min: 0, max: MAX_PRODUCTS },
-        { label: "Produtos", name: "productsContainer", type: "div" }, // Placeholder para campos dinâmicos
-        // Fim dos campos de produtos/insumos
         { label: "Data de Início", name: "dataInicio", type: "date" },
         { label: "Data de Término", name: "dataTermino", type: "date" },
+        { label: "Quantidade de produto/hectare", name: "qtdProdutoHectare", type: "number" },
         { label: "Máquina - Identificação", name: "maquina", type: "text" },
         { label: "Operador(es)", name: "operadores", type: "text" },
         { label: "Implemento - Identificação", name: "implemento", type: "text" },
@@ -159,7 +141,7 @@ const FORM_FIELDS = {
 const activitySelectionDiv = document.getElementById('activitySelection');
 const formContainerDiv = document.getElementById('formContainer');
 const backToActivitiesBtn = document.getElementById('backToActivities');
-const messageElement = document.getElementById('message'); // Mensagem global (topo da página)
+const messageElement = document.getElementById('message');
 const connectionStatusElement = document.getElementById('connectionStatus');
 
 let currentActivityKey = null; // Armazena a chave da atividade atual (ex: "PreparodeArea")
@@ -245,7 +227,7 @@ function deleteLocalData(id) {
 // --- Funções de Envio para Apps Script ---
 
 async function sendToAppsScript(data) {
-    // A mensagem "Enviando dados..." agora será controlada pelo formMessageElement
+    messageElement.textContent = 'Enviando dados...';
     try {
         const response = await fetch(appsScriptUrl, {
             method: 'POST',
@@ -261,7 +243,7 @@ async function sendToAppsScript(data) {
         return true; // Consideramos sucesso se a requisição foi feita
     } catch (error) {
         console.error('Erro ao enviar os dados para Apps Script:', error);
-        // A mensagem de erro agora será controlada pelo formMessageElement
+        messageElement.textContent = 'Erro ao enviar os dados. Tente novamente. ❌';
         return false;
     }
 }
@@ -289,29 +271,11 @@ async function attemptSync() {
             break; // Importante: para de tentar se um item falha para evitar loop infinito
         }
     }
-    // Verifica novamente se ainda há dados pendentes após a tentativa de sincronização
+    // CORREÇÃO AQUI: Parênteses adicionais para agrupar (await getLocalData())
     if ((await getLocalData()).length === 0) {
         messageElement.textContent = 'Todos os dados pendentes sincronizados com sucesso! ✅';
     }
 }
-
-// Nova função: Exibe mensagem se há dados pendentes (chamada ao carregar o app)
-async function displayPendingDataMessage() {
-    const pendingData = await getLocalData();
-    if (pendingData.length > 0) {
-        messageElement.textContent = `Há ${pendingData.length} ordem(ns) de serviço pendente(s) para sincronização.`;
-        messageElement.style.backgroundColor = '#fffacd'; // Amarelo claro para destaque
-        messageElement.style.color = '#8a6d3b';
-        setTimeout(() => { // Limpa a mensagem após um tempo, a menos que a sincronização ocorra
-            if (messageElement.textContent.includes('pendente(s)')) { // Só limpa se ainda for a mensagem de pendente
-                messageElement.textContent = '';
-                messageElement.style.backgroundColor = '';
-                messageElement.style.color = '';
-            }
-        }, 5000); // Mensagem visível por 5 segundos
-    }
-}
-
 
 // --- Funções de UI Dinâmica ---
 
@@ -319,18 +283,14 @@ function showActivitySelection() {
     activitySelectionDiv.style.display = 'grid';
     formContainerDiv.style.display = 'none';
     backToActivitiesBtn.style.display = 'none';
-    // messageElement.textContent = ''; // Limpa a mensagem global (pode ser necessário se não for feito na sincronização)
-    // messageElement.style.backgroundColor = ''; // Remove cor de fundo
-    // messageElement.style.color = ''; // Remove cor de texto
+    messageElement.textContent = ''; // Limpa a mensagem
 }
 
 function showForm() {
     activitySelectionDiv.style.display = 'none';
     formContainerDiv.style.display = 'block';
     backToActivitiesBtn.style.display = 'block';
-    // messageElement.textContent = ''; // Limpa a mensagem global (pode ser necessário se não for feito na sincronização)
-    // messageElement.style.backgroundColor = ''; // Remove cor de fundo
-    // messageElement.style.color = ''; // Remove cor de texto
+    messageElement.textContent = ''; // Limpa a mensagem
 }
 
 function renderActivityButtons() {
@@ -347,15 +307,6 @@ function renderActivityButtons() {
         });
         activitySelectionDiv.appendChild(button);
     }
-}
-
-// Nova função: Exibe a OS ID gerada (mantida conforme o seu desejo)
-function generateOsId(userName, localName) {
-    const userChar = userName ? userName.charAt(0).toUpperCase() : 'X';
-    const localPart = localName ? localName.split(' ')[0].toUpperCase().replace(/[^A-Z0-9]/gi, '').substring(0, 5) : '';
-    const randomNum = Math.floor(100 + Math.random() * 900); // Número de 3 dígitos
-
-    return `${userChar}-${localPart}-${randomNum}`;
 }
 
 // Nova função para atualizar a área total
@@ -377,27 +328,16 @@ function updateTotalArea(talhoesListElement) {
 
 
 function renderForm(activityKey) {
-    console.log('Rendering form for activity:', activityKey);
     const formFields = FORM_FIELDS[activityKey];
     if (!formFields) {
         formContainerDiv.innerHTML = `<p>Formulário para "${ACTIVITIES[activityKey]}" não encontrado.</p>`;
         return;
     }
 
-    // Define a label do campo 'Local' dinamicamente
-    const localLabelText = (activityKey === "TratamentodeSementes") ? "Local de destino:" : "Local da Atividade:";
-
     let formHtml = `
         <h2>${ACTIVITIES[activityKey]}</h2>
         <form id="dynamicForm">
-            <input type="hidden" id="userNameField" name="userName" value="${userName}">
-            
-            <input type="hidden" id="osIdField" name="osId" value="">
-            
-            <p class="form-info-display">Registrando como: <strong>${userName || 'N/A'}</strong></p>
-            <p class="form-info-display">ID da Ordem de Serviço: <strong id="displayedOsId">Aguardando seleção do local...</strong></p>
-
-            <label for="local">${localLabelText} <span class="required">*</span></label>
+            <label for="local">Local da Atividade:</label>
             <select id="local" name="local" required>
                 <option value="">Selecione o Local</option>
     `;
@@ -408,7 +348,7 @@ function renderForm(activityKey) {
             </select>
 
             <div id="talhoesSelection" style="display: none;">
-                <label>Talhões (e suas áreas em hectares): <span class="required">*</span></label>
+                <label>Talhões (e suas áreas em hectares):</label>
                 <div class="checkbox-group">
                     <input type="checkbox" id="allTalhoes" name="allTalhoes">
                     <label for="allTalhoes">Todos</label>
@@ -420,25 +360,14 @@ function renderForm(activityKey) {
     `;
 
     formFields.forEach(field => {
-        const isRequired = field.name !== 'observacao' && field.name !== 'productsContainer' && field.name !== 'numProducts'; // Observacao e containers não são obrigatórios
-
-        if (field.name === "productsContainer") {
-            formHtml += `<div id="productsContainer"></div>`; // Placeholder para os campos dinâmicos de produtos
-        } else if (field.name === "numProducts") {
-             formHtml += `<label for="${field.name}">${field.label}: <span class="required">*</span></label>`;
-             formHtml += `<input type="${field.type}" id="${field.name}" name="${field.name}" min="${field.min || 0}" max="${field.max || ''}" value="0" ${isRequired ? 'required' : ''}>`;
-        }
-        else if (field.type === "textarea") {
-            formHtml += `<label for="${field.name}">${field.label}: ${isRequired ? '<span class="required">*</span>' : ''}</label>`;
-            formHtml += `<textarea id="${field.name}" name="${field.name}" ${isRequired ? 'required' : ''}></textarea>`;
+        formHtml += `<label for="${field.name}">${field.label}:</label>`;
+        if (field.type === "textarea") {
+            formHtml += `<textarea id="${field.name}" name="${field.name}"></textarea>`;
         } else {
-            formHtml += `<label for="${field.name}">${field.label}: ${isRequired ? '<span class="required">*</span>' : ''}</label>`;
-            formHtml += `<input type="${field.type}" id="${field.name}" name="${field.name}" ${field.type === 'number' ? 'step="any"' : ''} ${isRequired ? 'required' : ''}>`;
+            formHtml += `<input type="${field.type}" id="${field.name}" name="${field.name}" ${field.type === 'number' ? 'step="any"' : ''} ${field.required ? 'required' : ''}>`;
         }
     });
 
-    // Div para a mensagem de status do formulário
-    formHtml += `<div id="formMessage" class="form-message" style="display: none;"></div>`;
     formHtml += `<button type="submit">Registrar Ordem de Serviço</button></form>`;
     formContainerDiv.innerHTML = formHtml; // HTML do formulário injetado aqui
 
@@ -450,42 +379,18 @@ function renderForm(activityKey) {
     const dynamicForm = document.getElementById('dynamicForm');
     const totalAreaDisplay = document.getElementById('totalAreaDisplay'); // Get reference to the total display
 
-    // Referências para os novos campos de produto/insumo
-    const numProductsInput = document.getElementById('numProducts');
-    const productsContainerDiv = document.getElementById('productsContainer');
-
-
     localSelect.addEventListener('change', () => {
         const selectedLocation = localSelect.value;
-        console.log('Local selected:', selectedLocation);
         if (selectedLocation) {
             renderTalhoesCheckboxes(selectedLocation, talhoesListDiv, allTalhoesCheckbox);
             talhoesSelectionDiv.style.display = 'block';
             updateTotalArea(talhoesListDiv); // Update total when location changes
-
-            const newOsId = generateOsId(userName, selectedLocation);
-            document.getElementById('osIdField').value = newOsId;
-            document.getElementById('displayedOsId').textContent = newOsId;
-
         } else {
             talhoesSelectionDiv.style.display = 'none';
             talhoesListDiv.innerHTML = '';
             updateTotalArea(talhoesListDiv); // Clear total when no location selected
-
-            document.getElementById('osIdField').value = '';
-            document.getElementById('displayedOsId').textContent = 'Aguardando seleção do local...';
         }
     });
-
-    // Event listener para o campo numProducts para renderizar os campos de produto/insumo
-    if (numProductsInput && productsContainerDiv) {
-        numProductsInput.addEventListener('input', () => {
-            renderProductFields(parseInt(numProductsInput.value) || 0, productsContainerDiv, activityKey);
-        });
-        // Renderiza os campos iniciais (se o valor padrão for 0, nada será exibido)
-        renderProductFields(parseInt(numProductsInput.value) || 0, productsContainerDiv, activityKey);
-    }
-
 
     // Event listener for the "Todos" checkbox
     allTalhoesCheckbox.addEventListener('change', () => {
@@ -497,27 +402,6 @@ function renderForm(activityKey) {
     });
 
     dynamicForm.addEventListener('submit', handleFormSubmit);
-}
-
-// Função para renderizar campos dinâmicos de produto/insumo
-function renderProductFields(num, container, activityKey) {
-    container.innerHTML = ''; // Limpa campos existentes
-    const productLabel = (activityKey === "Plantio") ? "Insumo" : "Produto";
-
-    for (let i = 1; i <= num; i++) {
-        const productGroupDiv = document.createElement('div');
-        productGroupDiv.className = 'product-group'; // Para estilização futura se precisar
-
-        productGroupDiv.innerHTML = `
-            <h3>${productLabel} ${i}</h3>
-            <label for="product_name_${i}">${productLabel} ${i} Nome: <span class="required">*</span></label>
-            <input type="text" id="product_name_${i}" name="product_name_${i}" required>
-
-            <label for="product_dosage_${i}">${productLabel} ${i} Dosagem: <span class="required">*</span></label>
-            <input type="text" id="product_dosage_${i}" name="product_dosage_${i}" required>
-        `;
-        container.appendChild(productGroupDiv);
-    }
 }
 
 // Modify renderTalhoesCheckboxes to accept the DOM elements as arguments
@@ -551,178 +435,54 @@ function renderTalhoesCheckboxes(locationName, talhoesListElement, allTalhoesChe
 
 async function handleFormSubmit(event) {
     event.preventDefault();
-    console.log('Form submission started.');
 
     const form = event.target;
     const formData = new FormData(form);
-    const formMessageElement = document.getElementById('formMessage'); // Referência à nova caixa de mensagem
-
-    // --- Lógica de Validação ---
-    let isValid = true;
-    let errorMessage = '';
-
-    // Valida o campo 'local'
-    const selectedLocal = formData.get('local');
-    if (!selectedLocal) {
-        isValid = false;
-        errorMessage += 'Por favor, selecione o Local da Atividade.\n';
-    }
-
-    // Valida os talhões APENAS se um local foi selecionado
-    if (selectedLocal) {
-        const selectedTalhoes = [];
-        const talhaoCheckboxes = form.querySelectorAll('input[name="talhoes"]:checked');
-        talhaoCheckboxes.forEach(cb => selectedTalhoes.push(cb.value));
-        
-        if (selectedTalhoes.length === 0) {
-            isValid = false;
-            errorMessage += 'Por favor, selecione pelo menos um Talhão.\n';
-        }
-    }
-
-    // Valida o ID da OS (que é gerado no cliente)
-    const osId = formData.get('osId');
-    if (!osId || osId === '' || osId === 'N/A' || osId === 'Aguardando seleção do local...') {
-        isValid = false;
-        errorMessage += 'O ID da Ordem de Serviço não foi gerado. Por favor, selecione o local novamente.\n';
-    }
-
-    // Valida outros campos dinâmicos (exceto 'observacao' e campos ocultos)
-    FORM_FIELDS[currentActivityKey].forEach(field => {
-        // Exclui validação para 'observacao', 'userName', 'osId', e containers dinâmicos
-        if (field.name !== 'observacao' && field.name !== 'userName' && field.name !== 'osId' && field.name !== 'productsContainer') {
-            const fieldValue = formData.get(field.name);
-            // Verifica se o campo está vazio ou contém apenas espaços em branco
-            if (!fieldValue || String(fieldValue).trim() === '') {
-                // Validação específica para campos numéricos que podem ser 0, mas não vazios
-                if (field.type === 'number' && (fieldValue === null || fieldValue === '' || isNaN(Number(fieldValue)))) {
-                     isValid = false;
-                     errorMessage += `Por favor, preencha o campo "${field.label}" com um número válido.\n`;
-                } else if (field.type !== 'number') { // Para outros tipos, se vazio, é erro
-                    isValid = false;
-                    errorMessage += `Por favor, preencha o campo "${field.label}".\n`;
-                }
-            }
-        }
-    });
-
-    // Validação específica para os campos de produtos/insumos
-    if (["TratamentodeSementes", "Plantio", "Lancas", "Pulverizacao"].includes(currentActivityKey)) {
-        const numProducts = parseInt(formData.get('numProducts')) || 0;
-        for (let i = 1; i <= numProducts; i++) {
-            const productName = formData.get(`product_name_${i}`);
-            const productDosage = formData.get(`product_dosage_${i}`);
-
-            if (!productName || productName.trim() === '') {
-                isValid = false;
-                errorMessage += `Por favor, preencha o Nome do Produto/Insumo ${i}.\n`;
-            }
-            if (!productDosage || productDosage.trim() === '') {
-                isValid = false;
-                errorMessage += `Por favor, preencha a Dosagem do Produto/Insumo ${i}.\n`;
-            }
-        }
-    }
-
-
-    if (!isValid) {
-        console.log('Form validation failed. Error message:', errorMessage);
-        formMessageElement.textContent = 'Erro de validação:\n' + errorMessage;
-        formMessageElement.style.display = 'block';
-        formMessageElement.style.backgroundColor = '#f8d7da'; // Vermelho claro para erro
-        formMessageElement.style.color = '#721c24';
-        setTimeout(() => {
-            formMessageElement.textContent = '';
-            formMessageElement.style.display = 'none';
-            formMessageElement.style.backgroundColor = '';
-            formMessageElement.style.color = '';
-        }, 8000); // Mensagem visível por 8 segundos
-        return; // Impede o envio do formulário
-    }
-    // --- Fim da Lógica de Validação ---
-
     const data = {
-        osId: osId, // Mantém o ID gerado no cliente
-        activity: currentActivityKey,
-        userName: userName
+        activity: currentActivityKey // Adiciona a atividade aos dados a serem enviados
     };
 
-    data.local = selectedLocal;
+    // Pega o local
+    data.local = formData.get('local');
 
-    const finalSelectedTalhoes = [];
-    form.querySelectorAll('input[name="talhoes"]:checked').forEach(cb => finalSelectedTalhoes.push(cb.value));
-    data.talhoes = finalSelectedTalhoes.join('; ');
+    // Pega os talhões selecionados
+    const selectedTalhoes = [];
+    const talhaoCheckboxes = form.querySelectorAll('input[name="talhoes"]:checked');
+    talhaoCheckboxes.forEach(cb => selectedTalhoes.push(cb.value));
+    data.talhoes = selectedTalhoes.join('; '); // Junta os talhões em uma string
 
+    // Pega os outros campos dinâmicos
     FORM_FIELDS[currentActivityKey].forEach(field => {
-        // Ignora campos que não são para serem enviados diretamente (como productsContainer)
-        if (field.name !== 'productsContainer' && field.name !== 'osId' && field.name !== 'userName') {
-            data[field.name] = formData.get(field.name);
-        }
+        data[field.name] = formData.get(field.name);
     });
 
-    // Adiciona os campos de produtos/insumos dinamicamente ao objeto 'data'
-    if (["TratamentodeSementes", "Plantio", "Lancas", "Pulverizacao"].includes(currentActivityKey)) {
-        const numProducts = parseInt(formData.get('numProducts')) || 0;
-        for (let i = 1; i <= MAX_PRODUCTS; i++) { // Percorre até o MAX_PRODUCTS para garantir que as colunas sejam preenchidas ou vazias
-            const productName = formData.get(`product_name_${i}`);
-            const productDosage = formData.get(`product_dosage_${i}`);
-            
-            data[`product_name_${i}`] = productName || ""; // Garante que mesmo vazios sejam enviados para criar a coluna na planilha
-            data[`product_dosage_${i}`] = productDosage || ""; // Garante que mesmo vazios sejam enviados
-        }
-    }
-
-    console.log('Final data object before sending:', data);
-
-    formMessageElement.textContent = 'Enviando dados...';
-    formMessageElement.style.display = 'block';
-    formMessageElement.style.backgroundColor = '#e6f7ff'; // Azul claro para info
-    formMessageElement.style.color = '#0056b3';
-
+    messageElement.textContent = 'Enviando dados...';
 
     if (navigator.onLine) {
-        console.log('Attempting to send data online.');
         const success = await sendToAppsScript(data);
         if (success) {
-            console.log('Online send successful.');
-            formMessageElement.textContent = `Ordem de serviço ${osId} registrada com sucesso! ✅`;
-            formMessageElement.style.backgroundColor = '#d4edda'; // Verde para sucesso
-            formMessageElement.style.color = '#155724';
-            form.reset();
+            messageElement.textContent = 'Ordem de serviço registrada com sucesso! ✅';
+            form.reset(); // Limpa o formulário
+            // Opcional: Voltar para seleção de atividade após sucesso online
             setTimeout(showActivitySelection, 2000);
         } else {
-            console.log('Online send failed, saving locally.');
+            // Se online mas falhou o envio (ex: Apps Script inacessível), salva localmente
             await saveDataLocally({ data: data });
-            formMessageElement.textContent = `Falha ao enviar online. Ordem de serviço ${osId} salva localmente para sincronização futura. 💾`;
-            formMessageElement.style.backgroundColor = '#fffacd'; // Amarelo para aviso
-            formMessageElement.style.color = '#8a6d3b';
+            messageElement.textContent = 'Falha ao enviar online. Dados salvos localmente para sincronização futura. 💾';
             form.reset();
-            setTimeout(() => { // Limpa a mensagem após 5 segundos
-                formMessageElement.textContent = '';
-                formMessageElement.style.display = 'none';
-                formMessageElement.style.backgroundColor = '';
-                formMessageElement.style.color = '';
-            }, 5000);
         }
     } else {
-        console.log('Currently offline, saving locally.');
+        // Se offline, salva diretamente no IndexedDB
         await saveDataLocally({ data: data });
-        formMessageElement.textContent = `Offline. Ordem de serviço ${osId} salva localmente para sincronização futura. 💾`;
-        formMessageElement.style.backgroundColor = '#fffacd'; // Amarelo para aviso
-        formMessageElement.style.color = '#8a6d3b';
+        messageElement.textContent = 'Offline. Dados salvos localmente para sincronização futura. 💾';
         form.reset();
-        setTimeout(() => { // Limpa a mensagem após 5 segundos
-            formMessageElement.textContent = '';
-            formMessageElement.style.display = 'none';
-            formMessageElement.style.backgroundColor = '';
-            formMessageElement.style.color = '';
-        }, 5000);
     }
 
+    // Tenta registrar um evento de sincronização em segundo plano (se suportado)
     if ('serviceWorker' in navigator && 'SyncManager' in window) {
         try {
             const registration = await navigator.serviceWorker.ready;
-            await registration.sync.register('sync-os-data');
+            await registration.sync.register('sync-os-data'); // Tag específica para OS
             console.log('Evento de sincronização em segundo plano para OS registrado.');
         } catch (error) {
             console.warn('Falha ao registrar sync em segundo plano para OS:', error);
@@ -740,62 +500,27 @@ function updateConnectionStatus() {
     }
 }
 
-// --- Funções de Inicialização e Lógica do Usuário ---
-
-// Função para obter ou pedir o nome do usuário
-function getOrSetUserName() {
-    userName = localStorage.getItem('userName');
-    if (!userName) {
-        let inputName = prompt('Olá! Por favor, digite seu nome para registrar as ordens de serviço:');
-        if (inputName) {
-            userName = inputName.trim();
-            localStorage.setItem('userName', userName);
-        } else {
-            userName = 'Usuário Anônimo';
-            alert('Nome não fornecido. Você será registrado como "Usuário Anônimo".');
-        }
-    }
-    console.log('Final userName after getOrSetUserName:', userName);
-}
-
-
 // --- Event Listeners e Inicialização ---
 
 document.addEventListener('DOMContentLoaded', async () => {
-    console.log('DOMContentLoaded event fired.');
-    await openDatabase();
-    getOrSetUserName();
+    await openDatabase(); // Abre o banco de dados ao carregar a página
+    renderActivityButtons(); // Mostra os botões de seleção de atividade
+    showActivitySelection(); // Garante que a tela inicial seja a seleção de atividade
 
-    displayPendingDataMessage();
+    updateConnectionStatus(); // Atualiza o status da conexão
 
-    renderActivityButtons();
-    showActivitySelection();
-
-    updateConnectionStatus();
-
-    if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.addEventListener('message', event => {
-            if (event.data && event.data.type === 'SYNC_PENDING_DATA') {
-                console.log('App: Recebeu SYNC_PENDING_DATA mensagem do Service Worker.');
-                attemptSync();
-            }
-        });
-    }
-
+    // Adiciona listeners para mudanças de conexão
     window.addEventListener('online', () => {
-        console.log('Browser is online.');
         updateConnectionStatus();
-        attemptSync();
+        attemptSync(); // Tenta sincronizar quando a conexão volta
     });
-    window.addEventListener('offline', () => {
-        console.log('Browser is offline.');
-        updateConnectionStatus();
-    });
+    window.addEventListener('offline', updateConnectionStatus);
 
+    // Adiciona listener para o botão "Voltar para Atividades"
     backToActivitiesBtn.addEventListener('click', showActivitySelection);
 
+    // Tenta sincronizar dados pendentes ao carregar a página (se online)
     if (navigator.onLine) {
-        console.log('Initial online check: attempting sync.');
         attemptSync();
     }
 });

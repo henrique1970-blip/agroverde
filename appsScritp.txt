@@ -1,3 +1,8 @@
+/*
+Este script vai na planilha do Google Sheets
+menu Extensões -> Apps Script
+*/
+
 function doPost(e) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var data = e.parameter;
@@ -6,6 +11,11 @@ function doPost(e) {
   if (!activity) {
     return ContentService.createTextOutput("Erro: Atividade não especificada.").setMimeType(ContentService.MimeType.TEXT);
   }
+
+  const userName = e.parameter.userName || 'Desconhecido';
+  // --- ADICIONADO PARA ID DA OS ---
+  const osId = e.parameter.osId || 'N/A';
+  // --- FIM ADICIONADO ---
 
   var sheet;
   if (ss.getSheetByName(activity)) {
@@ -17,47 +27,47 @@ function doPost(e) {
 
     // Define os cabeçalhos com base na atividade
     if (activity === "PreparodeArea") { // Sem espaços para nome da aba
-      headers = ["Timestamp", "Local", "Talhoes (Area)", "Maquina", "Operador(es)", "Implemento", "Observacao"];
+      headers = ["Timestamp", "ID da OS", "Nome do Usuário", "Local", "Talhoes (Area)", "Maquina", "Operador(es)", "Implemento", "Observacao"]; // <-- ADICIONADO "ID da OS"
     } else if (activity === "TratamentodeSementes") {
-      headers = ["Timestamp", "Local", "Talhoes (Area)", "Cultura e Cultivar", "Quantidade de Sementes (Kg)", "Data de Inicio", "Data de Termino", "Produtos e Dosagens", "Maquina", "Operadores", "Observacao"];
+      headers = ["Timestamp", "ID da OS", "Nome do Usuário", "Local", "Talhoes (Area)", "Cultura e Cultivar", "Quantidade de Sementes (Kg)", "Data de Inicio", "Data de Termino", "Produtos e Dosagens", "Maquina", "Operadores", "Observacao"]; // <-- ADICIONADO "ID da OS"
     } else if (activity === "Plantio") {
-      headers = ["Timestamp", "Local", "Talhoes (Area)", "Cultura e Cultivar", "Quantidade/ha - Maximo", "Quantidade/ha - Minimo", "Insumos", "Data de Inicio", "Data de Termino", "Trator", "Implemento", "Plantas por Metro", "Espacamento entre Plantas", "Peso de Mil Sementes (PMS)", "Operador(es)", "Observacao"];
+      headers = ["Timestamp", "ID da OS", "Nome do Usuário", "Local", "Talhoes (Area)", "Cultura e Cultivar", "Quantidade/ha - Maximo", "Quantidade/ha - Minimo", "Insumos a serem usados e quantidades", "Data de Inicio", "Data de Termino", "Trator - identificacao", "Implemento", "Plantas por metro", "Espacamento entre plantas", "Peso de mil sementes (PMS)", "Operador(es)", "Observacao"]; // <-- ADICIONADO "ID da OS"
     } else if (activity === "Pulverizacao") {
-      headers = ["Timestamp", "Local", "Talhoes (Area)", "Cultura e Cultivar", "Produtos e Quantidade/ha", "Data de Inicio", "Data de Termino", "Maquina", "Bico", "Capacidade do Tanque", "Vazao (L/ha)", "Operador(es)", "Pressao", "Dose/ha", "Dose/tanque", "Implemento", "Observacao"];
+      headers = ["Timestamp", "ID da OS", "Nome do Usuário", "Local", "Talhoes (Area)", "Cultura e Cultivar", "Produto(s) e quantidade/ha", "Data de Inicio", "Data de Termino", "Maquina - Identificacao", "Bico", "Capacidade do tanque", "Vazao (L/ha)", "Operador(es)", "Pressao", "Dose/ha", "Dose/tanque", "Implemento - Identificacao", "Observacao"]; // <-- ADICIONADO "ID da OS"
     } else if (activity === "Colheita") {
-      headers = ["Timestamp", "Local", "Talhoes (Area)", "Cultura e Cultivar", "Produtividade Estimada", "Data de Inicio", "Data de Termino", "Maquina", "Operador(es) Maquina", "Caminhao(oes)", "Motorista(s)", "Trator", "Operador(es) Trator", "Implemento", "Observacao"];
+      headers = ["Timestamp", "ID da OS", "Nome do Usuário", "Local", "Talhoes (Area)", "Cultura e Cultivar", "Produtividade estimada", "Data de Inicio", "Data de Termino", "Maquina - Identificacao", "Operador(es) Maquina", "Caminhao (caminhoes) - identificacao", "Motorista(s)", "Trator - marca modelo e numero", "Operador(es) Trator", "Implemento - Identificacao", "Observacao"]; // <-- ADICIONADO "ID da OS"
     } else if (activity === "Lancas") {
-      headers = ["Timestamp", "Local", "Talhoes (Area)", "Cultura e Cultivar", "Data de Inicio", "Data de Termino", "Quantidade de Produto/Hectare", "Maquina", "Operador(es)", "Implemento", "Observacao"];
-    } else {
-      // Cabeçalhos padrão ou erro se a atividade não for reconhecida
-      headers = ["Timestamp", "Atividade", "Local", "Talhoes (Area)", "Dados Desconhecidos"];
+      headers = ["Timestamp", "ID da OS", "Nome do Usuário", "Local", "Talhoes (Area)", "Cultura e Cultivar", "Data de Inicio", "Data de Termino", "Quantidade de produto/hectare", "Maquina - Identificacao", "Operador(es)", "Implemento - Identificacao", "Observacao"]; // <-- ADICIONADO "ID da OS"
     }
-    sheet.appendRow(headers);
+
+    if (headers.length > 0) {
+      sheet.appendRow(headers);
+    }
   }
 
-  // Prepara os dados para a linha
-  var rowData = [
-    new Date().toLocaleString(), // Timestamp
-    data.local,
-    data.talhoes, // Já virá como string formatada do PWA
-  ];
+  // Define os dados da linha com base na atividade
+  var rowData = [];
+  var timestamp = new Date(); // Timestamp do lado do servidor
 
-  // Adiciona os campos específicos da atividade
+  // A ordem aqui deve corresponder à ordem dos cabeçalhos acima!
   if (activity === "PreparodeArea") {
-    rowData.push(data.maquina, data.operadores, data.implemento, data.observacao);
+    rowData.push(timestamp, osId, userName, data.local, data.talhoes, data.maquina, data.operadores, data.implemento, data.observacao); // <-- ADICIONADO osId
   } else if (activity === "TratamentodeSementes") {
-    rowData.push(data.culturaCultivar, data.qtdSementesKg, data.dataInicio, data.dataTermino, data.produtosDosagens, data.maquina, data.operadores, data.observacao);
+    rowData.push(timestamp, osId, userName, data.local, data.talhoes, data.culturaCultivar, data.qtdSementesKg, data.dataInicio, data.dataTermino, data.produtosDosagens, data.maquina, data.operadores, data.observacao); // <-- ADICIONADO osId
   } else if (activity === "Plantio") {
-    rowData.push(data.culturaCultivar, data.qtdHaMax, data.qtdHaMin, data.insumos, data.dataInicio, data.dataTermino, data.trator, data.implemento, data.plantasPorMetro, data.espacamentoPlantas, data.pms, data.operadores, data.observacao);
+    rowData.push(timestamp, osId, userName, data.local, data.talhoes, data.culturaCultivar, data.qtdHaMax, data.qtdHaMin, data.insumos, data.dataInicio, data.dataTermino, data.trator, data.implemento, data.plantasPorMetro, data.espacamentoPlantas, data.pms, data.operadores, data.observacao); // <-- ADICIONADO osId
   } else if (activity === "Pulverizacao") {
-    rowData.push(data.culturaCultivar, data.produtosQtdHa, data.dataInicio, data.dataTermino, data.maquina, data.bico, data.capacidadeTanque, data.vazaoLHa, data.operadores, data.pressao, data.doseHa, data.doseTanque, data.implemento, data.observacao);
+    rowData.push(timestamp, osId, userName, data.local, data.talhoes, data.culturaCultivar, data.produtosQtdHa, data.dataInicio, data.dataTermino, data.maquina, data.bico, data.capacidadeTanque, data.vazaoLHa, data.operadores, data.pressao, data.doseHa, data.doseTanque, data.implemento, data.observacao); // <-- ADICIONADO osId
   } else if (activity === "Colheita") {
-    rowData.push(data.culturaCultivar, data.produtividadeEstimada, data.dataInicio, data.dataTermino, data.maquina, data.operadoresMaquina, data.caminhao, data.motoristas, data.trator, data.operadoresTrator, data.implemento, data.observacao);
+    rowData.push(timestamp, osId, userName, data.local, data.talhoes, data.culturaCultivar, data.produtividadeEstimada, data.dataInicio, data.dataTermino, data.maquina, data.operadoresMaquina, data.caminhao, data.motoristas, data.trator, data.operadoresTrator, data.implemento, data.observacao); // <-- ADICIONADO osId
   } else if (activity === "Lancas") {
-    rowData.push(data.culturaCultivar, data.dataInicio, data.dataTermino, data.qtdProdutoHectare, data.maquina, data.operadores, data.implemento, data.observacao);
+    rowData.push(timestamp, osId, userName, data.local, data.talhoes, data.culturaCultivar, data.dataInicio, data.dataTermino, data.qtdProdutoHectare, data.maquina, data.operadores, data.implemento, data.observacao); // <-- ADICIONADO osId
   }
 
-  sheet.appendRow(rowData);
+  // Adiciona a linha à planilha
+  if (rowData.length > 0) {
+    sheet.appendRow(rowData);
+  }
 
   return ContentService.createTextOutput("Dados recebidos com sucesso!").setMimeType(ContentService.MimeType.TEXT);
 }
