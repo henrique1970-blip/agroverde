@@ -198,12 +198,15 @@ function renderForm(activityKey) {
         } else if (field.name.includes('Container')) {
             formHtml += `<div id="${field.name}"></div>`;
         } else {
-            formHtml += `<label for="${field.name}">${field.label}:${isRequired ? ' <span class="required">*</span>' : ''}</label><input type="${field.type}" id="${field.name}" name="${field.name}" ${field.min ? `min="${field.min}"` : ''} ${field.max ? `max="${field.max}"` : ''} value="${field.type === 'number' ? '0' : ''}" ${isRequired ? 'required' : ''}>`;
+            // ALTERAÇÃO: Adicionado step="0.01" para campos numéricos
+            const stepAttribute = field.type === 'number' ? 'step="0.01"' : '';
+            formHtml += `<label for="${field.name}">${field.label}:${isRequired ? ' <span class="required">*</span>' : ''}</label><input type="${field.type}" id="${field.name}" name="${field.name}" ${stepAttribute} ${field.min ? `min="${field.min}"` : ''} ${field.max ? `max="${field.max}"` : ''} value="${field.type === 'number' ? '0' : ''}" ${isRequired ? 'required' : ''}>`;
         }
     });
     formHtml += `<button type="submit">Registrar Ordem de Serviço</button></form>`;
     formContainerDiv.innerHTML = formHtml;
     
+    // Adiciona os listeners de eventos após o formulário ser renderizado
     const localSelect = document.getElementById('local');
     const allTalhoesCheckbox = document.getElementById('allTalhoes');
     const dynamicForm = document.getElementById('dynamicForm');
