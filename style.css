@@ -1,6 +1,50 @@
 /* Importação do CSS base64 da logo */
 @import url('logoFAVbase64.css');
 
+@keyframes pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.7; }
+  100% { opacity: 1; }
+}
+
+/* --- NOVOS ESTILOS PARA O MODAL DE NOTIFICAÇÃO --- */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.6);
+    z-index: 2000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.modal-content {
+    background-color: #fff;
+    padding: 30px 40px;
+    border-radius: 8px;
+    box-shadow: 0 5px 20px rgba(0,0,0,0.25);
+    text-align: center;
+    max-width: 90%;
+    width: 400px;
+}
+
+.modal-content.pulsing {
+    animation: pulse 2s infinite;
+}
+
+.modal-content a {
+    color: #0056b3;
+    text-decoration: underline;
+    font-weight: bold;
+    display: block;
+    margin-top: 15px;
+}
+/* --- FIM DOS NOVOS ESTILOS --- */
+
+
 body {
     font-family: Arial, sans-serif;
     display: flex;
@@ -22,13 +66,13 @@ body {
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     margin-bottom: 20px;
     width: 100%;
-    max-width: 600px; /* Ajuste conforme o design */
+    max-width: 600px;
 }
 
 .app-header .logo {
-    width: 250px; /* Ajuste o tamanho do logo */
-    height: 250px; /* Ajuste o tamanho do logo */
-    background-image: var(--logo-fav); /* Usa a variável CSS importada do base64 */
+    width: 50px;
+    height: 50px;
+    background-image: var(--logo-fav);
     background-size: contain;
     background-repeat: no-repeat;
     background-position: center;
@@ -47,7 +91,7 @@ body {
     border-radius: 8px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
     width: 100%;
-    max-width: 600px; /* Ajuste para o conteúdo */
+    max-width: 600px;
     text-align: center;
 }
 
@@ -57,48 +101,12 @@ body {
     color: #666;
 }
 
-.status-online {
-    color: green;
-}
+.status-online { color: green; }
+.status-offline { color: orange; }
 
-.status-offline {
-    color: orange;
-}
-
-.info-message {
-    margin-top: 20px;
-    color: #007bff;
-    font-weight: bold;
-}
-
-/* Estilos para os botões de atividade */
-.activity-buttons {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-    gap: 15px;
-    margin-bottom: 20px;
-}
-
-.activity-button {
-    background-color: #007bff;
-    color: white;
-    padding: 15px 10px;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    font-size: 1.1em;
-    font-weight: bold;
-    transition: background-color 0.2s ease;
-}
-
-.activity-button:hover {
-    background-color: #0056b3;
-}
-
-/* Estilos para o formulário dinâmico */
 .form-container {
     text-align: left;
-    padding-top: 10px; /* Espaço entre o botão voltar e o formulário */
+    padding-top: 10px;
 }
 
 .form-container label {
@@ -114,7 +122,7 @@ body {
 .form-container input[type="number"],
 .form-container textarea,
 .form-container select {
-    width: calc(100% - 22px); /* Ajuste para padding e borda */
+    width: calc(100% - 22px);
     padding: 10px;
     margin-bottom: 15px;
     border: 1px solid #ddd;
@@ -140,68 +148,34 @@ body {
     margin-top: 10px;
 }
 
-.form-container button[type="submit"]:hover {
-    background-color: #218838;
-}
+.form-container button[type="submit"]:hover { background-color: #218838; }
 
 .back-button {
     background-color: #6c757d;
     color: white;
-    padding: 8px 15px;
+    padding: 12px 20px;
     border: none;
     border-radius: 4px;
     cursor: pointer;
-    font-size: 0.9em;
+    font-size: 1.1em;
+    width: 100%;
     margin-bottom: 20px;
-    display: inline-block; /* Para o margin-bottom funcionar */
+    box-sizing: border-box;
 }
 
-.back-button:hover {
-    background-color: #5a6268;
-}
+.back-button:hover { background-color: #5a6268; }
 
-/* Estilo para a lista de talhões */
 .talhoes-list {
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    padding: 10px;
-    max-height: 200px;
-    overflow-y: auto;
-    margin-bottom: 15px;
-}
-
-.talhoes-list div {
     display: flex;
-    align-items: center;
-    margin-bottom: 5px;
-}
-
-.talhoes-list input[type="checkbox"] {
-    margin-right: 8px;
-    width: auto; /* Anula o width 100% de input */
-}
-
-.talhoes-list label {
-    margin-bottom: 0;
-    font-weight: normal;
-}
-
-.checkbox-group label {
-    font-weight: normal; /* Sobrescreve o bold padrão para labels de input */
-}
-
-/* Estilos para a seção de Talhões */
-.talhoes-list {
-    display: flex; /* Permite que os itens fiquem lado a lado se houver espaço */
-    flex-wrap: wrap; /* Quebra para a próxima linha se não houver espaço */
-    gap: 10px; /* Espaço entre os checkboxes */
+    flex-wrap: wrap;
+    gap: 10px;
     margin-bottom: 15px;
     padding: 10px;
     border: 1px solid #ddd;
     border-radius: 5px;
     background-color: #f9f9f9;
-    max-height: 200px; /* Limita a altura para scroll se muitos talhões */
-    overflow-y: auto; /* Adiciona scroll vertical */
+    max-height: 200px;
+    overflow-y: auto;
 }
 
 .talhoes-list div {
@@ -211,28 +185,22 @@ body {
 
 .talhoes-list input[type="checkbox"] {
     margin-right: 5px;
+    width: auto;
 }
 
-/* Estilo para o display de total */
+.talhoes-list label,
+.checkbox-group label {
+    font-weight: normal;
+    margin-bottom: 0;
+}
+
 #totalAreaDisplay {
     font-weight: bold;
     margin-top: 10px;
     padding: 8px;
-    background-color: #e6ffe6; /* Um verde claro */
+    background-color: #e6ffe6;
     border: 1px solid #c6f6c6;
     border-radius: 5px;
     text-align: center;
-    color: #006600; /* Cor do texto mais escura */
-}
-
-
-/* Mensagem de status de registro de dados na planilha */
-.form-message {
-    margin-top: 15px;
-    margin-bottom: 15px;
-    padding: 10px;
-    border-radius: 5px;
-    font-weight: bold;
-    text-align: center;
-    /* As cores serão definidas via JavaScript, mas você pode ter padrões aqui */
+    color: #006600;
 }
