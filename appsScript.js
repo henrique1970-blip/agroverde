@@ -1,3 +1,32 @@
+/*
+
+Esse script deve ser gravado na planilha a conter os dados digitados.
+
+Este projeto é composto dos seguintes elementos:
+1. Planilha do Google Sheets nomeada "FAV - Ordem de Serviço"
+2. Script do Google Script - este arquivo
+3. java script nomeado como "script.js"  (bem original, né?), responsável pelo trabalho "pesado"
+4. Service-worker.js, outro java script responsável por fazer a conexão entre os diferentes elementos do projeto
+5. manifest.json 
+6. style.css
+7. index.html
+8. icon-192x192.png
+9. icon-512x512.png
+10.logoFAVbase64.css
+
+
+O endereço URL da planilha é
+https://docs.google.com/spreadsheets/d/1vWqfkjNYD71bsea_mCY_WmmjUKZJzQaPzIThVyisp34/edit?gid=0#gid=0
+
+Passos para gravar o script:
+
+- Abrir a planilha no Google Drive
+- Acessar o menu "Extensões"
+- Selecionar a opção "Apps Script"
+- Apagar o conteúdo existente e colar todo o conteúdo deste arquivo
+
+*/
+
 // --- CONFIGURAÇÕES PARA GERAR PDF ---
 const TEMPLATE_IDS = {
   "PreparodeArea": "19ZED49t_UCG8vb5QTaeNMDwoMtyEysmKh_n5oV0KBPU",
@@ -38,6 +67,7 @@ function createJsonResponse(obj) {
     .createTextOutput(JSON.stringify(obj))
     .setMimeType(ContentService.MimeType.JSON);
 }
+
 
 function doPost(e) {
   try {
@@ -123,7 +153,13 @@ function doPost(e) {
       '{{OPERADORES_MAQUINA}}': data.operadoresMaquina, '{{CAMINHAO}}': data.caminhao, '{{MOTORISTAS}}': data.motoristas,
       '{{TRATOR}}': data.trator, '{{OPERADORES_TRATOR}}': data.operadoresTrator, '{{IMPLEMENTO}}': data.implemento,
       '{{MAQUINA}}': data.maquina, '{{BICO}}': data.bico, '{{CAPACIDADE_TANQUE}}': data.capacidadeTanque,
-      '{{VAZAO_L_HA}}': data.vazaoLHa, '{{PRESSAO}}': data.pressao, '{{DOSE_HA}}': data.doseHa, '{{DOSE_TANQUE}}': data.doseTanque
+      '{{VAZAO_L_HA}}': data.vazaoLHa, '{{PRESSAO}}': data.pressao, '{{DOSE_HA}}': data.doseHa, '{{DOSE_TANQUE}}': data.doseTanque,
+      // ALTERAÇÃO: Adicionados os placeholders que faltavam para "Plantio"
+      '{{PMS}}': data.pms,
+      '{{PLANTAS_METRO}}': data.plantasPorMetro,
+      '{{QTD_HA_MAX}}': data.qtdHaMax,
+      '{{QTD_HA_MIN}}': data.qtdHaMin,
+      '{{ESPACAMENTO_PLANTAS}}': data.espacamentoPlantas
     };
     
     for (const placeholder in placeholderMap) {
@@ -141,11 +177,10 @@ function doPost(e) {
 
     doc.saveAndClose();
 
-    const pdfFile = tempDocFile.getAs('application/pdf');
-    const finalPdfFile = pdfFolder.createFile(pdfFile).setName(newFileName);
+    const pdfBlob = tempDocFile.getAs('application/pdf');
+    const finalPdfFile = pdfFolder.createFile(pdfBlob).setName(newFileName);
     tempDocFile.setTrashed(true);
     
-    // ALTERAÇÃO: Retorna a URL direta do arquivo E a URL da pasta
     const pdfUrl = finalPdfFile.getUrl();
     const folderUrl = pdfFolder.getUrl();
 

@@ -60,10 +60,10 @@ body {
     display: flex;
     align-items: center;
     background-color: #fff;
-    /*padding: 15px 20px;*/
-    padding: 30px;
-    /* border: 3px solid black; */
-/*    border-radius: 8px;  - comentado para teste*/
+    padding-top: 0.5px;
+    padding-bottom: 0.5px;
+    padding-left: 30px;
+    padding-right: 30px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);    
     margin-bottom: 20px;
     width: 100%;
@@ -71,9 +71,9 @@ body {
 }
 
 .app-header .logo {
-    width: 250px; /* Logo maior */
+    width: 250px; 
     height: 250px; 
-    background-image: var(--logo-fav); /* Usa a variável CSS importada do base64 */
+    background-image: var(--logo-fav);
     background-size: contain;
     background-repeat: no-repeat;
     background-position: center;
@@ -84,17 +84,14 @@ body {
     color: #333;
     margin: 0;
     font-size: 1.8em;
-/*    font-weight: bold; */
-    
 }
 
 .container {
-    /*background-color: transparent;*/ /* Container principal sem fundo */
     background-color: #fff;
     padding: 30px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
     width: 100%;
-    max-width: 600px; /* Largura uniforme */
+    max-width: 600px; 
     text-align: center;
     display: flex;
     flex-direction: column;
@@ -102,15 +99,13 @@ body {
 }
 
 .status-message {
-    background-color: #DFF0D8; /* Verde claro */
-    color: #3C763D; /* Verde escuro */
-    /* border: 3px solid black; 
-    border-radius: 10px; */
+    background-color: #DFF0D8; 
+    color: #3C763D; 
     padding: 10px;
     margin-bottom: 10px;
     font-size: 1.1em;
-    /* font-weight: bold; */
     text-align: center;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); 
 }
 
 .status-offline {
@@ -120,16 +115,16 @@ body {
 
 .activity-buttons {
     display: grid;
-    grid-template-columns: 1fr 1fr; /* 2 colunas */
+    grid-template-columns: 1fr 1fr; 
     gap: 15px;
     background-color: #fff;
     padding: 20px;
-    /* border: 3px solid black;
-    border-radius: 10px; */
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); 
 }
 
 .activity-button, #viewIssuedOrders {
-    background-color: #28a745; /* Cor verde padrão */
+    background-color: #28a745; 
     color: white;
     padding: 20px;
     border: none;
@@ -143,27 +138,25 @@ body {
     display: flex;
     justify-content: center;
     align-items: center;
-    box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05); 
 }
 
 .activity-button:hover, #viewIssuedOrders:hover {
-    transform: translateY(-2px); /* Efeito de elevação */
+    transform: translateY(-2px); 
     filter: brightness(1.1);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); 
 }
 
-/* Estilo específico para o botão de ordens emitidas */
 #viewIssuedOrders {
-    background-color: #f0ad4e; /* Laranja */
-    grid-column: 1 / -1; /* Ocupa as duas colunas */
-    box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19);
+    background-color: #f0ad4e;
+    grid-column: 1 / -1; 
 }
 
 #viewIssuedOrders:hover {
     background-color: #ec971f;
 }
 
-
-/* ESTILOS PARA A TELA DE FORMULÁRIO (não alterados, mas mantidos para consistência) */
+/* ESTILOS PARA A TELA DE FORMULÁRIO */
 .form-container {
     text-align: left;
     padding-top: 10px;
@@ -174,7 +167,7 @@ body {
 }
 
 .back-button {
-    background-color: #d9534f; /* Cor vermelha */
+    background-color: #d9534f;
     color: white;
     padding: 12px 20px;
     border: none;
@@ -224,4 +217,60 @@ body {
 
 .form-container button[type="submit"]:hover {
     background-color: #4cae4c;
+}
+
+/* --- SEÇÃO DE ESTILOS CORRIGIDA --- */
+.checkbox-group {
+    display: flex;
+    align-items: baseline; /* MODIFICADO: Alinha verticalmente pela linha de base do texto */
+    text-align: left;
+    gap: 10px;
+    margin-bottom: 10px;
+    padding: 10px;
+    border: 1px solid #ced4da;
+    border-radius: 5px;
+    background-color: #f8f9fa; 
+}
+
+.checkbox-group input[type="checkbox"] {
+    width: auto;
+    margin-bottom: 0; 
+}
+
+.talhoes-list {
+    display: flex;
+    flex-wrap: wrap; 
+    gap: 10px 20px; 
+    margin-bottom: 15px;
+    padding: 10px;
+    border: 1px solid #ced4da;
+    border-radius: 5px;
+    background-color: #f8f9fa;
+    max-height: 150px;
+    overflow-y: auto;
+    text-align: left;
+}
+
+.talhoes-list div {
+    display: flex;
+    align-items: baseline; /* MODIFICADO: Alinha verticalmente pela linha de base do texto */
+}
+
+.talhoes-list input[type="checkbox"] {
+    margin: 0 8px 0 0; /* MODIFICADO: Garante margens verticais zeradas */
+    width: auto;
+    flex-shrink: 0;
+}
+/* --- FIM DA SEÇÃO CORRIGIDA --- */
+
+
+#totalAreaDisplay {
+    font-weight: bold;
+    margin-top: 10px;
+    padding: 8px;
+    background-color: #d4edda;
+    border: 1px solid #c3e6cb;
+    border-radius: 5px;
+    text-align: center;
+    color: #155724;
 }
