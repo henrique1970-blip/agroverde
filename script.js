@@ -5,7 +5,7 @@ const DB_NAME = 'osAgroDB';
 const STORE_NAME = 'pendingOSData';
 let db;
 let userName = '';
-const MAX_PRODUCTS = 5;
+const MAX_PRODUCTS = 20; // ALTERADO: O valor máximo de produtos agora é 20
 
 // --- DADOS E CONFIGURAÇÕES ---
 const ACTIVITIES = {"PreparodeArea":"Preparo de Área","TratamentodeSementes":"Tratamento de Sementes","Plantio":"Plantio","Pulverizacao":"Pulverização","Colheita":"Colheita","Lancas":"Lanças"};
