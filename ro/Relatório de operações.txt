@@ -1,0 +1,91 @@
+Relatório de operações
+
+
+Segunda parte do aplicativo, que na verdade vai ser como um app a parte.
+
+Relatório de operações
+
+
+
+1. Componentes
+
+1.1 Pasta no Google Drive compartilhada
+
+Nomeada como "relatório de operações" e Identificada com a URL
+
+
+
+https://drive.google.com/drive/folders/1HznNg3H8Sg6wEeK1oBgde3IqyX89sMVa?usp=sharing
+
+
+
+A exemplo da abertura da OS, pedir ao usuário que se identifique. Essa informação é obrigatória, não sendo permitida a continuidade da execução do APP caso o usuário não o faça.
+
+O layout - elementos, cores, desenhos, e disposições serão os mesmo do app "Ordem de Serviço", com uma única diferença, o botão laranja, embaixo terá o texto "Operação em andamento".
+
+
+Após a identificação do usuário a tela inicial será:
+
+
++-------------------------------------------+
+|                                           |
+|logo da fazenda     Relatório de operação  |
+|                                           |
++-------------------------------------------+
+
++-------------------------------------------+
+|                                           |
+|     Preparo de          Tratamento de     |
+|     de área             semente           |
+|                                           |
+|     Plantio             Pulverização      |
+|                                           |
+|     Colheita            Lanças            |
+|                                           |
+|         Operação em andamento             |
+|                                           |
++-------------------------------------------+
+
+Se o botão pressionado é um dos 6 que não "Operação em andamento", isto quer dizer que uma nova operação será registrada e não uma que já tenha sido iniciado o registro mas ainda não concluido. Nesse caso o app deve proceder:
+
+I. NOVA OPERAÇÃO
+- Procurar a aba correspondente na *planilha de OS*
+- Listar todas as IDs da aba em uma lista de "botão de rádio"
+
+- Quando o usuário selecionar a ID da OS, a ID da operação será idêntica, acrescida de um "hífen" e as letras "OP" (em maiúsculas)
+
+
+
+Algoritmo para o relatório de Operação
+
+Importante: exceto quando definido de forma contrária, todos os campos tem preenchimento obrigatório.
+
+1. Na tela devem ser mostrados os dados da ordem de serviço, distribuídos em 5 colunas:
+• a primeira com o título "item", onde constarão os nomes dos dados informados na ordem de serviço,
+• a segunda coluna conterá os dados da OS
+• a terceira coluna com o título "Sim", conterá um "botão de rádio" para cada item.
+• a quarta coluna com o título "Não" conterá um "botão de rádio" para cada item. 
+• a quinta coluna deve ter o título em cinza "Realizado/Usado" e os campos, um em cada linha de item, ficam também na cor cinza e indisponíveis. Esses campos conterão o mesmo conteúdo dos da segunda coluna.
+• O padrão será o botão de rádio da terceira coluna marcado. 
+• Se o usuário marcar o botão de rádio da quarta coluna, o campo correspondente na quinta coluna fica disponível para edição e o usuário pode editar os dados lá contidos.
+
+
+
+----------------------> 24jul2025 15:59h
+
+Correções:
+- Tirar ID da OS da lista de confirmações
+- Data de início e de término devem aparecer no formato dd/mm/aaaa
+
+<----------------------------
+
+5. São apresentados campos de atividades específicas das operações:
+	5.1. Preparo de área
+		5.1.1. Horímetro do trator no início da operação
+		
+		5.1.2. Horímetro do trator em caso de parada, programada ou não, com ou sem desvio do mesmo para outra(s) operações. (não obrigatório)
+		5.1.2. Horímetro do trator no abastecimento (não obrigatório)
+		5.1.3. Litros de combustível no abastecimento (não obrigatório)
+		5.1.4. Horímetro do trator na finalização da operação	
+		5.1.5. Observação (não obrigatório).
+	5.2. 
