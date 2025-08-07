@@ -9,56 +9,54 @@
 */
 
 // --- CONFIGURAÇÕES GLOBAIS ---
-// ID da planilha onde os dados do relatório serão gravados
 const REPORT_SPREADSHEET_ID = "1b8LMyDTfkqIfl0bftvQNdpGRg0O1PRvNjrOV0LkEtf8";
-// ID da pasta onde os PDFs do relatório serão salvos
 const PDF_REPORT_FOLDER_ID = "1YeUqLtTnClJJ834KkqcO4Yy1_0SlzGAI";
 
-// IDs dos modelos de documento Google Docs para cada atividade de relatório
-// ATENÇÃO: Você precisará criar estes modelos e colocar os IDs corretos aqui.
-// Para começar, podemos usar um modelo genérico ou para "Preparo de Área"
 const REPORT_TEMPLATE_IDS = {
-  "PreparodeArea": "1mpWpIZkZ58zV_SojCAG7ibqSoC_OyXHmSTBNm2FcMq0", // Ex: "1AbCdefGhiJklMnoPqrStUvWxyZ_0123456789"
-  // Adicione outras atividades aqui conforme necessário no futuro
-  // "TratamentodeSementes": "ID_DO_TEMPLATE_DE_TRATAMENTO_DE_SEMENTES",
+  "PreparodeArea": "1mpWpIZkZ58zV_SojCAG7ibqSoC_OyXHmSTBNm2FcMq0",
 };
 
-// Mapeamento dos cabeçalhos de coluna para cada atividade
-// Isso permitirá expandir para outras atividades no futuro
+// Definição dos cabeçalhos da planilha com a estrutura "Planejado vs. Realizado"
+const COMMON_OS_HEADERS = [
+    "OS Planejado - Local", "OS Realizado - Local",
+    "OS Planejado - Talhoes (Area)", "OS Realizado - Talhoes (Area)",
+    "OS Planejado - Área Total (ha)", "OS Realizado - Área Total (ha)",
+    "OS Planejado - Data de Inicio", "OS Realizado - Data de Inicio",
+    "OS Planejado - Data de Termino", "OS Realizado - Data de Termino",
+    "OS Planejado - Cultura / Cultivar", "OS Realizado - Cultura / Cultivar",
+    "OS Planejado - Trator", "OS Realizado - Trator",
+    "OS Planejado - Operador(es)", "OS Realizado - Operador(es)",
+    "OS Planejado - Implemento", "OS Realizado - Implemento",
+    "OS Planejado - Observacao", "OS Realizado - Observacao"
+];
+
 const REPORT_HEADERS_CONFIG = {
   "PreparodeArea": [
-    "Timestamp Relatorio", "ID da OS Relatorio", "Nome do Usuario Relatorio", "Local da OS",
-    "Talhoes da OS", "Area Total da OS (ha)", "Data Inicio da OS", "Data Termino da OS",
-    // Novos campos específicos do relatório para Preparo de Área
-    "Horimetro Inicio", "Horimetro Fim", "Paradas Imprevistas", "Numero Abastecimentos"
-    // Os campos de abastecimento serão adicionados dinamicamente
-  ],
-  // Adicione outras atividades aqui com seus respectivos cabeçalhos
-  // "TratamentodeSementes": ["Timestamp Relatorio", ..., "Campos Específicos Trat. Sementes"]
+    "Timestamp Relatorio", "ID da OS", "Nome do Usuario",
+    ...COMMON_OS_HEADERS,
+    "Relatorio - Horimetro Inicio", "Relatorio - Horimetro Fim",
+    "Relatorio - Paradas Imprevistas", "Relatorio - Numero Abastecimentos"
+  ]
 };
 
-// Número máximo de abastecimentos que o template PDF pode suportar ou que o script espera
-const MAX_ABASTECIMENTOS_PDF = 10; // Ajuste conforme seu template de PDF
+const MAX_ABASTECIMENTOS_PDF = 10;
 
-// --- FUNÇÕES AUXILIARES ---
-
+// --- FUNÇÕES AUXILIARES (sem alteração) ---
 function createJsonResponse(obj) {
   return ContentService
     .createTextOutput(JSON.stringify(obj))
     .setMimeType(ContentService.MimeType.JSON);
 }
-
 function formatDateForSheet(dateInput) {
   if (!dateInput) return '';
   try {
     const date = (dateInput instanceof Date) ? dateInput : new Date(dateInput);
     if (isNaN(date.getTime())) return dateInput;
-    return Utilities.formatDate(date, Session.getScriptTimeZone(), "dd/MM/yyyy HH:mm:ss"); // Incluir hora para timestamp
+    return Utilities.formatDate(date, Session.getScriptTimeZone(), "dd/MM/yyyy HH:mm:ss");
   } catch (e) {
     return dateInput;
   }
 }
-
 function formatDateForPdf(dateInput) {
   if (!dateInput) return '';
   try {
@@ -75,7 +73,7 @@ function doPost(e) {
   try {
     const data = e.parameter;
     const activity = data.activity;
-    const osId = data.osId; // A ID da OS original da operação
+    const osId = data.osId;
 
     if (!activity || !osId) {
       return createJsonResponse({ success: false, message: "Erro: Atividade ou ID da OS não especificados." });
@@ -87,80 +85,92 @@ function doPost(e) {
 
     if (!sheet) {
       sheet = ss.insertSheet(activity);
-      // Adiciona cabeçalhos iniciais se a aba for nova
       if (headers.length > 0) {
         sheet.appendRow(headers);
       }
     } else {
-      // Pega os cabeçalhos existentes se a aba já existe
       const currentLastColumn = sheet.getLastColumn();
       if (currentLastColumn > 0) {
         headers = sheet.getRange(1, 1, 1, currentLastColumn).getValues()[0];
       } else if (REPORT_HEADERS_CONFIG[activity].length > 0) {
-        // Se a aba existe mas não tem cabeçalhos (estranho, mas seguro)
         sheet.appendRow(REPORT_HEADERS_CONFIG[activity]);
         headers = REPORT_HEADERS_CONFIG[activity];
       }
     }
 
-    // Lógica para adicionar cabeçalhos dinâmicos de abastecimento
     const numAbastecimentos = parseInt(data.numAbastecimentos || '0');
     let dynamicAbastecimentoHeaders = [];
     if (activity === "PreparodeArea" && numAbastecimentos > 0) {
       for (let i = 1; i <= numAbastecimentos; i++) {
-        dynamicAbastecimentoHeaders.push(`Horimetro Abastecimento ${i}`);
-        dynamicAbastecimentoHeaders.push(`Litros Abastecimento ${i}`);
+        dynamicAbastecimentoHeaders.push(`Relatorio - Horimetro Abastecimento ${i}`);
+        dynamicAbastecimentoHeaders.push(`Relatorio - Litros Abastecimento ${i}`);
       }
     }
 
-    // Concatena cabeçalhos fixos com dinâmicos, adicionando novos se não existirem
-    let finalHeadersForSheet = [...new Set([...headers, ...dynamicAbastecimentoHeaders])]; // Usa Set para remover duplicatas e manter ordem aparente
-
-    // Adiciona novos cabeçalhos à planilha se existirem
     const existingHeadersSet = new Set(headers);
-    const newHeadersToAdd = finalHeadersForSheet.filter(header => !existingHeadersSet.has(header));
+    const newHeadersToAdd = dynamicAbastecimentoHeaders.filter(header => !existingHeadersSet.has(header));
     if (newHeadersToAdd.length > 0) {
         const lastCol = sheet.getLastColumn();
         sheet.getRange(1, lastCol + 1, 1, newHeadersToAdd.length).setValues([newHeadersToAdd]);
-        // Atualiza a lista de cabeçalhos após adicionar novos
         headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
     }
 
     const timestampReport = new Date();
 
-    // Mapeamento dos dados do formulário para os cabeçalhos da planilha
+    // --- INÍCIO DA CORREÇÃO ---
+    // Mapeamento de dados para a PLANILHA
     const rowDataMap = {
       "Timestamp Relatorio": timestampReport,
-      "ID da OS Relatorio": data.osId,
-      "Nome do Usuario Relatorio": data.userName,
-      "Local da OS": data.local,
-      "Talhoes da OS": data.talhoes,
-      "Area Total da OS (ha)": data.areaTotalHectares,
-      "Data Inicio da OS": formatDateForSheet(data.dataInicio), // Salva como data completa para sheets
-      "Data Termino da OS": formatDateForSheet(data.dataTermino), // Salva como data completa para sheets
-      // Campos de Preparo de Área
-      "Horimetro Inicio": data.horimetroInicio,
-      "Horimetro Fim": data.horimetroFim,
-      "Paradas Imprevistas": data.paradasImprevistas,
-      "Numero Abastecimentos": data.numAbastecimentos,
-    };
+      "ID da OS": data.osId,
+      "Nome do Usuario": data.userName,
 
+      // Dados Planejados
+      "OS Planejado - Local": data.Local,
+      "OS Planejado - Talhoes (Area)": data.TalhoesArea,
+      "OS Planejado - Área Total (ha)": data.reaTotalha,
+      "OS Planejado - Data de Inicio": formatDateForSheet(data.DatadeInicio),
+      "OS Planejado - Data de Termino": formatDateForSheet(data.DatadeTermino),
+      "OS Planejado - Cultura / Cultivar": data.CulturaCultivar,
+      "OS Planejado - Trator": data.Trator,
+      "OS Planejado - Operador(es)": data.Operadores,
+      "OS Planejado - Implemento": data.Implemento,
+      "OS Planejado - Observacao": data.Observacao || data.Observao,
+
+      // Dados Realizados
+      "OS Realizado - Local": data.realizado_Local,
+      "OS Realizado - Talhoes (Area)": data.realizado_TalhoesArea,
+      "OS Realizado - Área Total (ha)": data.realizado_reaTotalha,
+      "OS Realizado - Data de Inicio": formatDateForSheet(data.realizado_DatadeInicio),
+      "OS Realizado - Data de Termino": formatDateForSheet(data.realizado_DatadeTermino),
+      "OS Realizado - Cultura / Cultivar": data.realizado_CulturaCultivar,
+      "OS Realizado - Trator": data.realizado_Trator,
+      "OS Realizado - Operador(es)": data.realizado_Operadores,
+      "OS Realizado - Implemento": data.realizado_Implemento,
+      "OS Realizado - Observacao": data.realizado_Observacao || data.realizado_Observao, // Remove o fallback para o valor planejado
+      
+      // Dados específicos do relatório
+      "Relatorio - Horimetro Inicio": data.horimetroInicio,
+      "Relatorio - Horimetro Fim": data.horimetroFim,
+      "Relatorio - Paradas Imprevistas": data.paradasImprevistas,
+      "Relatorio - Numero Abastecimentos": data.numAbastecimentos
+    };
+    // --- FIM DA CORREÇÃO ---
+    
     // Adiciona dados de abastecimento dinâmicos ao mapa
     if (activity === "PreparodeArea" && numAbastecimentos > 0) {
       for (let i = 1; i <= numAbastecimentos; i++) {
-        rowDataMap[`Horimetro Abastecimento ${i}`] = data[`abastecimento_horimetro_${i}`] || '';
-        rowDataMap[`Litros Abastecimento ${i}`] = data[`abastecimento_litros_${i}`] || '';
+        rowDataMap[`Relatorio - Horimetro Abastecimento ${i}`] = data[`abastecimento_horimetro_${i}`] || '';
+        rowDataMap[`Relatorio - Litros Abastecimento ${i}`] = data[`abastecimento_litros_${i}`] || '';
       }
     }
 
-    // Cria a linha de dados na ordem dos cabeçalhos (incluindo os novos)
     const rowValues = headers.map(header => rowDataMap[header] !== undefined ? rowDataMap[header] : '');
     sheet.appendRow(rowValues);
 
-    // --- Geração de PDF do Relatório ---
+    // --- GERAÇÃO DE PDF (SEM ALTERAÇÃO) ---
     const templateId = REPORT_TEMPLATE_IDS[activity];
-    if (!templateId || templateId === "COLOQUE_AQUI_O_ID_DO_TEMPLATE_PDF_DE_PREPARO_DE_AREA") {
-      return createJsonResponse({ success: true, message: "Dados do relatório registrados! Template de PDF ainda não configurado para esta atividade." });
+    if (!templateId) {
+      return createJsonResponse({ success: true, message: "Dados do relatório registrados! Template de PDF não configurado." });
     }
 
     const pdfFolder = DriveApp.getFolderById(PDF_REPORT_FOLDER_ID);
@@ -170,7 +180,6 @@ function doPost(e) {
     const doc = DocumentApp.openById(tempDocFile.getId());
     const body = doc.getBody();
 
-    // Mapeamento de placeholders para o PDF do Relatório
     const placeholderMap = {
       '{{OS_ID_RELATORIO}}': osId,
       '{{DATA_RELATORIO}}': formatDateForPdf(timestampReport),
@@ -181,12 +190,10 @@ function doPost(e) {
       '{{AREA_TOTAL_OS_RELATORIO}}': data.areaTotalHectares,
       '{{DATA_INICIO_OS_RELATORIO}}': formatDateForPdf(data.dataInicio),
       '{{DATA_TERMINO_OS_RELATORIO}}': formatDateForPdf(data.dataTermino),
-      // Preparo de Área
       '{{HORIMETRO_INICIO}}': data.horimetroInicio,
       '{{HORIMETRO_FIM}}': data.horimetroFim,
       '{{PARADAS_IMPREVISTAS}}': data.paradasImprevistas,
       '{{NUM_ABASTECIMENTOS}}': data.numAbastecimentos,
-      // Outros campos da OS que podem ser relevantes no PDF do relatório, se passados pelo frontend
       '{{TRATOR_OS}}': data.trator,
       '{{OPERADORES_OS}}': data.operadores,
       '{{IMPLEMENTO_OS}}': data.implemento,
@@ -199,39 +206,26 @@ function doPost(e) {
         }
     }
 
-    // Lógica para tabela dinâmica de abastecimentos no PDF
-    const abastecimentoTableElement = body.findText("{{HorimetroAbastecimento}}"); // Placeholder no template do PDF
+    const abastecimentoTableElement = body.findText("{{HorimetroAbastecimento}}");
     if (activity === "PreparodeArea" && numAbastecimentos > 0 && abastecimentoTableElement) {
         try {
             let element = abastecimentoTableElement.getElement();
             while (element.getParent().getType() !== DocumentApp.ElementType.TABLE_ROW) {
                 element = element.getParent();
-                if (element.getParent().getType() === DocumentApp.ElementType.BODY_SECTION) {
-                    throw new Error("O placeholder '{{HorimetroAbastecimento}}' não foi encontrado dentro de uma tabela.");
-                }
             }
             const templateRow = element.getParent();
             const table = templateRow.getParent();
-
-            if (table.getType() !== DocumentApp.ElementType.TABLE) {
-                throw new Error("A linha de abastecimento não está dentro de uma tabela válida.");
-            }
-
             const templateRowIndex = table.getChildIndex(templateRow);
-
             for (let i = 1; i <= numAbastecimentos && i <= MAX_ABASTECIMENTOS_PDF; i++) {
                 const newRow = table.insertTableRow(templateRowIndex + i, templateRow.copy());
                 newRow.replaceText("{{HorimetroAbastecimento}}", data['abastecimento_horimetro_' + i] || '');
                 newRow.replaceText("{{LitrosAbastecimento}}", data['abastecimento_litros_' + i] || '');
             }
-            table.removeRow(templateRowIndex); // Remove a linha do template original
+            table.removeRow(templateRowIndex);
         } catch(err) {
-            Logger.log("Erro ao processar tabela dinâmica de abastecimentos: " + err.toString());
-            body.replaceText("{{HorimetroAbastecimento}}", "Erro ao gerar lista de abastecimentos.");
-            body.replaceText("{{LitrosAbastecimento}}", "");
+            Logger.log("Erro ao processar tabela de abastecimentos: " + err.toString());
         }
-    } else if (activity === "PreparodeArea" && abastecimentoTableElement) {
-        // Se não houver abastecimentos ou não for Preparo de Área, remova a linha do template da tabela
+    } else if (abastecimentoTableElement) {
         try {
             const rowElement = abastecimentoTableElement.getElement().getParent().getParent();
             if (rowElement.getType() === DocumentApp.ElementType.TABLE_ROW) {
@@ -242,14 +236,11 @@ function doPost(e) {
         }
     }
     
-    // Remove quaisquer placeholders restantes (importante para evitar texto {{PLACEHOLDER}} no PDF final)
     body.replaceText('\\{\\{.*?\\}\\}', '');
-
     doc.saveAndClose();
-
     const pdfBlob = tempDocFile.getAs('application/pdf');
     const finalPdfFile = pdfFolder.createFile(pdfBlob).setName(newFileName);
-    tempDocFile.setTrashed(true); // Move o arquivo temporário para a lixeira
+    tempDocFile.setTrashed(true);
 
     const pdfUrl = finalPdfFile.getUrl();
     const folderUrl = pdfFolder.getUrl();

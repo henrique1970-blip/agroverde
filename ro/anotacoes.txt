@@ -1,0 +1,178 @@
+.LOG
+Problemas encontrados em "Preparo de área":
+
+1. Planilha:
+Timestamp, ID da OS e Nome do usuário  (colunas A, B e C) estão ok.
+As colunas D a W: 
+	OS Planejado - Local
+	OS Realizado - Local
+	OS Planejado - Talhoes (Area)
+	OS Realizado - Talhoes (Area)
+	OS Planejado - Área Total (ha)
+	OS Realizado - Área Total (ha)
+	OS Planejado - Data de Inicio
+	OS Realizado - Data de Inicio
+	OS Planejado - Data de Termino
+	OS Realizado - Data de Termino
+	OS Planejado - Cultura / Cultivar
+	OS Realizado - Cultura / Cultivar
+	OS Planejado - Trator
+	OS Realizado - Trator
+	OS Planejado - Operador(es)
+	OS Realizado - Operador(es)
+	OS Planejado - Implemento
+	OS Realizado - Implemento
+	OS Planejado - Observação
+	OS Realizado - Observacao
+Todos estão em branco.
+
+2. PDF
+Os seguintes campos estão em branco:
+ID da operação: {{OS_ID_RELATORIO}} 
+
+Local da Atividade: {{LOCAL_OS_RELATORIO}} 
+Talhão(ões) (Área): {{TALHOES_OS_RELATORIO}} 
+Área Total (ha): {{AREA_TOTAL_OS_RELATORIO}} 
+Data de Início: {{DATA_INICIO_OS_RELATORIO}} 	Data de Término: {{DATA_TERMINO_OS_RELATORIO}}
+Trator: {{TRATOR_OS}} 
+Operador(es): {{OPERADORES_OS}} 
+Implemento - Identificação: {{IMPLEMENTO_OS}} 
+Observação: {{OBSERVACAO_OS}}
+
+
+Horímetro (h)		   	Combustível (L)
+{{HorimetroAbastecimento}}	{{LitrosAbastecimento}}
+
+
+Ainda há campos em branco, tanto na planilha quanto no PDF: Todos que foram confirmados pelo usuário (realizado = planejado) não recebem o valor da OS original. Pode corrigir isso?
+Gere os códigos integralmente com as alterações necessárias, por favor.
+
+-----------------
+Planilha
+Tudo funcionou exceto os campos de observação
+OS Planejado - Observação
+OS Realizado - Observacao
+Colunas V e W, respectivamente
+
+PDF 
+TODOS os campos em branco exceto
+Horímetro (h)		   	Combustível (L)
+{{HorimetroAbastecimento}}	{{LitrosAbastecimento}}
+
+-----------------------------------------------------------------
+
+07:55 07/08/2025
+
+Planilha
+Continua da mesma forma que antes, ou seja, tudo funcionou exceto os campos de observação
+OS Planejado - Observação
+OS Realizado - Observacao
+Colunas V e W, respectivamente
+
+PDF
+Agora todos os campos estão em branco exceto 
+Horímetro (h)		   	Combustível (L)
+{{HorimetroAbastecimento}}	{{LitrosAbastecimento}}
+
+Você acha melhor listar os placeholders aqui para que eu os modifique no template?
+
+
+08:07 07/08/2025
+
+Lista Definitiva de Placeholders para o Template
+
+Sim, esta é a melhor abordagem. Por favor, verifique e/ou modifique seu template do Google Docs para que ele contenha exatamente os seguintes placeholders (incluindo as letras maiúsculas e underscores).
+Campo no PDF	Placeholder a ser usado no Template
+ID da Operação	{{ID_OPERACAO}}
+Data do Relatório	{{DATA_RELATORIO}}
+ID da OS Original	{{OS_ID_RELATORIO}}
+Usuário	{{USUARIO_RELATORIO}}
+Local da Atividade	{{LOCAL_OS_RELATORIO}}
+Talhão(ões) (Área)	{{TALHOES_OS_RELATORIO}}
+Área Total (ha)	{{AREA_TOTAL_OS_RELATORIO}}
+Data de Início	{{DATA_INICIO_OS_RELATORIO}}
+Data de Término	{{DATA_TERMINO_OS_RELATORIO}}
+Trator	{{TRATOR_OS}}
+Operador(es)	{{OPERADORES_OS}}
+Implemento	{{IMPLEMENTO_OS}}
+Observação	{{OBSERVACAO_OS}}
+Horímetro Início	{{HORIMETRO_INICIO}}
+Horímetro Fim	{{HORIMETRO_FIM}}
+Paradas Imprevistas	{{PARADAS_IMPREVISTAS}}
+Linha da Tabela de Abastecimento:	
+Horímetro Abastecimento	{{HorimetroAbastecimento}}
+Litros Abastecimento	{{LitrosAbastecimento}}
+
+08:49 07/08/2025
+
+Como as coisas só pioraram, vamos fazer um rollback.
+Vou enviar as versões anteriores dos arquivos para reiniciarmos as atualizações. 
+
+Aí estão os arquivos. O PDF está impecável. A planilha tem as seguintes colunas em branco:
+
+	ID da OS
+	Nome do Usuario	OS Planejado - Local
+	OS Realizado - Local
+	OS Planejado - Talhoes (Area)
+	OS Realizado - Talhoes (Area)
+	OS Planejado - Área Total (ha)
+	OS Realizado - Área Total (ha)
+	OS Planejado - Data de Inicio
+	OS Realizado - Data de Inicio
+	OS Planejado - Data de Termino
+	OS Realizado - Data de Termino
+	OS Planejado - Cultura / Cultivar
+	OS Realizado - Cultura / Cultivar
+	OS Planejado - Trator
+	OS Realizado - Trator
+	OS Planejado - Operador(es)
+	OS Realizado - Operador(es)
+	OS Planejado - Implemento
+	OS Realizado - Implemento
+	OS Planejado - Observação
+	OS Realizado - Observação
+
+Por favor, NÃO modifique os placeholders que possam afetar os dados no PDF. Faça mudanças apenas para que a planilha funcione.
+
+
+09:31 07/08/2025
+Os seguintes campos(colunas) ainda estão em branco:
+
+	OS Planejado - Local
+	OS Realizado - Local
+	OS Planejado - Talhoes (Area)
+	OS Realizado - Talhoes (Area)
+	OS Planejado - Área Total (ha)
+	OS Realizado - Área Total (ha)
+	OS Planejado - Data de Inicio
+	OS Realizado - Data de Inicio
+	OS Planejado - Data de Termino
+	OS Realizado - Data de Termino
+	OS Planejado - Cultura / Cultivar
+	OS Realizado - Cultura / Cultivar
+	OS Planejado - Trator
+	OS Realizado - Trator
+	OS Planejado - Operador(es)
+	OS Realizado - Operador(es)
+	OS Planejado - Implemento
+	OS Realizado - Implemento
+	OS Planejado - Observacao
+	OS Realizado - Observacao
+
+R E S O L V I D O
+
+13:22 07/08/2025
+
+Próximas atualizações:
+Os campos que forem alterados, isto é, o usuário seleciona o botão de rádio "não" e digita o novo valor, este novo valor deve ser o que irá para o PDF. Caso o usuário confirme, o valor a ser enviado ao PDF é o que veio da ordem de serviço.
+Por favor NÃO mude os placeholders já funcionando nem altere o nome dos que já existem. As alterações devem ser estritamente aquelas necessárias às mudanças mencionadas aqui.
+
+R E S O L V I D O
+Exceto para observação: mesmo digitando não em observação e digitando o novo valor, na planilha aparece com o valor original da OS, nas duas colunas, e deveria ser apenas na coluna "OS Planejado - Observacao". A coluna "OS Realizado - Observacao" deve ser o novo valor digitado.
+No PDF aparece o valor original da OS, mesmo tendo sido selecionado "não" e  digitado valor diferente
+
+R E S O L V I D O
+Me desculpe mas agora é que eu vi uma coisa os campos de observação são independentes. Assim, as observações da OS e do relatório de operações podem ter valores diferentes. Assim, independente da confirmação ser "sim" ou "não" cada uma terá o seu valor: 
+"OS Planejado - Observacao" - valor original da OS
+"OS Realizado - Observacao" - valor novo, se for digitado ou em branco, caso o usuário não digite nada.
+Pode fazer estas alterações, por favor?

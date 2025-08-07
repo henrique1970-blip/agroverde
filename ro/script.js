@@ -142,13 +142,25 @@ async function fetchAndDisplayOsData(osId) {
         currentOsDetails = osDetails;
         const fieldsToExclude = ["Timestamp", "Nome do Usuário", "ID da OS"];
         let tableHtml = `<div class="os-data-container"><h4>Confirme os dados da Operação:</h4><div class="os-data-grid"><div class="grid-header">Item</div><div class="grid-header">Dados da OS</div><div class="grid-header center">Sim</div><div class="grid-header center">Não</div><div class="grid-header" style="color: grey;">Realizado/Usado</div>`;
+        
+        // --- INÍCIO DA CORREÇÃO ---
         for (const key in osDetails) {
-            if (fieldsToExclude.includes(key) || osDetails[key] === null || osDetails[key] === undefined || String(osDetails[key]).trim() === '') continue;
+            // Pula os campos desnecessários e o campo de Observação
+            if (fieldsToExclude.includes(key) || key.toLowerCase().includes('observa') || osDetails[key] === null || osDetails[key] === undefined || String(osDetails[key]).trim() === '') continue;
+            
             let value = osDetails[key];
             if (key === "Data de Inicio" || key === "Data de Termino") value = formatClientDate(value);
             const cleanKey = key.replace(/[^a-zA-Z0-9]/g, '');
             tableHtml += `<div class="grid-item"><strong>${key}</strong></div><div class="grid-item">${value}</div><div class="grid-item center"><input type="radio" name="confirm_${cleanKey}" value="sim" checked></div><div class="grid-item center"><input type="radio" name="confirm_${cleanKey}" value="nao"></div><div class="grid-item"><input type="text" id="realizado_${cleanKey}" value="${value}" disabled></div>`;
         }
+        
+        // Mostra a observação da OS de forma estática, se existir
+        const osObservacaoKey = Object.keys(osDetails).find(k => k.toLowerCase().includes('observa'));
+        if (osObservacaoKey && osDetails[osObservacaoKey]) {
+            tableHtml += `<div class="grid-item"><strong>Observação da OS</strong></div><div class="grid-item" style="grid-column: 2 / -1; font-style: italic;">${osDetails[osObservacaoKey]}</div>`;
+        }
+        // --- FIM DA CORREÇÃO ---
+
         tableHtml += `</div></div>`;
         osDetailsContainer.innerHTML = tableHtml;
         const dataGrid = osDetailsContainer.querySelector('.os-data-grid');
@@ -214,25 +226,62 @@ function showSuccessModal(pdfUrl, folderUrl) {
 
 // --- Função de Envio Principal ---
 async function submitReport() {
+    // 1. Coleta os dados base e os específicos do relatório
     const reportData = {
         activity: selectedActivityKey,
         userName: userName,
         osId: currentOsDetails['ID da OS'],
-        local: currentOsDetails['Local'],
-        talhoes: currentOsDetails['Talhoes (Area)'],
-        areaTotalHectares: currentOsDetails['Área Total (ha)'],
-        dataInicio: currentOsDetails['Data de Inicio'],
-        dataTermino: currentOsDetails['Data de Termino'],
-        trator: currentOsDetails['Trator'] || '',
-        operadores: currentOsDetails['Operador(es)'] || currentOsDetails['Operadores'] || '',
-        implemento: currentOsDetails['Implemento'] || '',
-        observacao: currentOsDetails['Observacao'] || '',
         horimetroInicio: document.getElementById('horimetroInicio')?.value,
         horimetroFim: document.getElementById('horimetroFim')?.value,
         paradasImprevistas: document.getElementById('paradasImprevistas')?.value,
         numAbastecimentos: document.getElementById('numAbastecimentos')?.value,
-        observacoesRelatorio: document.getElementById('observacoesRelatorio')?.value,
     };
+    
+    // --- INÍCIO DA CORREÇÃO ---
+    // 2. Coleta e processa os dados da grade "Planejado vs. Realizado" (exceto observação)
+    for (const key in currentOsDetails) {
+        if (key.toLowerCase().includes('observa')) continue; // Pula a observação aqui
+
+        const cleanKey = key.replace(/[^a-zA-Z0-9]/g, '');
+        const realizadoInput = document.getElementById(`realizado_${cleanKey}`);
+        
+        let realizadoValue = currentOsDetails[key];
+        if (realizadoInput && !realizadoInput.disabled) {
+            realizadoValue = realizadoInput.value;
+        }
+
+        // Popula os dados para a Planilha
+        reportData[cleanKey] = currentOsDetails[key];
+        reportData[`realizado_${cleanKey}`] = realizadoValue;
+
+        // Popula os dados simples para o PDF
+        switch (key) {
+            case 'Local': reportData.local = realizadoValue; break;
+            case 'Talhoes (Area)': reportData.talhoes = realizadoValue; break;
+            case 'Área Total (ha)': reportData.areaTotalHectares = realizadoValue; break;
+            case 'Data de Inicio': reportData.dataInicio = realizadoValue; break;
+            case 'Data de Termino': reportData.dataTermino = realizadoValue; break;
+            case 'Trator': reportData.trator = realizadoValue; break;
+            case 'Operador(es)':
+            case 'Operadores': reportData.operadores = realizadoValue; break;
+            case 'Implemento': reportData.implemento = realizadoValue; break;
+        }
+    }
+    
+    // 3. Trata os campos de observação de forma independente
+    const osObservacaoKey = Object.keys(currentOsDetails).find(k => k.toLowerCase().includes('observa')) || 'Observacao';
+    const cleanOsObservacaoKey = osObservacaoKey.replace(/[^a-zA-Z0-9]/g, '');
+
+    // Para a Planilha:
+    reportData[cleanOsObservacaoKey] = currentOsDetails[osObservacaoKey] || ''; // Planejado
+    reportData[`realizado_${cleanOsObservacaoKey}`] = document.getElementById('observacoesRelatorio')?.value || ''; // Realizado (do campo de texto do relatório)
+
+    // Para o PDF:
+    reportData.observacao = document.getElementById('observacoesRelatorio')?.value || '';
+    // --- FIM DA CORREÇÃO ---
+
+
+    // 4. Lógica de abastecimentos (sem alteração)
     const numAbastecimentos = parseInt(reportData.numAbastecimentos);
     if (selectedActivityKey === "PreparodeArea" && numAbastecimentos > 0) {
         for (let i = 1; i <= numAbastecimentos; i++) {
@@ -240,6 +289,8 @@ async function submitReport() {
             reportData[`abastecimento_litros_${i}`] = document.getElementById(`abastecimento_litros_${i}`)?.value || '';
         }
     }
+
+    // Validação (sem alteração)
     if (selectedActivityKey === "PreparodeArea") {
         if (!reportData.horimetroInicio || !reportData.horimetroFim) {
             alert('Por favor, preencha o Horímetro Início e Fim da Operação.');
@@ -250,6 +301,8 @@ async function submitReport() {
             return;
         }
     }
+    
+    // Processo de envio (sem alteração)
     const loadingOverlay = document.getElementById('loadingOverlay');
     loadingOverlay.style.display = 'flex';
     submitReportButton.disabled = true;
@@ -280,6 +333,7 @@ async function submitReport() {
         submitReportButton.textContent = 'Enviar Relatório de Operação';
     }
 }
+
 
 // --- Funções de Sincronização e Armazenamento Offline ---
 async function saveReportOffline(reportData) {
