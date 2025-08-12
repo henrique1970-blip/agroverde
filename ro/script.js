@@ -8,7 +8,7 @@ let userName = '';
 let selectedActivityKey = '';
 let currentOsDetails = {};
 
-// --- Bloco de funcionalidade offline ---
+// Bloco de funcionalidade offline
 const DB_NAME = 'reportAgroDB';
 const STORE_NAME = 'pendingReports';
 const SYNC_TAG = 'sync-report-data';
@@ -26,7 +26,6 @@ function openDB() {
         request.onerror = event => reject(event.target.error);
     });
 }
-// --- Fim do bloco offline ---
 
 const ACTIVITIES = {
     "PreparodeArea": "Preparo de Área",
@@ -37,6 +36,7 @@ const ACTIVITIES = {
     "Lancas": "Lanças"
 };
 
+// Referências de elementos do DOM
 const activitySelectionDiv = document.getElementById('activitySelection');
 const formContainerDiv = document.getElementById('formContainer');
 const backToActivitiesBtn = document.getElementById('backToActivities');
@@ -44,9 +44,7 @@ const osIdRadioContainer = document.getElementById('osIdRadioContainer');
 const operationIdDisplay = document.getElementById('operationIdDisplay');
 const osDetailsContainer = document.getElementById('osDetailsContainer');
 const preparoAreaReportFieldsDiv = document.getElementById('preparoAreaReportFields');
-const numAbastecimentosInput = document.getElementById('numAbastecimentos');
-const abastecimentosContainer = document.getElementById('abastecimentosContainer');
-const addAbastecimentoFieldsBtn = document.getElementById('addAbastecimentoFields');
+const observacoesRelatorioContainer = document.getElementById('observacoesRelatorioContainer');
 const submitReportButton = document.getElementById('submitReportButton');
 const activityTitleSpan = document.getElementById('activityTitle');
 const currentUserSpan = document.getElementById('currentUser');
@@ -54,10 +52,6 @@ const currentUserSpan = document.getElementById('currentUser');
 function showActivitySelection() {
     activitySelectionDiv.style.display = 'grid';
     formContainerDiv.style.display = 'none';
-    osIdRadioContainer.innerHTML = '';
-    osDetailsContainer.innerHTML = '';
-    preparoAreaReportFieldsDiv.style.display = 'none';
-    submitReportButton.style.display = 'none';
 }
 
 function showForm() {
@@ -78,10 +72,6 @@ function renderActivityButtons() {
         });
         activitySelectionDiv.appendChild(button);
     }
-    const ongoingButton = document.createElement('button');
-    ongoingButton.id = 'ongoingOperations';
-    ongoingButton.textContent = 'Operação em andamento';
-    activitySelectionDiv.appendChild(ongoingButton);
 }
 
 async function renderOsSelectionForm(activityKey) {
@@ -90,13 +80,15 @@ async function renderOsSelectionForm(activityKey) {
     osIdRadioContainer.innerHTML = `<p class="loading-message">Carregando Ordens de Serviço...</p>`;
     osDetailsContainer.innerHTML = '';
     preparoAreaReportFieldsDiv.style.display = 'none';
+    if (observacoesRelatorioContainer) observacoesRelatorioContainer.style.display = 'none';
     submitReportButton.style.display = 'none';
+
     try {
         const response = await fetch(`${osAppsScriptUrl}?activity=${activityKey}`);
         const osIds = await response.json();
         if (osIds.error) throw new Error(osIds.error);
         if (osIds.length === 0) {
-            osIdRadioContainer.innerHTML = `<p class="error-message">Nenhuma Ordem de Serviço encontrada para esta atividade.</p>`;
+            osIdRadioContainer.innerHTML = `<p class="error-message">Nenhuma OS encontrada para esta atividade.</p>`;
             return;
         }
         osIdRadioContainer.innerHTML = osIds.map((id, index) => `
@@ -106,223 +98,134 @@ async function renderOsSelectionForm(activityKey) {
             </div>`).join('');
         osIdRadioContainer.addEventListener('change', async (event) => {
             if (event.target.name === 'osIdRadio') {
-                const selectedOsId = event.target.value;
-                operationIdDisplay.textContent = `${selectedOsId}-OP`;
-                await fetchAndDisplayOsData(selectedOsId);
+                operationIdDisplay.textContent = `${event.target.value}-OP`;
+                await fetchAndDisplayOsData(event.target.value);
             }
         });
     } catch (error) {
-        osIdRadioContainer.innerHTML = `<p class="error-message">Erro ao carregar Ordens de Serviço: ${error.message}</p>`;
+        osIdRadioContainer.innerHTML = `<p class="error-message">Erro ao carregar OS: ${error.message}</p>`;
     }
 }
 
 function formatClientDate(dateInput) {
     if (!dateInput) return '';
-    try {
-        const date = new Date(dateInput);
-        if (isNaN(date.getTime())) return dateInput;
-        const day = String(date.getDate()).padStart(2, '0');
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const year = date.getFullYear();
-        return `${day}/${month}/${year}`;
-    } catch (e) {
-        return dateInput;
-    }
+    const date = new Date(dateInput);
+    if (isNaN(date.getTime())) return dateInput;
+    return new Intl.DateTimeFormat('pt-BR').format(date);
 }
 
+// ====================================================================================
+// FUNÇÃO COM A LÓGICA DE EXIBIÇÃO E O AJUSTE ESTÉTICO
+// ====================================================================================
 async function fetchAndDisplayOsData(osId) {
     osDetailsContainer.innerHTML = `<p class="loading-message">Buscando detalhes da OS...</p>`;
-    preparoAreaReportFieldsDiv.style.display = 'none';
-    submitReportButton.style.display = 'none';
+    document.getElementById('observacoesRelatorio').value = '';
+
     try {
-        const encodedOsId = encodeURIComponent(osId);
-        const response = await fetch(`${osAppsScriptUrl}?activity=${selectedActivityKey}&osId=${encodedOsId}`);
+        const response = await fetch(`${osAppsScriptUrl}?activity=${selectedActivityKey}&osId=${encodeURIComponent(osId)}`);
         const osDetails = await response.json();
         if (osDetails.error) throw new Error(osDetails.error);
         currentOsDetails = osDetails;
+
         const fieldsToExclude = ["Timestamp", "Nome do Usuário", "ID da OS"];
         let tableHtml = `<div class="os-data-container"><h4>Confirme os dados da Operação:</h4><div class="os-data-grid"><div class="grid-header">Item</div><div class="grid-header">Dados da OS</div><div class="grid-header center">Sim</div><div class="grid-header center">Não</div><div class="grid-header" style="color: grey;">Realizado/Usado</div>`;
-        
-        // --- INÍCIO DA CORREÇÃO ---
+
+        // INÍCIO DA CORREÇÃO CRÍTICA (osDetails[key] em vez de osDetails.key)
         for (const key in osDetails) {
-            // Pula os campos desnecessários e o campo de Observação
-            if (fieldsToExclude.includes(key) || key.toLowerCase().includes('observa') || osDetails[key] === null || osDetails[key] === undefined || String(osDetails[key]).trim() === '') continue;
-            
-            let value = osDetails[key];
-            if (key === "Data de Inicio" || key === "Data de Termino") value = formatClientDate(value);
+            if (fieldsToExclude.includes(key) || key.toLowerCase().includes('observa') || !osDetails[key]) continue;
             const cleanKey = key.replace(/[^a-zA-Z0-9]/g, '');
-            tableHtml += `<div class="grid-item"><strong>${key}</strong></div><div class="grid-item">${value}</div><div class="grid-item center"><input type="radio" name="confirm_${cleanKey}" value="sim" checked></div><div class="grid-item center"><input type="radio" name="confirm_${cleanKey}" value="nao"></div><div class="grid-item"><input type="text" id="realizado_${cleanKey}" value="${value}" disabled></div>`;
+            const value = (key.includes("Data")) ? formatClientDate(osDetails[key]) : osDetails[key];
+            tableHtml += `<div class="grid-item"><strong>${key}</strong></div><div class="grid-item">${value}</div><div class="grid-item center"><input type="radio" name="confirm_${cleanKey}" value="sim" checked></div><div class="grid-item center"><input type="radio" name="confirm_${cleanKey}" value="nao"></div><div class="grid-item"><input type="text" id="realizado_${cleanKey}" value="${osDetails[key]}" disabled></div>`;
         }
         
-        // Mostra a observação da OS de forma estática, se existir
         const osObservacaoKey = Object.keys(osDetails).find(k => k.toLowerCase().includes('observa'));
         if (osObservacaoKey && osDetails[osObservacaoKey]) {
             tableHtml += `<div class="grid-item"><strong>Observação da OS</strong></div><div class="grid-item" style="grid-column: 2 / -1; font-style: italic;">${osDetails[osObservacaoKey]}</div>`;
         }
-        // --- FIM DA CORREÇÃO ---
-
+        // FIM DA CORREÇÃO CRÍTICA
         tableHtml += `</div></div>`;
         osDetailsContainer.innerHTML = tableHtml;
-        const dataGrid = osDetailsContainer.querySelector('.os-data-grid');
-        if (dataGrid) {
-            dataGrid.addEventListener('change', (event) => {
-                if (event.target.type === 'radio') {
-                    const cleanKey = event.target.name.replace('confirm_', '');
-                    const realizadoInput = document.getElementById(`realizado_${cleanKey}`);
-                    if (realizadoInput) realizadoInput.disabled = event.target.value !== 'nao';
-                }
-            });
+
+        osDetailsContainer.querySelector('.os-data-grid').addEventListener('change', (event) => {
+            if (event.target.type === 'radio' && event.target.name.startsWith('confirm_')) {
+                const cleanKey = event.target.name.replace('confirm_', '');
+                document.getElementById(`realizado_${cleanKey}`).disabled = event.target.value !== 'nao';
+            }
+        });
+
+        preparoAreaReportFieldsDiv.style.display = (selectedActivityKey === "PreparodeArea") ? 'block' : 'none';
+
+        // INÍCIO DA MODIFICAÇÃO ESTÉTICA
+        if (observacoesRelatorioContainer) {
+            const label = observacoesRelatorioContainer.querySelector('label');
+            const textarea = observacoesRelatorioContainer.querySelector('textarea');
+            
+            // Garante que o container esteja visível e o label fique acima do textarea
+            observacoesRelatorioContainer.style.display = 'block';
+            observacoesRelatorioContainer.style.width = '100%';
+            observacoesRelatorioContainer.querySelector('.form-line').style.flexDirection = 'column';
+            label.style.textAlign = 'left';
+            label.style.width = '100%';
+            textarea.style.width = '100%';
         }
-        if (selectedActivityKey === "PreparodeArea") {
-            preparoAreaReportFieldsDiv.style.display = 'block';
-            generateAbastecimentoFields(numAbastecimentosInput.value, abastecimentosContainer);
-        } else {
-            preparoAreaReportFieldsDiv.style.display = 'none';
-        }
+        // FIM DA MODIFICAÇÃO ESTÉTICA
+
         submitReportButton.style.display = 'block';
     } catch (error) {
-        osDetailsContainer.innerHTML = `<p class="error-message">Erro ao buscar detalhes da OS: ${error.message}</p>`;
+        osDetailsContainer.innerHTML = `<p class="error-message">Erro ao buscar detalhes: ${error.message}</p>`;
     }
 }
+// ====================================================================================
 
-function generateAbastecimentoFields(numFields, container) {
-    numFields = parseInt(numFields);
-    if (isNaN(numFields) || numFields < 0) numFields = 0;
-    if (numFields > 10) {
-        alert("Máximo de 10 abastecimentos permitidos.");
-        numFields = 10;
-        document.getElementById('numAbastecimentos').value = 10;
-    }
-    if (numFields === 0) {
-        container.innerHTML = '';
-        return;
-    }
-    let tableHtml = `<table class="abastecimentos-table"><thead><tr><th>Abastecimento</th><th>Horímetro (h)</th><th>Litros (L)</th></tr></thead><tbody>`;
-    for (let i = 1; i <= numFields; i++) {
-        tableHtml += `<tr><td>${i}</td><td><input type="number" id="abastecimento_horimetro_${i}" name="abastecimento_horimetro_${i}" step="0.01"></td><td><input type="number" id="abastecimento_litros_${i}" name="abastecimento_litros_${i}" step="0.01"></td></tr>`;
-    }
-    tableHtml += `</tbody></table>`;
-    container.innerHTML = tableHtml;
-}
-
-// --- Modal de sucesso ---
-function showSuccessModal(pdfUrl, folderUrl) {
-    const modal = document.getElementById('successModal');
-    const pdfLink = document.getElementById('pdfLink');
-    const folderLink = document.getElementById('folderLink');
-    const closeButton = modal.querySelector('.close-button');
-    pdfLink.href = pdfUrl;
-    folderLink.href = folderUrl;
-    modal.style.display = 'flex';
-    const closeModal = () => {
-        modal.style.display = 'none';
-        showActivitySelection();
-    };
-    closeButton.onclick = closeModal;
-    window.onclick = (event) => {
-        if (event.target == modal) closeModal();
-    };
-}
-
-// --- Função de Envio Principal ---
 async function submitReport() {
-    // 1. Coleta os dados base e os específicos do relatório
     const reportData = {
         activity: selectedActivityKey,
         userName: userName,
         osId: currentOsDetails['ID da OS'],
-        horimetroInicio: document.getElementById('horimetroInicio')?.value,
-        horimetroFim: document.getElementById('horimetroFim')?.value,
-        paradasImprevistas: document.getElementById('paradasImprevistas')?.value,
-        numAbastecimentos: document.getElementById('numAbastecimentos')?.value,
+        horimetroInicio: document.getElementById('horimetroInicio')?.value || '',
+        horimetroFim: document.getElementById('horimetroFim')?.value || '',
     };
-    
-    // --- INÍCIO DA CORREÇÃO ---
-    // 2. Coleta e processa os dados da grade "Planejado vs. Realizado" (exceto observação)
-    for (const key in currentOsDetails) {
-        if (key.toLowerCase().includes('observa')) continue; // Pula a observação aqui
 
+    for (const key in currentOsDetails) {
+        if (["Timestamp", "Nome do Usuário", "ID da OS"].includes(key)) continue;
         const cleanKey = key.replace(/[^a-zA-Z0-9]/g, '');
         const realizadoInput = document.getElementById(`realizado_${cleanKey}`);
         
-        let realizadoValue = currentOsDetails[key];
-        if (realizadoInput && !realizadoInput.disabled) {
-            realizadoValue = realizadoInput.value;
-        }
-
-        // Popula os dados para a Planilha
         reportData[cleanKey] = currentOsDetails[key];
-        reportData[`realizado_${cleanKey}`] = realizadoValue;
-
-        // Popula os dados simples para o PDF
-        switch (key) {
-            case 'Local': reportData.local = realizadoValue; break;
-            case 'Talhoes (Area)': reportData.talhoes = realizadoValue; break;
-            case 'Área Total (ha)': reportData.areaTotalHectares = realizadoValue; break;
-            case 'Data de Inicio': reportData.dataInicio = realizadoValue; break;
-            case 'Data de Termino': reportData.dataTermino = realizadoValue; break;
-            case 'Trator': reportData.trator = realizadoValue; break;
-            case 'Operador(es)':
-            case 'Operadores': reportData.operadores = realizadoValue; break;
-            case 'Implemento': reportData.implemento = realizadoValue; break;
+        if (realizadoInput) {
+             reportData[`realizado_${cleanKey}`] = realizadoInput.disabled ? currentOsDetails[key] : realizadoInput.value;
+        } else if(key.toLowerCase().includes('observa')) {
+            reportData[cleanKey] = currentOsDetails[key];
         }
     }
     
-    // 3. Trata os campos de observação de forma independente
-    const osObservacaoKey = Object.keys(currentOsDetails).find(k => k.toLowerCase().includes('observa')) || 'Observacao';
-    const cleanOsObservacaoKey = osObservacaoKey.replace(/[^a-zA-Z0-9]/g, '');
-
-    // Para a Planilha:
-    reportData[cleanOsObservacaoKey] = currentOsDetails[osObservacaoKey] || ''; // Planejado
-    reportData[`realizado_${cleanOsObservacaoKey}`] = document.getElementById('observacoesRelatorio')?.value || ''; // Realizado (do campo de texto do relatório)
-
-    // Para o PDF:
     reportData.observacao = document.getElementById('observacoesRelatorio')?.value || '';
-    // --- FIM DA CORREÇÃO ---
 
-
-    // 4. Lógica de abastecimentos (sem alteração)
-    const numAbastecimentos = parseInt(reportData.numAbastecimentos);
-    if (selectedActivityKey === "PreparodeArea" && numAbastecimentos > 0) {
-        for (let i = 1; i <= numAbastecimentos; i++) {
-            reportData[`abastecimento_horimetro_${i}`] = document.getElementById(`abastecimento_horimetro_${i}`)?.value || '';
-            reportData[`abastecimento_litros_${i}`] = document.getElementById(`abastecimento_litros_${i}`)?.value || '';
-        }
-    }
-
-    // Validação (sem alteração)
     if (selectedActivityKey === "PreparodeArea") {
         if (!reportData.horimetroInicio || !reportData.horimetroFim) {
-            alert('Por favor, preencha o Horímetro Início e Fim da Operação.');
-            return;
+            return alert('Preencha o Horímetro Início e Fim.');
         }
         if (parseFloat(reportData.horimetroFim) < parseFloat(reportData.horimetroInicio)) {
-            alert('O Horímetro Fim da Operação não pode ser menor que o Horímetro Início da Operação.');
-            return;
+            return alert('Horímetro Fim não pode ser menor que o Início.');
         }
     }
-    
-    // Processo de envio (sem alteração)
+
     const loadingOverlay = document.getElementById('loadingOverlay');
     loadingOverlay.style.display = 'flex';
     submitReportButton.disabled = true;
-    submitReportButton.textContent = 'Enviando...';
+
     try {
         const response = await fetch(reportAppsScriptUrl, {
             method: 'POST',
             mode: 'cors',
-            cache: 'no-cache',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
             body: new URLSearchParams(reportData).toString()
         });
         const result = await response.json();
-        if (result.success && result.pdfUrl && result.folderUrl) {
+        if (result.success && result.pdfUrl) {
             showSuccessModal(result.pdfUrl, result.folderUrl);
-        } else if (result.success) {
-            alert('Relatório enviado com sucesso, mas o link do PDF não foi gerado.');
-            showActivitySelection();
         } else {
-            throw new Error(result.message);
+            throw new Error(result.message || 'Erro desconhecido ao enviar.');
         }
     } catch (error) {
         console.warn('Falha ao enviar. Salvando relatório offline.', error);
@@ -330,111 +233,68 @@ async function submitReport() {
     } finally {
         loadingOverlay.style.display = 'none';
         submitReportButton.disabled = false;
-        submitReportButton.textContent = 'Enviar Relatório de Operação';
     }
 }
 
+function showSuccessModal(pdfUrl, folderUrl) {
+    const modal = document.getElementById('successModal');
+    modal.style.display = 'flex';
+    document.getElementById('pdfLink').href = pdfUrl;
+    document.getElementById('folderLink').href = folderUrl;
+    modal.querySelector('.close-button').onclick = () => {
+        modal.style.display = 'none';
+        showActivitySelection();
+    };
+}
 
-// --- Funções de Sincronização e Armazenamento Offline ---
 async function saveReportOffline(reportData) {
     try {
         const db = await openDB();
-        const transaction = db.transaction(STORE_NAME, 'readwrite');
-        const store = transaction.objectStore(STORE_NAME);
-        await store.add(reportData);
-        alert('Você está offline. O relatório foi salvo e será enviado assim que a conexão for restabelecida.');
+        const tx = db.transaction(STORE_NAME, 'readwrite');
+        tx.objectStore(STORE_NAME).add(reportData);
+        await tx.done;
+        alert('Você está offline. O relatório foi salvo e será enviado quando houver conexão.');
         showActivitySelection();
-        await registerBackgroundSync();
+        if ('serviceWorker' in navigator && 'SyncManager' in window) {
+            navigator.serviceWorker.ready.then(sw => sw.sync.register(SYNC_TAG));
+        }
     } catch (dbError) {
-        console.error('Não foi possível salvar o relatório offline:', dbError);
         alert('Erro: Não foi possível salvar o relatório para envio posterior.');
     }
 }
 
-async function registerBackgroundSync() {
-    if ('serviceWorker' in navigator && 'SyncManager' in window) {
-        try {
-            const sw = await navigator.serviceWorker.ready;
-            await sw.sync.register(SYNC_TAG);
-            console.log('Sincronização em segundo plano registrada com a tag:', SYNC_TAG);
-        } catch (syncError) {
-            console.error('Não foi possível registrar a sincronização em segundo plano:', syncError);
-        }
-    }
-}
-
-async function syncPendingReports() {
-    console.log('Tentando sincronizar relatórios pendentes...');
-    try {
-        const db = await openDB();
-        const transaction = db.transaction(STORE_NAME, 'readwrite');
-        const store = transaction.objectStore(STORE_NAME);
-        const pendingReports = await new Promise((resolve, reject) => {
-            const request = store.getAll();
-            request.onsuccess = () => resolve(request.result);
-            request.onerror = () => reject(request.error);
-        });
-        if (pendingReports.length === 0) {
-            console.log('Nenhum relatório pendente para sincronizar.');
-            return;
-        }
-        console.log(`Enviando ${pendingReports.length} relatório(s) pendente(s).`);
-        for (const report of pendingReports) {
-            try {
-                const response = await fetch(reportAppsScriptUrl, {
-                    method: 'POST',
-                    mode: 'cors',
-                    cache: 'no-cache',
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                    body: new URLSearchParams(report).toString()
-                });
-                const result = await response.json();
-                if (result.success) {
-                    console.log(`Relatório ID (offline) ${report.id} enviado com sucesso.`);
-                    const deleteTransaction = db.transaction(STORE_NAME, 'readwrite');
-                    await deleteTransaction.objectStore(STORE_NAME).delete(report.id);
-                } else {
-                    console.error(`Falha ao enviar relatório ID ${report.id}:`, result.message);
-                }
-            } catch (fetchError) {
-                console.error(`Erro de rede ao tentar enviar o relatório ID ${report.id}. Tentará novamente mais tarde.`, fetchError);
-                break;
-            }
-        }
-    } catch (dbError) {
-        console.error('Erro ao acessar o IndexedDB para sincronização:', dbError);
-    }
+// --- Funções de inicialização e autenticação ---
+function initializeApp() {
+    const nameModal = document.getElementById('nameModal');
+    if (nameModal) nameModal.style.display = 'none';
+    currentUserSpan.textContent = userName;
+    renderActivityButtons();
+    showActivitySelection();
 }
 
 function getOrSetUserName() {
     userName = localStorage.getItem("userName");
-    while (!userName || userName.trim() === "") {
-        let inputName = prompt("Olá! Por favor, digite seu nome para registrar as operações:");
-        if (inputName && inputName.trim() !== "") {
-            userName = inputName.trim();
-            localStorage.setItem("userName", userName);
-        } else {
-            alert("A identificação é obrigatória para continuar.");
-        }
+    if (!userName || userName.trim() === "") {
+        document.getElementById('nameModal').style.display = 'flex';
+    } else {
+        initializeApp();
     }
 }
 
+// --- Event Listeners Principais ---
 document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('nameForm').addEventListener('submit', (event) => {
+        event.preventDefault();
+        const inputName = document.getElementById('nameInput').value;
+        if (inputName && inputName.trim() !== "") {
+            userName = inputName.trim();
+            localStorage.setItem("userName", userName);
+            initializeApp();
+        }
+    });
+
     getOrSetUserName();
-    renderActivityButtons();
-    showActivitySelection();
+
     backToActivitiesBtn.addEventListener('click', showActivitySelection);
     submitReportButton.addEventListener('click', submitReport);
-    addAbastecimentoFieldsBtn.addEventListener('click', () => generateAbastecimentoFields(numAbastecimentosInput.value, abastecimentosContainer));
-    
-    // --- Ativadores de Sincronização ---
-    if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.addEventListener('message', event => {
-            if (event.data.type === 'SYNC_PENDING_REPORTS') {
-                syncPendingReports();
-            }
-        });
-    }
-    syncPendingReports();
-    window.addEventListener('online', syncPendingReports);
 });

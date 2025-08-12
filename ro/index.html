@@ -55,13 +55,13 @@
 
                 <div id="abastecimentosContainer" class="abastecimentos-table-wrapper">
                     </div>
-                
+            </div>
+            <div id="observacoesRelatorioContainer" style="display: none;">
                 <div class="form-line">
                     <label for="observacoesRelatorio" class="full-width-label">Observações do Relatório:</label>
                     <textarea id="observacoesRelatorio" name="observacoesRelatorio" rows="3"></textarea>
                 </div>
             </div>
-
             <button type="button" id="submitReportButton" style="display: none;">Enviar Relatório de Operação</button>
         </div>
     </div>
@@ -83,5 +83,17 @@
             </div>
         </div>
     </div>
+
+    <div id="nameModal" class="overlay" style="display: none;">
+        <div class="modal-content" style="max-width: 400px;">
+            <h2>Identificação</h2>
+            <p>Por favor, digite seu nome para registrar as operações.</p>
+            <form id="nameForm">
+                <input type="text" id="nameInput" required placeholder="Digite seu nome aqui..." aria-label="Nome do usuário" style="width: 100%; padding: 10px; margin-bottom: 15px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px;">
+                <button type="submit" class="modal-button" style="background-color: #28a745; width: 100%; font-size: 1.1em;">Continuar</button>
+            </form>
+        </div>
+    </div>
+
 </body>
 </html>
