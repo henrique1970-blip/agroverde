@@ -559,3 +559,38 @@ OS Realizado - Implemento
 
 
 			
+
+08:38 12/08/2025
+Nem tudo funcionando ainda:
+1. PDF
+- Os campos a seguir estão em branco. Adiciono os placeholders para facilitar:
+Cultura e Cultivar: {{CULTURA_CULTIVAR_OS}}
+Quantidade de Sementes (Kg): {{QTD_SEMENTES_KG_OS}}
+Produtos Utilizados: {{PRODUTOS_UTILIZADOS_OS}}
+
+2. Planilha
+- Campos em branco:
+	OS Planejado - Cultura / Cultivar
+	OS Realizado - Cultura / Cultivar
+	OS Planejado - Quantidade de Sementes (Kg)
+	OS Realizado - Quantidade de Sementes (Kg)
+	OS Planejado - Produtos Utilizados
+	OS Realizado - Produtos Utilizados
+
+Faça as atualizações certificando-se de NÃO ALTERAR A ETAPA 1
+
+
+DEBUG: Cabeçalhos recebidos da OS:
+
+["Timestamp","ID da OS","Nome do Usuário","Local","Talhoes (Area)","Área Total (ha)","Data de Inicio","Data de Termino","Cultura e Cultivar","Qtd Sementes (Kg)","Produtos e Dosagens","Maquina","Operadores","Observacao"]
+
+Com a listagem dos campos recebidos da OS, tudo funcionou :D
+
+
+
+10:38 12/08/2025
+Infelizmente precisamos voltar a etapa 1 "Preparo de área". Algo deixou de funcionar:
+
+- ao informar número de abastecimentos e, em seguida, pressionar o botão "Adicionar/Atualizar Campos de Abastecimento" o app deveria apresentar dois campos para cada abastecimento: "Horímetro" e "litros de combustível". Isso estava funcionando antes e agora não está mais. Consegue corrigir isto SEM AFETAR a etapa 2?
+
+Corrigido.

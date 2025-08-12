@@ -48,6 +48,9 @@ const observacoesRelatorioContainer = document.getElementById('observacoesRelato
 const submitReportButton = document.getElementById('submitReportButton');
 const activityTitleSpan = document.getElementById('activityTitle');
 const currentUserSpan = document.getElementById('currentUser');
+const numAbastecimentosInput = document.getElementById('numAbastecimentos');
+const abastecimentosContainer = document.getElementById('abastecimentosContainer');
+const addAbastecimentoFieldsBtn = document.getElementById('addAbastecimentoFields');
 
 function showActivitySelection() {
     activitySelectionDiv.style.display = 'grid';
@@ -114,9 +117,6 @@ function formatClientDate(dateInput) {
     return new Intl.DateTimeFormat('pt-BR').format(date);
 }
 
-// ====================================================================================
-// FUNÇÃO COM A LÓGICA DE EXIBIÇÃO E O AJUSTE ESTÉTICO
-// ====================================================================================
 async function fetchAndDisplayOsData(osId) {
     osDetailsContainer.innerHTML = `<p class="loading-message">Buscando detalhes da OS...</p>`;
     document.getElementById('observacoesRelatorio').value = '';
@@ -130,7 +130,6 @@ async function fetchAndDisplayOsData(osId) {
         const fieldsToExclude = ["Timestamp", "Nome do Usuário", "ID da OS"];
         let tableHtml = `<div class="os-data-container"><h4>Confirme os dados da Operação:</h4><div class="os-data-grid"><div class="grid-header">Item</div><div class="grid-header">Dados da OS</div><div class="grid-header center">Sim</div><div class="grid-header center">Não</div><div class="grid-header" style="color: grey;">Realizado/Usado</div>`;
 
-        // INÍCIO DA CORREÇÃO CRÍTICA (osDetails[key] em vez de osDetails.key)
         for (const key in osDetails) {
             if (fieldsToExclude.includes(key) || key.toLowerCase().includes('observa') || !osDetails[key]) continue;
             const cleanKey = key.replace(/[^a-zA-Z0-9]/g, '');
@@ -142,7 +141,6 @@ async function fetchAndDisplayOsData(osId) {
         if (osObservacaoKey && osDetails[osObservacaoKey]) {
             tableHtml += `<div class="grid-item"><strong>Observação da OS</strong></div><div class="grid-item" style="grid-column: 2 / -1; font-style: italic;">${osDetails[osObservacaoKey]}</div>`;
         }
-        // FIM DA CORREÇÃO CRÍTICA
         tableHtml += `</div></div>`;
         osDetailsContainer.innerHTML = tableHtml;
 
@@ -153,14 +151,16 @@ async function fetchAndDisplayOsData(osId) {
             }
         });
 
-        preparoAreaReportFieldsDiv.style.display = (selectedActivityKey === "PreparodeArea") ? 'block' : 'none';
+        if (selectedActivityKey === "PreparodeArea") {
+            preparoAreaReportFieldsDiv.style.display = 'block';
+        } else {
+            preparoAreaReportFieldsDiv.style.display = 'none';
+        }
 
-        // INÍCIO DA MODIFICAÇÃO ESTÉTICA
         if (observacoesRelatorioContainer) {
             const label = observacoesRelatorioContainer.querySelector('label');
             const textarea = observacoesRelatorioContainer.querySelector('textarea');
             
-            // Garante que o container esteja visível e o label fique acima do textarea
             observacoesRelatorioContainer.style.display = 'block';
             observacoesRelatorioContainer.style.width = '100%';
             observacoesRelatorioContainer.querySelector('.form-line').style.flexDirection = 'column';
@@ -168,14 +168,32 @@ async function fetchAndDisplayOsData(osId) {
             label.style.width = '100%';
             textarea.style.width = '100%';
         }
-        // FIM DA MODIFICAÇÃO ESTÉTICA
 
         submitReportButton.style.display = 'block';
     } catch (error) {
         osDetailsContainer.innerHTML = `<p class="error-message">Erro ao buscar detalhes: ${error.message}</p>`;
     }
 }
-// ====================================================================================
+
+function generateAbastecimentoFields(numFields, container) {
+    numFields = parseInt(numFields);
+    if (isNaN(numFields) || numFields < 0) numFields = 0;
+    if (numFields > 10) {
+        alert("Máximo de 10 abastecimentos permitidos.");
+        numFields = 10;
+        document.getElementById('numAbastecimentos').value = 10;
+    }
+    if (numFields === 0) {
+        container.innerHTML = '';
+        return;
+    }
+    let tableHtml = `<table class="abastecimentos-table"><thead><tr><th>Abastecimento</th><th>Horímetro (h)</th><th>Litros (L)</th></tr></thead><tbody>`;
+    for (let i = 1; i <= numFields; i++) {
+        tableHtml += `<tr><td>${i}</td><td><input type="number" id="abastecimento_horimetro_${i}" name="abastecimento_horimetro_${i}" step="0.01"></td><td><input type="number" id="abastecimento_litros_${i}" name="abastecimento_litros_${i}" step="0.01"></td></tr>`;
+    }
+    tableHtml += `</tbody></table>`;
+    container.innerHTML = tableHtml;
+}
 
 async function submitReport() {
     const reportData = {
@@ -184,6 +202,8 @@ async function submitReport() {
         osId: currentOsDetails['ID da OS'],
         horimetroInicio: document.getElementById('horimetroInicio')?.value || '',
         horimetroFim: document.getElementById('horimetroFim')?.value || '',
+        paradasImprevistas: document.getElementById('paradasImprevistas')?.value || '',
+        numAbastecimentos: document.getElementById('numAbastecimentos')?.value || '',
     };
 
     for (const key in currentOsDetails) {
@@ -201,7 +221,16 @@ async function submitReport() {
     
     reportData.observacao = document.getElementById('observacoesRelatorio')?.value || '';
 
+    // --- LÓGICA DE COLETA DOS DADOS DE ABASTECIMENTO RESTAURADA ---
     if (selectedActivityKey === "PreparodeArea") {
+        const numAbastecimentos = parseInt(reportData.numAbastecimentos);
+        if (numAbastecimentos > 0) {
+            for (let i = 1; i <= numAbastecimentos; i++) {
+                reportData[`abastecimento_horimetro_${i}`] = document.getElementById(`abastecimento_horimetro_${i}`)?.value || '';
+                reportData[`abastecimento_litros_${i}`] = document.getElementById(`abastecimento_litros_${i}`)?.value || '';
+            }
+        }
+
         if (!reportData.horimetroInicio || !reportData.horimetroFim) {
             return alert('Preencha o Horímetro Início e Fim.');
         }
@@ -263,7 +292,6 @@ async function saveReportOffline(reportData) {
     }
 }
 
-// --- Funções de inicialização e autenticação ---
 function initializeApp() {
     const nameModal = document.getElementById('nameModal');
     if (nameModal) nameModal.style.display = 'none';
@@ -281,7 +309,6 @@ function getOrSetUserName() {
     }
 }
 
-// --- Event Listeners Principais ---
 document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('nameForm').addEventListener('submit', (event) => {
         event.preventDefault();
@@ -297,4 +324,5 @@ document.addEventListener('DOMContentLoaded', () => {
 
     backToActivitiesBtn.addEventListener('click', showActivitySelection);
     submitReportButton.addEventListener('click', submitReport);
+    addAbastecimentoFieldsBtn.addEventListener('click', () => generateAbastecimentoFields(numAbastecimentosInput.value, abastecimentosContainer));
 });
