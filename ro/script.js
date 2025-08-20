@@ -2,11 +2,29 @@
 const osAppsScriptUrl = 'https://script.google.com/macros/s/AKfycbyS8G4Yar6Bjx5clsorCNrb_tWOelWbXBdEm97Alj9kWgQGCDUw04zRQW9pH9TT3OHozA/exec';
 
 // ATENÇÃO: COLE AQUI A URL DE IMPLANTAÇÃO DO SEU NOVO APPS SCRIPT DE RELATÓRIO
-const reportAppsScriptUrl = 'https://script.google.com/macros/s/AKfycbxCQBDKLxf4imFLK4Mnns_xKzHQ8f7jc6ognFFHf5UY-3_jH5cLxzcxTYpx_S7oEwXk/exec';
+const reportAppsScriptUrl = 'https://script.google.com/macros/s/AKfycbw3CLBFOAircccailDM1Rf0u-meY-qcsaJX9VD55_xnX8oQNxMUTH7DbSN_sszTrkJ4/exec';
 
 let userName = '';
 let selectedActivityKey = '';
 let currentOsDetails = {};
+
+// --- INÍCIO DA SOLUÇÃO DEFINITIVA ---
+// Este mapa traduz os possíveis nomes de cabeçalho da OS para chaves padronizadas e previsíveis.
+const keyMap = {
+    'Produto(s) e quantidade/ha': 'produtosQuantidade',
+    'Produtos e quantidade/ha':    'produtosQuantidade',
+    'Produtos e quantidades':      'produtosQuantidade',
+    'Vazao (L/ha)':                'vazaoLHa',
+    'Vazão (L/ha)':                'vazaoLHa',
+    'Vazao':                       'vazaoLHa',
+    'Vazão':                       'vazaoLHa',
+    'Pressao':                     'pressao',
+    'Pressão':                     'pressao',
+    'Maquina':                     'maquina',
+    'Máquina':                     'maquina',
+    'Máquina (Pulverizador)':      'maquina'
+};
+// --- FIM DA SOLUÇÃO DEFINITIVA ---
 
 // Bloco de funcionalidade offline
 const DB_NAME = 'reportAgroDB';
@@ -35,6 +53,7 @@ const ACTIVITIES = {
     "Colheita": "Colheita",
     "Lancas": "Lanças"
 };
+
 
 // Referências de elementos do DOM
 const activitySelectionDiv = document.getElementById('activitySelection');
@@ -117,6 +136,13 @@ function formatClientDate(dateInput) {
     return new Intl.DateTimeFormat('pt-BR').format(date);
 }
 
+function formatClientNumber(numInput) {
+    if (numInput === null || numInput === undefined || numInput === '') return '';
+    const num = parseFloat(String(numInput).replace(',', '.'));
+    if (isNaN(num)) return numInput;
+    return num.toFixed(1).replace('.', ',');
+}
+
 async function fetchAndDisplayOsData(osId) {
     osDetailsContainer.innerHTML = `<p class="loading-message">Buscando detalhes da OS...</p>`;
     document.getElementById('observacoesRelatorio').value = '';
@@ -130,11 +156,24 @@ async function fetchAndDisplayOsData(osId) {
         const fieldsToExclude = ["Timestamp", "Nome do Usuário", "ID da OS"];
         let tableHtml = `<div class="os-data-container"><h4>Confirme os dados da Operação:</h4><div class="os-data-grid"><div class="grid-header">Item</div><div class="grid-header">Dados da OS</div><div class="grid-header center">Sim</div><div class="grid-header center">Não</div><div class="grid-header" style="color: grey;">Realizado/Usado</div>`;
 
+        const numericKeys = ["Área Total (ha)", "Capacidade do tanque", "Vazão (L/ha)", "Pressão", "Dose/ha", "Dose/tanque", "Vazão", "Pressao", "Vazao (L/ha)"];
+
         for (const key in osDetails) {
             if (fieldsToExclude.includes(key) || key.toLowerCase().includes('observa') || !osDetails[key]) continue;
-            const cleanKey = key.replace(/[^a-zA-Z0-9]/g, '');
-            const value = (key.includes("Data")) ? formatClientDate(osDetails[key]) : osDetails[key];
-            tableHtml += `<div class="grid-item"><strong>${key}</strong></div><div class="grid-item">${value}</div><div class="grid-item center"><input type="radio" name="confirm_${cleanKey}" value="sim" checked></div><div class="grid-item center"><input type="radio" name="confirm_${cleanKey}" value="nao"></div><div class="grid-item"><input type="text" id="realizado_${cleanKey}" value="${osDetails[key]}" disabled></div>`;
+            
+            // Usa o mapa para obter uma chave padronizada. Se não encontrar, usa o método antigo.
+            const cleanKey = keyMap[key] || key.replace(/[^a-zA-Z0-9]/g, '');
+
+            let value;
+            if (key.includes("Data")) {
+                value = formatClientDate(osDetails[key]);
+            } else if (numericKeys.includes(key)) {
+                value = formatClientNumber(osDetails[key]);
+            } else {
+                value = osDetails[key];
+            }
+            
+            tableHtml += `<div class="grid-item"><strong>${key}</strong></div><div class="grid-item">${value}</div><div class="grid-item center"><input type="radio" name="confirm_${cleanKey}" value="sim" checked></div><div class="grid-item center"><input type="radio" name="confirm_${cleanKey}" value="nao"></div><div class="grid-item"><input type="text" id="realizado_${cleanKey}" value="${value}" disabled></div>`;
         }
         
         const osObservacaoKey = Object.keys(osDetails).find(k => k.toLowerCase().includes('observa'));
@@ -151,7 +190,7 @@ async function fetchAndDisplayOsData(osId) {
             }
         });
 
-        if (selectedActivityKey === "PreparodeArea") {
+        if (["PreparodeArea", "Plantio", "Pulverizacao"].includes(selectedActivityKey)) {
             preparoAreaReportFieldsDiv.style.display = 'block';
         } else {
             preparoAreaReportFieldsDiv.style.display = 'none';
@@ -195,25 +234,43 @@ function generateAbastecimentoFields(numFields, container) {
     container.innerHTML = tableHtml;
 }
 
+function sanitizeNumericInput(value) {
+    if (typeof value === 'string') {
+        return value.replace(',', '.');
+    }
+    return value;
+}
+
 async function submitReport() {
     const reportData = {
         activity: selectedActivityKey,
         userName: userName,
         osId: currentOsDetails['ID da OS'],
-        horimetroInicio: document.getElementById('horimetroInicio')?.value || '',
-        horimetroFim: document.getElementById('horimetroFim')?.value || '',
-        paradasImprevistas: document.getElementById('paradasImprevistas')?.value || '',
-        numAbastecimentos: document.getElementById('numAbastecimentos')?.value || '',
+        horimetroInicio: sanitizeNumericInput(document.getElementById('horimetroInicio')?.value || ''),
+        horimetroFim: sanitizeNumericInput(document.getElementById('horimetroFim')?.value || ''),
+        paradasImprevistas: sanitizeNumericInput(document.getElementById('paradasImprevistas')?.value || ''),
+        numAbastecimentos: sanitizeNumericInput(document.getElementById('numAbastecimentos')?.value || ''),
     };
+
+    const numericKeys = ["Área Total (ha)", "Capacidade do tanque", "Vazão (L/ha)", "Pressão", "Dose/ha", "Dose/tanque", "Vazão", "Pressao", "Vazao (L/ha)"];
 
     for (const key in currentOsDetails) {
         if (["Timestamp", "Nome do Usuário", "ID da OS"].includes(key)) continue;
-        const cleanKey = key.replace(/[^a-zA-Z0-9]/g, '');
+        
+        // --- INÍCIO DA SOLUÇÃO DEFINITIVA ---
+        // Usa o mapa para obter uma chave padronizada. Se não encontrar, usa o método antigo como fallback.
+        const cleanKey = keyMap[key] || key.replace(/[^a-zA-Z0-9]/g, '');
+        // --- FIM DA SOLUÇÃO DEFINITIVA ---
+
         const realizadoInput = document.getElementById(`realizado_${cleanKey}`);
         
         reportData[cleanKey] = currentOsDetails[key];
         if (realizadoInput) {
-             reportData[`realizado_${cleanKey}`] = realizadoInput.disabled ? currentOsDetails[key] : realizadoInput.value;
+             let valueToSubmit = realizadoInput.disabled ? currentOsDetails[key] : realizadoInput.value;
+             if (numericKeys.includes(key)) {
+                 valueToSubmit = sanitizeNumericInput(valueToSubmit);
+             }
+             reportData[`realizado_${cleanKey}`] = valueToSubmit;
         } else if(key.toLowerCase().includes('observa')) {
             reportData[cleanKey] = currentOsDetails[key];
         }
@@ -221,13 +278,12 @@ async function submitReport() {
     
     reportData.observacao = document.getElementById('observacoesRelatorio')?.value || '';
 
-    // --- LÓGICA DE COLETA DOS DADOS DE ABASTECIMENTO RESTAURADA ---
-    if (selectedActivityKey === "PreparodeArea") {
+    if (["PreparodeArea", "Plantio", "Pulverizacao"].includes(selectedActivityKey)) {
         const numAbastecimentos = parseInt(reportData.numAbastecimentos);
         if (numAbastecimentos > 0) {
             for (let i = 1; i <= numAbastecimentos; i++) {
-                reportData[`abastecimento_horimetro_${i}`] = document.getElementById(`abastecimento_horimetro_${i}`)?.value || '';
-                reportData[`abastecimento_litros_${i}`] = document.getElementById(`abastecimento_litros_${i}`)?.value || '';
+                reportData[`abastecimento_horimetro_${i}`] = sanitizeNumericInput(document.getElementById(`abastecimento_horimetro_${i}`)?.value || '');
+                reportData[`abastecimento_litros_${i}`] = sanitizeNumericInput(document.getElementById(`abastecimento_litros_${i}`)?.value || '');
             }
         }
 

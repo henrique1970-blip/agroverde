@@ -593,4 +593,487 @@ Infelizmente precisamos voltar a etapa 1 "Preparo de área". Algo deixou de func
 
 - ao informar número de abastecimentos e, em seguida, pressionar o botão "Adicionar/Atualizar Campos de Abastecimento" o app deveria apresentar dois campos para cada abastecimento: "Horímetro" e "litros de combustível". Isso estava funcionando antes e agora não está mais. Consegue corrigir isto SEM AFETAR a etapa 2?
 
-Corrigido.
+Corrigido. 
+
+
+
+
+14:30 12/08/2025
+Etapa 3 - "Plantio"
+
+Campos no PDF:
+
+1. Todos da Ordem de Serviço
+
+2. Campos específicos:
+Horímetro no ínicio
+Horímetro no término
+Número de paradas imprevistas
+Número de abastecimentos
+Observações do Relatório 
+    Fazer como na Etapa 1, "Preparo de área", ou seja, caso o usuário digite um valor maior que zero, o pressionamento no botão mostrará campos dinâmicos perguntado horímetro e litros de combustível de acordo com o número de abastecimentos informado.
+
+
+16:06 12/08/2025
+1. Campos repetidos
+Os campos 
+- Plantas por metro
+- Espaçamento entre plantas (cm)
+- Peso de mil sementes (PMS) (g)
+Estão sendo repetidos abaixo do título "Detalhes Específicos do plantio" (veja imagem).
+Por favor, elimine estas repetições. LEMBRE-SE de não afetar as duas primeiras etapas.
+
+2. Melhora estética
+Assim como foi feito na etapa 2, posicione o campo de "Observações do relatório abaixo da legenda e aumente a largura para que fique igual a do botão "Enviar Relatório de Operação"
+
+
+
+08:15 13/08/2025
+
+Como nem tudo ficou de acordo com o esperado, vamos fazer um roll back. Aqui vão os arquivos da última versão estável. Vamos recomeçar daí.
+
+
+Etapa 3 - "Plantio"
+
+
+PDF
+
+- Template
+A identificação do arquivo é:
+1s3HKETzY1Y-EWD08PV3xwNOJpl1RchiRbv-pJc8nmDI
+
+- Campos
+1. Todos da Ordem de Serviço
+
+ID da OS: {{OS_ID}} 
+Data de Emissão: {{DATA_EMISSAO}} 
+Registrado por: {{USUARIO_REGISTRO}} 
+
+DETALHES DA OPERAÇÃO 
+Local da Atividade: {{LOCAL_ATIVIDADE}} 
+Talhão(ões) (Área): {{TALHOES_SELECIONADOS}} 
+Área Total (ha): {{AREA_TOTAL_HECTARES}} 
+Cultura e Cultivar: {{CULTURA_CULTIVAR}}
+Quantidade/ha - Máximo: {{QTD_HA_MAX}}
+Quantidade/ha - Mínimo: {{QTD_HA_MIN}}
+Produtos Utilizados: {{PRODUTOS_UTILIZADOS_OS}}
+Data de Início: {{DATA_INICIO}} Data de Término: {{DATA_TERMINO}} 
+Trator - identificação: {{TRATOR}} Implemento: {{IMPLEMENTO}}
+Plantas por metro: {{PLANTAS_METRO}}
+Espaçamento entre plantas: {{ESPACAMENTO_PLANTAS}}
+Peso de mil sementes (PMS): {{PMS}}
+Operador(es): {{OPERADORES}}
+Observação: {{OBSERVACAO_OS}}
+Paradas imprevistas: {{PARADAS_IMPREVISTAS}}
+
+2. Campos específicos:
+Horímetro inicial: {{HORIMETRO_INICIO}} 
+Horímetro final: {{HORIMETRO_FIM}}
+Paradas imprevistas: {{PARADAS_IMPREVISTAS}}
+Número de abastecimentos:  {{NUM_ABASTECIMENTOS}}
+
+Horímetro (h)                Combustível (L)
+{{HorimetroAbastecimento}}  {{LitrosAbastecimento}}
+
+
+Observação relatório: {{OBSERVACAO_OS_RELATORIO}} 
+
+Planilha
+- Todos os campos da OS 
+- Campos específicos da etapa 3 "Plantio"
+
+    Fazer como na Etapa 1, "Preparo de área", ou seja, caso o usuário digite um valor maior que zero, o pressionamento no botão mostrará campos dinâmicos perguntado horímetro e litros de combustível de acordo com o número de abastecimentos informado.
+    Assim como foi feito na etapa 2, posicione o campo de "Observações do relatório abaixo da legenda e aumente a largura para que fique igual a do botão "Enviar Relatório de Operação" 
+
+Para prevenir eventuais problemas no preenchimento do PDF e da planilha:
+DEBUG (Plantio): Cabeçalhos recebidos da OS:
+
+
+["Timestamp","ID da OS","Nome do Usuário","Local","Talhoes (Area)","Área Total (ha)","Data de Inicio","Data de Termino","Cultura e Cultivar","Qtd/ha - Maximo","Qtd/ha - Minimo","Insumos","Trator","Implemento","Plantas por metro","Espacamento entre plantas","PMS","Operador(es)","Observacao"] 
+
+
+Não se esqueça de fazer tudo de forma a não afetar as duas primeiras etapas já totalmente funcionais.
+
+
+
+08:16 13/08/2025
+Nem tudo funcionou
+
+Campos que ficaram em branco
+
+PDF
+Data de Início: {{DATA_INICIO}} 
+Data de Término: {{DATA_TERMINO}}
+Horímetro (h): {{HorimetroAbastecimento}}
+Combustível (L): {{LitrosAbastecimento}}
+
+
+Planilha
+OS Planejado - Data de Inicio
+OS Realizado - Data de Inicio
+OS Planejado - Data de Termino
+OS Realizado - Data de Termino
+OS Planejado - Quantidade/ha - Máximo
+OS Realizado - Quantidade/ha - Máximo
+OS Planejado - Quantidade/ha - Mínimo
+OS Realizado - Quantidade/ha - Mínimo
+OS Planejado - Produtos e Dosagens
+OS Realizado - Produtos e Dosagens
+
+Pode arrumar?
+Acha melhor fazer o alerta temporário para ver como os campos estão vindo da OS?
+Não se esqueça de fazer tudo de forma a não afetar as duas primeiras etapas já totalmente funcionais.
+
+
+09:03 13/08/2025
+
+DEBUG (Plantio): Cabeçalhos recebidos da OS:
+["Timestamp","ID da OS","Nome do Usuário","Local","Talhoes (Area)","Área Total (ha)","Data de Inicio","Data de Termino","Cultura e Cultivar","Qtd/ha - Maximo","Qtd/ha - Minimo","Insumos","Trator","Implemento","Plantas por metro","Espacamento entre plantas","PMS","Operador(es)","Observacao"]
+
+Campos ainda em branco:
+
+- PDF
+Quantidade/ha - Máximo: {{QTD_HA_MAX}}
+Quantidade/ha - Mínimo: {{QTD_HA_MIN}}
+Produtos Utilizados: {{PRODUTOS_UTILIZADOS_OS}}
+
+- Planilha
+OS Planejado - Quantidade/ha - Máximo
+OS Realizado - Quantidade/ha - Máximo
+OS Planejado - Quantidade/ha - Mínimo
+OS Realizado - Quantidade/ha - Mínimo
+OS Planejado - Produtos e Dosagens
+OS Realizado - Produtos e Dosagens
+Relatorio - Plantas por metro
+Relatorio - Espaçamento entre plantas
+Relatorio - Peso de mil sementes (PMS)
+
+
+
+09:42 13/08/2025
+
+Campos ainda em branco:
+
+PDF - Tudo ok :D
+
+Planilha
+OS Planejado - Quantidade/ha - Máximo
+OS Realizado - Quantidade/ha - Máximo
+OS Planejado - Quantidade/ha - Mínimo
+OS Realizado - Quantidade/ha - Mínimo
+OS Planejado - Produtos e Dosagens
+OS Realizado - Produtos e Dosagens
+Relatorio - Plantas por metro
+Relatorio - Espaçamento entre plantas
+Relatorio - Peso de mil sementes (PMS)
+
+
+
+09:56 13/08/2025
+- Planilha
+Os mesmo campos (colunas) continuam em branco:
+OS Planejado - Quantidade/ha - Máximo
+OS Realizado - Quantidade/ha - Máximo
+OS Planejado - Quantidade/ha - Mínimo
+OS Realizado - Quantidade/ha - Mínimo
+OS Planejado - Produtos e Dosagens
+OS Realizado - Produtos e Dosagens
+Relatorio - Plantas por metro
+Relatorio - Espaçamento entre plantas
+Relatorio - Peso de mil sementes (PMS)
+
+
+10:05 13/08/2025
+
+- Planilha
+Alguns campos ainda continuam em branco:
+OS Planejado - Quantidade/ha - Máximo
+OS Realizado - Quantidade/ha - Máximo
+OS Planejado - Quantidade/ha - Mínimo
+OS Realizado - Quantidade/ha - Mínimo
+Relatorio - Plantas por metro
+Relatorio - Espaçamento entre plantas
+Relatorio - Peso de mil sementes (PMS)
+
+
+
+
+
+
+10:17 13/08/2025
+Alguns campos ainda continuam em branco:
+Relatorio - Plantas por metro
+Relatorio - Espaçamento entre plantas
+Relatorio - Peso de mil sementes (PMS)
+
+Apenas para lembrar:
+DEBUG (Plantio): Cabeçalhos recebidos da OS:
+["Timestamp","ID da OS","Nome do Usuário","Local","Talhoes (Area)","Área Total (ha)","Data de Inicio","Data de Termino","Cultura e Cultivar","Qtd/ha - Maximo","Qtd/ha - Minimo","Insumos","Trator","Implemento","Plantas por metro","Espacamento entre plantas","PMS","Operador(es)","Observacao"]
+
+
+10:32 13/08/2025
+
+Quase...
+Agora os campos a seguir voltaram a ficar em branco:
+OS Planejado - Quantidade/ha - Máximo
+OS Realizado - Quantidade/ha - Máximo
+OS Planejado - Quantidade/ha - Mínimo
+OS Realizado - Quantidade/ha - Mínimo
+OS Planejado - Produtos e Dosagens
+OS Realizado - Produtos e Dosagens
+
+
+10:47 13/08/2025
+
+Agora voltaram a ficar em branco:
+Relatorio - Plantas por metro
+Relatorio - Espaçamento entre plantas
+Relatorio - Peso de mil sementes (PMS)
+
+Parece que ao consertar estes campos os outros listados anteriormente ficam em branco (ver abaixo). Alguma solução para isso? Outra preocupação: todas essas alterações não afetaram as etapas 1 e 2, certo?
+
+OS Planejado - Quantidade/ha - Máximo
+OS Realizado - Quantidade/ha - Máximo
+OS Planejado - Quantidade/ha - Mínimo
+OS Realizado - Quantidade/ha - Mínimo
+OS Planejado - Produtos e Dosagens
+OS Realizado - Produtos e Dosagens
+
+
+
+10:57 13/08/2025
+
+R E S O L V I D O !!!!
+\O/ UHUU
+Pronto para a etapa 4 "Pulverização" ?
+
+
+14:35 13/08/2025
+Rollback para o dia 12/08
+
+Campos em branco
+Etapa 1 - "Preparo de área"
+PDF
+Data da emissão: {{DATA_RELATORIO}}
+
+Etapa 2 - "Tratamento de sementes
+PDF
+Data da emissão: {{DATA_RELATORIO}}
+
+Plantio
+Formulário de entrada de dados
+No Título "Detalhes do Relatório - Preparo de Área", retirar a parte " - Preparo de Área"
+F E I T O
+
+
+14:03 14/08/2025
+Tudo funcionando. Vamos para a etapa 4, pulverização
+Os campos específicos serão parecidos com os da etapa 1, "Preparo de área":
+- Horímetro início da operação
+- Horímetro fim da operação
+- Número de paradas imprevistas
+- Número de abastecimentos
+Assim como na etapa 1, se o número de abastecimentos for maior que zero, pedir horímetro e litros de combustível para cada abastecimento. Caso o usuário não informe, ou o valor seja zero, o valor para os respectivos placeholders {{HorimetroAbastecimento}} e {{LitrosAbastecimento}} também será zero. Use a imagem postada aqui como referência.
+Certifique-se que a construção do código para a nova etapa NÃO AFETE as etapas já funcionais.
+
+
+14:54 18/08/2025
+
+Certifique-se que a construção do código para a nova etapa NÃO AFETE as etapas já funcionais.
+Fazendo outro rollback:
+Tudo funcionando sem problemas até a etapa 3. Vamos para a etapa 4 "Pulverização"
+Os campos específicos serão parecidos com os da etapa 1, "Preparo de área":
+- Horímetro início da operação
+- Horímetro fim da operação
+- Número de paradas imprevistas
+- Número de abastecimentos
+Assim como na etapa 1, se o número de abastecimentos for maior que zero, pedir horímetro e litros de combustível para cada abastecimento. Caso o usuário não informe, ou o valor seja zero, o valor para os respectivos placeholders {{HorimetroAbastecimento}} e {{LitrosAbastecimento}} também será zero. 
+URL do template para a etapa 4 "Pulverização":
+https://docs.google.com/document/d/1CbaCfu6Hm57FHf1ozUBlfb_euDLgg8IoM1Fvz1pTtag/edit?tab=t.0
+
+
+Placeholders:
+
+ID da operação: {{ID_OPERACAO}} 
+Data de Emissão: {{DATA_RELATORIO}}  
+Registrado por: {{USUARIO_RELATORIO}} 
+
+
+DETALHES DA OPERAÇÃO 
+Local da Atividade: {{LOCAL_OS_RELATORIO}} 
+Talhão(ões) (Área): {{TALHOES_OS_RELATORIO}} 
+Área Total (ha): {{AREA_TOTAL_OS_RELATORIO}} 
+Data de Início: {{DATA_INICIO_OS_RELATORIO}} 	Data de Término: {{DATA_TERMINO_OS_RELATORIO}}
+Máquina (Pulverizador)r: {{MAQUINA}} 
+Implemento - Identificação: {{IMPLEMENTO_OS}} 
+Operador(es): {{OPERADORES_OS}} 
+Observação: {{OBSERVACAO_OS}}
+Cultura e cultivar: {{CULTURA_CULTIVAR}} 
+Produtos e quantidades: {{PRODUTOS_QTD_HA}}
+Bico:{{BICO}}
+Capacidade do tanque: {{CAPACIDADE_TANQUE}}
+Vazão (L/ha): {{VAZAO_L_HA}} 
+Pressão: {{PRESSAO}}
+Dose/ha: 
+Dose/tanque:
+Paradas imprevistas: {{PARADAS_IMPREVISTAS}}
+Horímetro inicial: {{HORIMETRO_INICIO}} 
+Horímetro final: {{HORIMETRO_FIM}}
+Paradas imprevistas: {{PARADAS_IMPREVISTAS}}
+Número de abastecimentos:  {{NUM_ABASTECIMENTOS}}
+
+
+Horímetro (h)
+Combustível (L)
+{{HorimetroAbastecimento}}
+{{LitrosAbastecimento}}
+
+Observação do relatório: {{OBSERVACAO_OS_RELATORIO}}
+
+
+15:47 18/08/2025
+Problema resolvido - Questão do "Você está offline..."
+Como foi resolvido: comecei novo chat, postei os arquivos e pedi para incluir etapa 4 "Pulverização", sem interferir nas ouras 3 já funcionais.
+- planilha --> ok
+- PDF --> alguns campos faltando:
+RELATÓRIO DE
+OPERAÇÃO
+
+PULVERIZAÇÃO
+
+ID da operação: H-GUIMA-656h#-OP
+Data de Emissão: 18/08/2025
+Registrado por: h
+
+DETALHES DA OPERAÇÃO
+Local da Atividade: Guimarães
+Talhão(ões) (Área): Área 54 (38.72 ha)
+Área Total (ha): 38.72
+Data de Início: 01/08/2025 Data de Término: 02/08/2025
+
+Máquina (Pulverizador):
+Implemento - Identificação: lssldmfç
+Operador(es): jdlfkgdfh
+Observação: ldfmgçsdlf sldkfns
+Cultura e cultivar: Teste
+Produtos e quantidades:
+Bico:leque
+Capacidade do tanque: 1500
+Vazão (L/ha):
+Pressão:
+Dose/ha:
+Dose/tanque:
+Paradas imprevistas: 01
+Horímetro inicial: 1
+Horímetro final: 2
+Paradas imprevistas: 01
+Número de abastecimentos: 01
+
+Horímetro (h) Combustível (L)
+20 		5
+
+Observação do relatório: chhch
+
+Por favor, adicione adicione os placeholders
+{{DOSE_HA}} e {{DOSE_TANQUE}}, que foram adicionados ao template.
+
+Verifique também os campos que estão em branco:
+
+Máquina (Pulverizador):{{MAQUINA}}
+Produtos e quantidades:{{PRODUTOS_QTD_HA}}
+Vazão (L/ha):{{VAZAO_L_HA}}
+Pressão:{{PRESSAO}}
+
+Os dois novos adicionados
+
+
+10:01 19/08/2025
+
+Corrigir:
+
+
+PLANILHA
+
+
+1. Campos em branco
+
+OS planejado - produtos e quantidades
+OS realizado - produtos e quantidades
+
+
+OS planejado - vazão 
+OS realizado - vazão
+
+
+OS planejado - pressão
+OS realizado - pressão
+
+
+OS planejado - máquina
+OS realizado - máquina
+
+
+2. Formatar para data
+
+OS planejado - Data de inicio
+OS realizado - Data de inicio
+
+
+OS planejado - data de termino 
+OS realizado - data de termino 
+
+PDF
+
+1. Campos em branco
+Máquina (Pulverizador):{{MAQUINA}}
+Vazão (L/ha):{{VAZAO_L_HA}}
+Pressão:{{PRESSAO}} 
+
+
+
+10:02 19/08/2025
+
+--- DEBUG: Nomes dos Campos Recebidos da OS ---
+
+Timestamp
+ID da OS
+Nome do Usuário
+Local
+Talhoes (Area)
+Área Total (ha)
+Data de início
+Data de Término
+Cultura e cultivar
+Produto(s) e quantidade/ha
+Maquina
+Bico
+Capacidade do tanque
+Vazao (L/ha)
+Operador(es)
+Pressao
+Dose/ha
+Dose/tanque
+Implemento
+Observacao
+
+
+
+Como os campos estão na planilha de OS etapa 4 "Pulverização":
+Produto(s) e quantidade/ha
+Vazao (L/ha)
+Pressao
+Maquina
+
+
+
+09:02 20/08/2025
+
+PDF: 
+Resolvido!!!
+
+Planilha:
+Os mesmos campos (colunas) continuam em branco:
+Produto(s) e quantidade/ha
+Vazao (L/ha)
+Pressao
+Maquina
