@@ -1,0 +1,12 @@
+.LOG
+
+
+
+16:27 22/08/2025
+Estes são os arquivos da primeira parte do aplicativo web da Fazenda Agro Verde, chamada "Ordem de Serviço". Preciso das seguintes atualizações:
+1. nome dos locais
+- Quando o nome do local selecionado for "Fazenda Agro Verde", usar "Agro Verde" como a parte do nome na geração do ID da OS. Quando o local for "Canto Verde", usar "canto verde" como a parte do nome na geração do ID da OS.
+- Quando o nome for qualquer outro que não os dois acima, usar o último nome como parte do nome na geração do ID da OS. Não considere os parênteses do último nome, caso haja algum.
+
+2. Valores numéricos
+- Em todas as etapas valores numéricos, com decimais separados por "ponto", este "ponto" deverá ser substituído por "vírgula" e esses valores devem ser sempre formatados como valores numéricos antes de serem gravados na planilha e no PDF.
