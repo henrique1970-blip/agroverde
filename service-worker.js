@@ -1,13 +1,13 @@
-const CACHE_NAME = 'agro-os-cache-v3'; // Aumentamos a versão do cache para forçar a atualização
+const CACHE_NAME = 'agro-os-cache-v5'; // Aumentamos a versão do cache para forçar a atualização
 const urlsToCache = [
-    '/', // Garante que a raiz do site seja cacheada
-    '/index.html',
-    '/style.css',
-    '/script.js',
-    '/manifest.json',
-    '/icon-192x192.png',
-    '/icon-512x512.png',
-    '/logoFAVbase64.css' // Confirma que o CSS da logo está na lista
+    '.', // Garante que a raiz do site seja cacheada
+    'index.html',
+    'style.css',
+    'script.js',
+    'manifest.json',
+    'icon-192x192.png',
+    'icon-512x512.png',
+    'logoFAVbase64.css' // Confirma que o CSS da logo está na lista
 ];
 
 
