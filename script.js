@@ -305,10 +305,24 @@ async function handleFormSubmit(event) {
     const formData = new FormData(form);
 
     const data = { activity: currentActivityKey, userName: userName };
-    for (let pair of formData.entries()) { data[pair[0]] = pair[1]; }
+
+    // Itera sobre todos os dados do formulário
+    for (const [key, value] of formData.entries()) {
+        // Verifica se o valor é uma string que representa um número decimal com ponto
+        if (typeof value === 'string' && value.includes('.') && !isNaN(parseFloat(value))) {
+            // Substitui o ponto por vírgula
+            data[key] = value.replace('.', ',');
+        } else {
+            data[key] = value;
+        }
+    }
     
+    // Tratamento especial para a área total, que não vem do FormData
     const totalAreaDisplay = document.getElementById('totalAreaDisplay');
-    if (totalAreaDisplay) data.areaTotalHectares = totalAreaDisplay.textContent.replace('TOTAL (ha):', '').trim();
+    if (totalAreaDisplay) {
+        let areaValue = totalAreaDisplay.textContent.replace('TOTAL (ha):', '').trim();
+        data.areaTotalHectares = areaValue.replace('.', ',');
+    }
     
     const finalSelectedTalhoes = [];
     form.querySelectorAll('input[name="talhoes"]:checked').forEach(cb => finalSelectedTalhoes.push(cb.value));
@@ -316,14 +330,19 @@ async function handleFormSubmit(event) {
 
     const numProducts = parseInt(formData.get('numProducts') || '0', 10);
     for (let i = 1; i <= MAX_PRODUCTS; i++) {
+        // Os nomes dos produtos não são alterados, mas as dosagens sim (se forem numéricas)
         data[`nome_produto_${i}`] = (i <= numProducts) ? (formData.get(`product_name_${i}`) || "") : "";
-        data[`dose_produto_${i}`] = (i <= numProducts) ? (formData.get(`product_dosage_${i}`) || "") : "";
+        let dosageValue = (i <= numProducts) ? (formData.get(`product_dosage_${i}`) || "") : "";
+        if (typeof dosageValue === 'string' && dosageValue.includes('.') && !isNaN(parseFloat(dosageValue))) {
+             data[`dose_produto_${i}`] = dosageValue.replace('.', ',');
+        } else {
+             data[`dose_produto_${i}`] = dosageValue;
+        }
     }
 
-    // Coleta dados de caminhões e motoristas
     if (currentActivityKey === "Colheita") {
         const numTrucks = parseInt(formData.get('numTrucks') || '0', 10);
-        for (let i = 1; i <= MAX_PRODUCTS; i++) { // Reutilizando MAX_PRODUCTS como um limite razoável
+        for (let i = 1; i <= MAX_PRODUCTS; i++) {
             data[`identificacao_caminhao_${i}`] = (i <= numTrucks) ? (formData.get(`truck_id_${i}`) || "") : "";
             data[`motorista_caminhao_${i}`] = (i <= numTrucks) ? (formData.get(`truck_driver_${i}`) || "") : "";
         }
@@ -343,7 +362,6 @@ async function handleFormSubmit(event) {
             if (document.getElementById('talhoesList')) {
                 updateTotalArea(document.getElementById('talhoesList'));
             }
-            // Limpa os campos dinâmicos de produtos/caminhões
             if (document.getElementById('productsContainer')) {
                 document.getElementById('productsContainer').innerHTML = '';
             }
@@ -371,7 +389,6 @@ async function handleFormSubmit(event) {
         if (document.getElementById('talhoesList')) {
             updateTotalArea(document.getElementById('talhoesList'));
         }
-        // Limpa os campos dinâmicos de produtos/caminhões
         if (document.getElementById('productsContainer')) {
             document.getElementById('productsContainer').innerHTML = '';
         }
