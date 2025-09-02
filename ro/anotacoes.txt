@@ -1077,3 +1077,1212 @@ Produto(s) e quantidade/ha
 Vazao (L/ha)
 Pressao
 Maquina
+
+09:19 20/08/2025
+
+ Tudo funcionando!!!  Uhuuu 🥳🎉
+
+Preparado para as etapas 5 e 6? 
+
+
+
+
+14:59 20/08/2025
+
+Os arquivos em anexo são da segunda parte de um aplicativo Web da Fazenda Agro Verde. Essa parte é chamada de "Relatório de Operações" e depende dos dados da primeira parte "Ordem de serviço".
+
+As etapas 1, 2 e 3 e 4 estão completas. Falta agora completar as etapas 5 "Colheita" e 6 "Lanças".
+
+Use os templates como referência para eventual criação dos campos que se fizer necessária.
+
+Lembre-se de NÃO executar ações como mudança de nome de campos já existentes, bem como outras que potencialmente podem afetar o funcionamento das etapas já prontas.
+
+Aqui estão os endereços dos templates: 
+Seguimos o mesmo princípio de trabalhar com as etapas novas, sem afetar as que já estão funcionando, ok?
+
+Etapa 5 "Colheita"
+Template:
+https://docs.google.com/document/d/1T0QA820ZVrgkSmX08HZm6w-8FMM6Qb7aub508jmR7DA/edit?tab=t.0
+
+
+Campos específicos:
+- Número de paradas imprevistas
+
+- Horímetro de início e de término da colhedeira
+- Número de abastecimentos da colhedeira
+Se o número de abastecimentos for maior que zero:
+	• Horímetro para cada abastecimento da colhedeira 
+	• quantidade de combustível (litros) para cada abastecimento da colhedeira 
+
+- Horímetro de início e de término do trator
+- Número de abastecimentos do trator 
+Se o número de abastecimentos for maior que zero:
+	• Horímetro para cada abastecimento do trator
+	• quantidade de combustível (litros) para cada abastecimento do trator 
+
+- Quilometragem de início e de término para cada um dos caminhões
+- Número de abastecimentos de cada um dos caminhões 
+Se o número de abastecimentos for maior que zero:
+	• Quilometragem para cada abastecimento de cada um dos caminhões
+	• Quantidade de combustível (litros) dos abastecimentos de cada um dos caminhões
+
+Observação do relatório 
+
+
+Etapa 6 "Lanças"
+Template:
+https://docs.google.com/document/d/1mvKGzXB5LPAKrk24XEZOGs4JXB_ybBhCkmFch64WmaA/edit?tab=t.0
+
+Campos específicos:
+
+- Horímetro de início e de término do trator
+- Número de paradas imprevistas
+- Número de abastecimentos
+Se o número de abastecimentos for maior que zero:
+	• Horímetro do trator em cada um dos abastecimentos
+	• Quantidade de combustível (litros) para cada abastecimento do trator
+
+Observação do relatório 
+
+
+
+
+15:50 20/08/2025
+
+---- Abordar as duas etapas de uma única vez não deu certo. Tentando com uma de cada vez.
+
+Os arquivos em anexo são da segunda parte de um aplicativo Web da Fazenda Agro Verde. Essa parte é chamada de "Relatório de Operações" e depende dos dados da primeira parte "Ordem de serviço".
+
+As etapas 1, 2 e 3 e 4 estão completas. Falta agora completar as etapas 5 "Colheita" e 6 "Lanças".
+
+Vamos começar com a etapa 5 "Colheita"
+
+Lembre-se de NÃO executar ações como mudança de nome de campos já existentes, bem como outras que potencialmente podem afetar o funcionamento das etapas já prontas.
+
+Aqui está o endereço dos templates:
+https://docs.google.com/document/d/1T0QA820ZVrgkSmX08HZm6w-8FMM6Qb7aub508jmR7DA/edit?tab=t.0
+ 
+Seguimos o mesmo princípio de trabalhar com as etapas novas, sem afetar as que já estão funcionando, ok?
+
+Campos específicos:
+- Número de paradas imprevistas
+- Horímetro de início e de término da colhedeira
+- Número de abastecimentos da colhedeira
+Se o número de abastecimentos for maior que zero:
+	• Horímetro para cada abastecimento da colhedeira 
+	• quantidade de combustível (litros) para cada abastecimento da colhedeira 
+- Horímetro de início e de término do trator
+- Número de abastecimentos do trator 
+Se o número de abastecimentos for maior que zero:
+	• Horímetro para cada abastecimento do trator
+	• quantidade de combustível (litros) para cada abastecimento do trator 
+- Quilometragem de início e de término para cada um dos caminhões
+- Número de abastecimentos de cada um dos caminhões 
+Se o número de abastecimentos for maior que zero:
+	• Quilometragem para cada abastecimento de cada um dos caminhões
+	• Quantidade de combustível (litros) dos abastecimentos de cada um dos caminhões
+
+Observação do relatório 
+
+
+12:55 21/08/2025
+
+Campos em branco:
+
+
+PDF
+
+Produtividade estimada: {{PRODUTIVIDADE_ESTIMADA}}
+Colhedeira - Identificação: {{MAQUINA}}
+Colhedeirar Horímetro Início: {{horimetro_colhe_inicio}}
+Colhedeira Horímetro Término:: {{horimetro_colhe_fim}}
+Operador(es) Colhedeira: {{OPERADORES_MAQUINA}}
+
+
+Caminhões
+
+Caminhão         Quilometragem Início     Quilometragem Término
+{{Caminhao_ID}}     {{km_início}}         {{km_fim}}
+
+
+Abastecimentos Caminhões
+Caminhão         Quilometragem         Litros de combustível
+{{Caminhao_ID}}     {{km_abastecimento}}     {{combustivel_caminhao}}
+
+
+Abastecimento Colhedeira
+Horímetro             		Litros de combustível
+{{horimetro_colhe_abast}}     	{{combustivel_colhedeira}}
+
+
+
+Abastecimento Trator
+Horímetro             		Litros de combustível
+
+{{horimetro_trator_abast}}     {{combustivel_trator}}
+
+
+
+Planilha
+
+
+OS Planejado - Operador(es)
+OS Realizado - Operador(es)
+
+
+O campo ou coluna da planilha a seguir, está sempre com valor zero, independente do que o usuário digite:
+
+Relatorio - Paradas Imprevistas  
+Quer fazer um debug (alert)? Dessa forma podemos ver como os campos estão 
+a) vindo da planilha de OS
+b) sendo criadas nos scripts
+
+Também é interessante compará-los, incluindo os placeholders.
+O que acha?
+
+
+
+14:46 21/08/2025
+Ainda permanecem em branco:
+
+Na planilha
+- OS Planejado - Operador(es)
+- OS Realizado - Operador(es)
+
+No PDF
+- Cultura e Cultivar:    {{CULTURA_CULTIVAR}}
+- Trator Horímetro Início: {{horímetro_trator_início}}
+- Trator Horímetro Término: {{horímetro_trator_fim}}
+- Trator Horímetro Início: {{horimetro_trator_inicio}}
+- Trator Horímetro Término: {{horimetro_trator_fim}}
+- Operador(es) Trator: {{OPERADORES}}
+
+
+Caminhão
+{{Caminhao_ID}}
+
+
+09:24 22/08/2025 - rollback
+Funcionando até pulverização - integralmente
+
+
+09:33 23/08/2025
+Os arquivos em anexo são da segunda parte de um aplicativo Web da Fazenda Agro Verde. Essa parte é chamada de "Relatório de Operações" e depende dos dados da primeira parte "Ordem de serviço".
+
+As etapas 1, 2, 3 e 4  estão completas. Apenas um ajuste a ser feito antes de passar para as duas últimas etapas:
+ 
+Atualizar valores numéricos
+- Em todas as etapas valores numéricos, com decimais separados por "ponto", substitua este "ponto" por "vírgula" e sempre formate como numéricos antes de serem gravados na planilha e no PDF. Esta regra deve valer tanto para valores originários da primeira etapa "Ordem de Serviço" quanto as digitadas pelo usuário nesta etapa.
+Pode fazer isso?
+
+
+
+
+
+10:31 23/08/2025
+
+R E S O L V I D O
+
+
+08:17 25/08/2025
+
+Os arquivos em anexo são da segunda parte de um aplicativo Web da Fazenda Agro Verde. Essa parte é chamada de "Relatório de Operações" e depende dos dados da primeira parte "Ordem de serviço". As etapas 1, 2 e 3 e 4 estão completas.
+Vamos agora para a etapa 5 "Colheita"
+
+******* ATENÇÃO *******
+Qualquer modificação, alteração, atualização feita NÃO deve afetar o funcionamentos das etapas já funcionando (1, 2, 3 e 4)
+
+Campos específicos
+
+Nesta etapa, o usuário definirá sobre qual equipamento usado na operação ele está fazendo o relatório. Dessa forma, disponibilize botões de rádio com as seguintes opções:
+
+• Colhedeira		• Caminhão		• Trator
+
+Para opção 1, Colhedeira:
+- Identificação da colhedeira
+- Número de paradas imprevistas
+- Horímetro de início
+- Horímetro de término
+- Número de abastecimentos
+No caso de haver abastecimentos, a exemplo de etapas anteriores, fazer campos dinâmicos. Exemplo
+	- Horímetro no abastecimento 1
+	- Litros de combustível no abastecimento 1
+	- Horímetro no abastecimento 2
+	- Litros de combustível no abastecimento 2
+- Observação
+
+Para opção 2, Caminhão
+- Identificação do caminhão
+- Número de paradas imprevistas
+- Km inicial
+- Km final caminhão
+- Número de abastecimentos
+
+No caso de haver abastecimentos, a exemplo de etapas anteriores, fazer campos dinâmicos. Exemplo
+	- Horímetro no abastecimento 1
+	- Litros de combustível no abastecimento 1
+	- Horímetro no abastecimento 2
+	- Litros de combustível no abastecimento 2
+- Observação
+
+
+Para opção 3, Trator
+- Identificação do Trator
+- Número de paradas imprevistas
+- Horímetro de início
+- Horímetro de término
+- Número de abastecimentos
+No caso de haver abastecimentos, a exemplo de etapas anteriores, fazer campos dinâmicos. Exemplo
+	- Horímetro no abastecimento 1
+	- Litros de combustível no abastecimento 1
+	- Horímetro no abastecimento 2
+	- Litros de combustível no abastecimento 2
+- Implemento usado
+- Observação
+
+Lembre-se de NÃO executar ações como mudança de nome de campos já existentes, bem como outras que potencialmente podem afetar o funcionamento das etapas já prontas.
+Próxima etapa: colheita
+
+Endereço do template para a Etapa 5 "Colheita":
+https://docs.google.com/document/d/1T0QA820ZVrgkSmX08HZm6w-8FMM6Qb7aub508jmR7DA/edit?tab=t.0
+
+Placeholders:
+ID da operação: {{ID_OPERACAO}} 
+Data de Emissão: {{DATA_RELATORIO}}  
+Registrado por: {{USUARIO_RELATORIO}}  
+DETALHES DA OPERAÇÃO 
+Local da Atividade: {{LOCAL_ATIVIDADE}} 
+Talhão(ões) (Área): {{TALHOES_SELECIONADOS}} 
+Área Total (ha): {{AREA_TOTAL_HECTARES}} 
+Cultura e Cultivar: {{CULTURA_CULTIVAR}}
+Produtividade estimada: {{PRODUTIVIDADE_ESTIMADA}} 
+Data de Início: {{DATA_INICIO}} 	Data de Término: {{DATA_TERMINO}}
+Colhedeira - Identificação: {{MAQUINA}} 
+Colhedeira Horímetro Início: {{horimetro_colhe_inicio}}
+Colhedeira Horímetro Término:: {{horimetro_colhe_fim}}
+Operador(es) Colhedeira: {{OPERADORES_MAQUINA}}
+Paradas imprevistas da colhedeira: {{PARADAS_IMPREVISTAS_COLHEDEIRA}} 
+Número de abastecimentos da colhedeira: {{NUMERO_ABASTECIMENTO_COLHEDEIRA}}
+Horímetro				Litros de combustível
+{{horimetro_colhe_abast}}		{{combustivel_colhedeira}}
+
+Observação: {{OBSERVACAO_COLHEDEIRA}}
+
+Trator - identificação: {{TRATOR}} 
+Horímetro Início: {{horimetro_trator_inicio}}
+Horímetro Término: {{horimetro_trator_fim}}
+Operador(es):{{OPERADORES}} 
+Implemento - Identificação: {{IMPLEMENTO}} 
+Paradas imprevistas: {{PARADAS_IMPREVISTAS_TRATOR}}
+Número de abastecimentos do trator: {{NUMERO_ABASTECIMENTO_TRATOR}}
+Horímetro				Litros de combustível
+{{horimetro_trator_abast}}		{{combustivel_trator}}
+
+Observação: {{OBSERVACAO_TRATOR}}
+
+Caminhão - identificação: {{Caminhao_ID}}
+Motorista: {{MOTORISTA_CAMINHAO}}
+Quilometragem do início: {{km_inicio}}
+Quilometragem do término: {{km_fim}}
+Número de abastecimentos do caminhão: {{NUMERO_ABASTECIMENTO_CAMINHAO}}
+
+Quilometragem				Litros de combustível
+{{km_abastecimento}}			{{combustivel_caminhao}}
+
+Observação: {{OBSERVACAO_CAMINHAO}}
+Observação do relatório: {{OBSERVACAO_OS_RELATORIO}}
+
+
+
+
+10:29 25/08/2025
+Preciso de algumas alterações:
+
+Quando o usuário seleciona o botão de rádio do respectivo equipamento usado, os placeholders, linhas e tabelas dos outros devem ser suprimidos.
+Exemplo:
+Se o usuário selecionar o botão de Rádio da colhedeira, todas as linhas de texto, tabelas e placeholders referentes ao trator e caminhão devem ser eliminadas quando da geração do pdf.
+Há um outro placeholder adicionado no início do template anotado como {{EQUIPAMENTO}} cujo valor deve equivaler ao texto do botão de rádio selecionado. Exemplo:
+COLHEDEIRA para o botão de rádio colhedeira
+TRATOR para o botão de rádio TRATOR
+CAMINHÃO para o botão de rádio caminhão
+Pode fazer essa mudança?
+
+
+10:58 25/08/2025
+Não funcionou.
+
+{{EQUIPAMENTO}} não foi substituído pelo equipamento selecionado
+
+Operador(es) Colhedeira: {{OPERADORES_MAQUINA}} está em branco
+
+As linhas de texto, tabelas e placeholders dos outros equipamentos continuam no PDF
+
+Para facilitar:
+
+Estes são os itens referentes a colhedeira (primeiro botão de rádio):
+Colhedeira - Identificação: {{MAQUINA}} 
+Colhedeira Horímetro Início: {{horimetro_colhe_inicio}}
+Colhedeira Horímetro Término:: {{horimetro_colhe_fim}}
+Operador(es) Colhedeira: {{OPERADORES_MAQUINA}}
+Paradas imprevistas da colhedeira: {{PARADAS_IMPREVISTAS_COLHEDEIRA}} 
+Número de abastecimentos da colhedeira: {{NUMERO_ABASTECIMENTO_COLHEDEIRA}}
+Horímetro
+Litros de combustível
+{{horimetro_colhe_abast}}
+{{combustivel_colhedeira}}
+Observação: {{OBSERVACAO_COLHEDEIRA}}
+
+
+Estes são os itens referentes ao caminhão (segundo botão de rádio):
+Caminhão - identificação: {{Caminhao_ID}}
+Motorista: {{MOTORISTA_CAMINHAO}}
+Quilometragem do início: {{km_inicio}}
+Quilometragem do término: {{km_fim}}
+Número de abastecimentos do caminhão: {{NUMERO_ABASTECIMENTO_CAMINHAO}}
+
+Quilometragem
+Litros de combustível
+{{km_abastecimento}}
+{{combustivel_caminhao}}
+Observação: {{OBSERVACAO_CAMINHAO}}
+
+
+Estes são os itens referentes ao trator (terceiro botão de rádio):
+Trator - identificação: {{TRATOR}} 
+Horímetro Início: {{horimetro_trator_inicio}}
+Horímetro Término: {{horimetro_trator_fim}}
+Operador(es):{{OPERADORES}} 
+Implemento - Identificação: {{IMPLEMENTO}} 
+Paradas imprevistas: {{PARADAS_IMPREVISTAS_TRATOR}}
+Número de abastecimentos do trator: {{NUMERO_ABASTECIMENTO_TRATOR}}
+Horímetro
+Litros de combustível
+{{horimetro_trator_abast}}
+{{combustivel_trator}}
+
+Observação: {{OBSERVACAO_TRATOR}}
+
+
+
+
+13:18 25/08/2025
+
+Reformulando:
+
+
+Os arquivos em anexo são da segunda parte de um aplicativo Web da Fazenda Agro Verde. Essa parte é chamada de "Relatório de Operações" e depende dos dados da primeira parte "Ordem de serviço". As etapas 1, 2 e 3 e 4 estão completas.
+Vamos agora para a etapa 5 "Colheita"
+
+******* ATENÇÃO *******
+Qualquer modificação, alteração, atualização feita NÃO deve afetar o funcionamentos das etapas já funcionando (1, 2, 3 e 4)
+
+Endereço do template para a Etapa 5 "Colheita":
+https://docs.google.com/document/d/1T0QA820ZVrgkSmX08HZm6w-8FMM6Qb7aub508jmR7DA/edit?tab=t.0
+
+Campos específicos
+
+Nesta etapa, o usuário definirá sobre qual equipamento usado na operação ele está fazendo o relatório. Dessa forma, disponibilize botões de rádio com as seguintes opções:
+
+• Colhedeira		• Caminhão		• Trator
+
+
+Quando o usuário seleciona o botão de rádio do respectivo equipamento usado, os placeholders, linhas e tabelas dos outros devem ser suprimidos.
+Exemplo:
+Se o usuário selecionar o botão de Rádio da colhedeira, todas as linhas de texto, tabelas e placeholders referentes ao trator e caminhão devem ser eliminadas quando da geração do pdf.
+Há um outro placeholder adicionado no início do template anotado como {{EQUIPAMENTO}} cujo valor deve equivaler ao texto do botão de rádio selecionado. Exemplo:
+COLHEDEIRA para o botão de rádio colhedeira
+TRATOR para o botão de rádio TRATOR
+CAMINHÃO para o botão de rádio caminhão
+
+Para opção 1, Colhedeira:
+- Identificação da colhedeira
+- Número de paradas imprevistas
+- Horímetro de início
+- Horímetro de término
+- Número de abastecimentos
+No caso de haver abastecimentos, a exemplo de etapas anteriores, fazer campos dinâmicos. Exemplo
+	- Horímetro no abastecimento 1
+	- Litros de combustível no abastecimento 1
+	- Horímetro no abastecimento 2
+	- Litros de combustível no abastecimento 2
+
+Para opção 2, Caminhão
+- Identificação do caminhão
+- Número de paradas imprevistas
+- Km inicial
+- Km final caminhão
+- Número de abastecimentos
+
+No caso de haver abastecimentos, a exemplo de etapas anteriores, fazer campos dinâmicos. Exemplo
+	- Horímetro no abastecimento 1
+	- Litros de combustível no abastecimento 1
+	- Horímetro no abastecimento 2
+	- Litros de combustível no abastecimento 2
+
+Para opção 3, Trator
+- Identificação do Trator
+- Número de paradas imprevistas
+- Horímetro de início
+- Horímetro de término
+- Número de abastecimentos
+No caso de haver abastecimentos, a exemplo de etapas anteriores, fazer campos dinâmicos. Exemplo
+	- Horímetro no abastecimento 1
+	- Litros de combustível no abastecimento 1
+	- Horímetro no abastecimento 2
+	- Litros de combustível no abastecimento 2
+- Implemento usado
+
+Lembre-se de NÃO executar ações como mudança de nome de campos já existentes, bem como outras que potencialmente podem afetar o funcionamento das etapas já prontas.
+Próxima etapa: colheita
+
+Placeholders:
+ID da operação: {{ID_OPERACAO}} 
+Data de Emissão: {{DATA_RELATORIO}}  
+Registrado por: {{USUARIO_RELATORIO}}  
+DETALHES DA OPERAÇÃO 
+Local da Atividade: {{LOCAL_ATIVIDADE}} 
+Talhão(ões) (Área): {{TALHOES_SELECIONADOS}} 
+Área Total (ha): {{AREA_TOTAL_HECTARES}} 
+Cultura e Cultivar: {{CULTURA_CULTIVAR}}
+Produtividade estimada: {{PRODUTIVIDADE_ESTIMADA}} 
+Data de Início: {{DATA_INICIO}} 	Data de Término: {{DATA_TERMINO}}
+
+Colhedeira - Identificação: {{MAQUINA}} 
+Colhedeira Horímetro Início: {{horimetro_colhe_inicio}}
+Colhedeira Horímetro Término:: {{horimetro_colhe_fim}}
+Operador(es) Colhedeira: {{OPERADORES_MAQUINA}}
+Paradas imprevistas da colhedeira: {{PARADAS_IMPREVISTAS_COLHEDEIRA}} 
+Número de abastecimentos da colhedeira: {{NUMERO_ABASTECIMENTO_COLHEDEIRA}}
+Horímetro				Litros de combustível
+{{horimetro_colhe_abast}}		{{combustivel_colhedeira}}
+
+Trator - identificação: {{TRATOR}} 
+Horímetro Início: {{horimetro_trator_inicio}}
+Horímetro Término: {{horimetro_trator_fim}}
+Operador(es):{{OPERADORES}} 
+Implemento - Identificação: {{IMPLEMENTO}} 
+Paradas imprevistas: {{PARADAS_IMPREVISTAS_TRATOR}}
+Número de abastecimentos do trator: {{NUMERO_ABASTECIMENTO_TRATOR}}
+Horímetro				Litros de combustível
+{{horimetro_trator_abast}}		{{combustivel_trator}}
+
+
+Caminhão - identificação: {{Caminhao_ID}}
+Motorista: {{MOTORISTA_CAMINHAO}}
+Quilometragem do início: {{km_inicio}}
+Quilometragem do término: {{km_fim}}
+Número de abastecimentos do caminhão: {{NUMERO_ABASTECIMENTO_CAMINHAO}}
+Quilometragem				Litros de combustível
+{{km_abastecimento}}			{{combustivel_caminhao}}
+
+Observação do relatório: {{OBSERVACAO_OS_RELATORIO}}
+
+
+
+13:47 25/08/2025
+Correções a fazer:
+Quando a opção foi "Colhedeira":
+Campos em branco
+PDF:
+Colhedeira - Identificação: {{MAQUINA}} 
+Horímetro				Litros de combustível
+{{horimetro_colhe_abast}}		{{combustivel_colhedeira}}
+
+Colhedeira Horímetro Início: {{horimetro_colhe_inicio}}
+Colhedeira Horímetro Término:: {{horimetro_colhe_fim}}
+Operador(es) Colhedeira: {{OPERADORES_MAQUINA}}
+Paradas imprevistas da colhedeira: {{PARADAS_IMPREVISTAS_COLHEDEIRA}} 
+Número de abastecimentos da colhedeira: {{NUMERO_ABASTECIMENTO_COLHEDEIRA}}
+Horímetro				Litros de combustível
+{{horimetro_colhe_abast}}		{{combustivel_colhedeira}}
+Linhas, dados, placeholders, etc. dos outros equipamentos não foram eliminadas.
+
+Planilha:
+Não foram gravados os títulos das colunas (nomes dos campos)
+
+
+Quando a opção foi "Caminhão":
+Não é perguntado o número de abastecimentos e 
+
+
+
+
+14:22 25/08/2025
+***************************************************************
+********************* NOVA REFORMULAÇÃO ***********************
+***************************************************************
+
+Os arquivos em anexo são da segunda parte de um aplicativo Web da Fazenda Agro Verde. Essa parte é chamada de "Relatório de Operações" e depende dos dados da primeira parte "Ordem de serviço". As etapas 1, 2 e 3 e 4 estão completas.
+
+Faça as modificações/atualizações necessárias ao código para implementação da etapa 5 "Colheita", conforme descrições e orientações a seguir. 
+
+******* ATENÇÃO *******
+Qualquer modificação, alteração, atualização feita NÃO deve afetar o funcionamentos das etapas já funcionando (1, 2, 3 e 4)
+
+Endereço do template para a Etapa 5 "Colheita":
+https://docs.google.com/document/d/1T0QA820ZVrgkSmX08HZm6w-8FMM6Qb7aub508jmR7DA/edit?tab=t.0
+
+Nesta etapa, o usuário definirá sobre qual equipamento usado na operação ele está fazendo o relatório. Dessa forma, disponibilize botões de rádio com as seguintes opções:
+
+• Colhedeira		• Caminhão		• Trator
+
+Quando o usuário seleciona o botão de rádio do respectivo equipamento usado, os placeholders, linhas e tabelas dos outros devem ser suprimidos.
+Exemplo:
+Se o usuário selecionar o botão de Rádio da colhedeira, todas as linhas de texto, tabelas e placeholders referentes ao trator e caminhão devem ser eliminadas quando da geração do pdf.
+Há um outro placeholder adicionado no início do template anotado como {{EQUIPAMENTO}} cujo valor deve equivaler ao texto do botão de rádio selecionado. Exemplo:
+COLHEDEIRA para o botão de rádio colhedeira
+TRATOR para o botão de rádio TRATOR
+CAMINHÃO para o botão de rádio caminhão
+
+Para opção 1, Colhedeira:
+Os campos a seguir usam os dados originários da OS ou redigitados pelo usuário quando pedida a confirmação
+- Identificação da colhedeira 
+- Operador da colhedeira
+
+Os campos a seguir são específicos desta etapa:
+- Número de paradas imprevistas
+- Horímetro de início
+- Horímetro de término
+- Número de abastecimentos
+No caso de haver abastecimentos, a exemplo de etapas anteriores, fazer campos dinâmicos. Exemplo
+	- Horímetro no abastecimento 1
+	- Litros de combustível no abastecimento 1
+	- Horímetro no abastecimento 2
+	- Litros de combustível no abastecimento 2
+
+Para opção 2, Caminhão
+Os campos a seguir usam os dados originários da OS ou redigitados pelo usuário quando pedida a confirmação
+- Identificação do caminhão (usa a identificação do primeiro caminhão como padrão, deixando editável)
+- motorista (usa a identificação do motorista do primeiro caminhão como padrão, deixando editável)
+
+Os campos a seguir são específicos desta etapa:
+- Número de paradas imprevistas
+- Km inicial
+- Km final 
+- Número de abastecimentos
+
+No caso de haver abastecimentos, a exemplo de etapas anteriores, fazer campos dinâmicos. Exemplo
+	- km no abastecimento 1
+	- Litros de combustível no abastecimento 1
+	- km no abastecimento 2
+	- Litros de combustível no abastecimento 2
+
+Para opção 3, Trator
+Os campos a seguir usam os dados originários da OS ou redigitados pelo usuário quando pedida a confirmação
+- Identificação do Trator
+- Operador do trator
+
+Os campos a seguir são específicos desta etapa:
+- Número de paradas imprevistas
+- Horímetro de início
+- Horímetro de término
+- Número de abastecimentos
+No caso de haver abastecimentos, a exemplo de etapas anteriores, fazer campos dinâmicos. Exemplo
+	- Horímetro no abastecimento 1
+	- Litros de combustível no abastecimento 1
+	- Horímetro no abastecimento 2
+	- Litros de combustível no abastecimento 2
+
+Lembre-se de NÃO executar ações como mudança de nome de campos já existentes, bem como outras que potencialmente podem afetar o funcionamento das etapas já prontas.
+Próxima etapa: colheita
+
+Placeholders:
+ID da operação: {{ID_OPERACAO}} 
+Data de Emissão: {{DATA_RELATORIO}}  
+Registrado por: {{USUARIO_RELATORIO}}  
+DETALHES DA OPERAÇÃO 
+Local da Atividade: {{LOCAL_ATIVIDADE}} 
+Talhão(ões) (Área): {{TALHOES_SELECIONADOS}} 
+Área Total (ha): {{AREA_TOTAL_HECTARES}} 
+Cultura e Cultivar: {{CULTURA_CULTIVAR}}
+Produtividade estimada: {{PRODUTIVIDADE_ESTIMADA}} 
+Data de Início: {{DATA_INICIO}} 	Data de Término: {{DATA_TERMINO}}
+
+Colhedeira - Identificação: {{MAQUINA}} 
+Colhedeira Horímetro Início: {{horimetro_colhe_inicio}}
+Colhedeira Horímetro Término:: {{horimetro_colhe_fim}}
+Operador(es) Colhedeira: {{OPERADORES_MAQUINA}}
+Paradas imprevistas da colhedeira: {{PARADAS_IMPREVISTAS_COLHEDEIRA}} 
+Número de abastecimentos da colhedeira: {{NUMERO_ABASTECIMENTO_COLHEDEIRA}}
+Horímetro				Litros de combustível
+{{horimetro_colhe_abast}}		{{combustivel_colhedeira}}
+
+Trator - identificação: {{TRATOR}} 
+Horímetro Início: {{horimetro_trator_inicio}}
+Horímetro Término: {{horimetro_trator_fim}}
+Operador(es):{{OPERADORES}} 
+Implemento - Identificação: {{IMPLEMENTO}} 
+Paradas imprevistas: {{PARADAS_IMPREVISTAS_TRATOR}}
+Número de abastecimentos do trator: {{NUMERO_ABASTECIMENTO_TRATOR}}
+Horímetro				Litros de combustível
+{{horimetro_trator_abast}}		{{combustivel_trator}}
+
+
+Caminhão - identificação: {{Caminhao_ID}}
+Motorista: {{MOTORISTA_CAMINHAO}}
+Quilometragem do início: {{km_inicio}}
+Quilometragem do término: {{km_fim}}
+Número de abastecimentos do caminhão: {{NUMERO_ABASTECIMENTO_CAMINHAO}}
+Quilometragem				Litros de combustível
+{{km_abastecimento}}			{{combustivel_caminhao}}
+
+Observação do relatório: {{OBSERVACAO_OS_RELATORIO}}
+
+
+
+
+07:44 26/08/2025
+Ainda a corrigir:
+1. Caso o equipamento selecionado seja a colhedeira
+ - Em branco
+PDF
+Produtividade estimada: {{PRODUTIVIDADE_ESTIMADA}}
+Operador(es) Colhedeira: {{OPERADORES_MAQUINA}}
+
+- Os textos, placeholders e outros, referentes aos outros equipamentos não foram eliminados
+
+
+
+
+09:21 26/08/2025
+
+Os arquivos em anexo são da segunda parte de um aplicativo Web da Fazenda Agro Verde. Essa parte é chamada de "Relatório de Operações" e depende dos dados da primeira parte "Ordem de serviço". As etapas 1, 2 e 3 e 4 estão completas. A etapa 5 "Colheita", está em desenvolvimento.
+Quando o usuário seleciona o botão de rádio da opção "Colhedeira", há os seguintes problemas a serem corrigidos:
+1. Campos em branco
+No PDF gerado:
+	- Produtividade estimada: {{PRODUTIVIDADE_ESTIMADA}}
+	- Operador(es) Colhedeira: {{OPERADORES_MAQUINA}}
+	- Os textos, placeholders e outros, referentes aos outros equipamentos ("Trator" e "Caminhão") não foram eliminados.
+Caso ajude, segue o resultado de debug, mostrando como os campos vem da planilha de OS:
+Dados recebidos da OS:
+
+{
+  "Timestamp": "2025-08-20T17:19:31.192Z",
+  "ID da OS": "H-FAZEN-661j-",
+  "Nome do Usuário": "henrique",
+  "Local": "Fazenda Campína (Custódio)",
+  "Talhoes (Area)": "Custódio 100 (61.13 ha); Custódio 101 (53.4 ha)",
+  "Área Total (ha)": "114.53",
+  "Data de Inicio": "2025-08-20T03:00:00.000Z",
+  "Data de Termino": "2025-08-27T03:00:00.000Z",
+  "Cultura e Cultivar": "guandu rajado",
+  "Produtividade estimada": 1100,
+  "Colhedeira": "DSFSDF",
+  "Operador(es) Colhedeira": "ASDGSD",
+  "Trator": "asdfas",
+  "Operador(es) Trator": "sdfas",
+  "Implemento": "transbordo 1",
+  "Observacao": "teste - apagar",
+  "Caminhão 1": "MAN  PLACA  adf45sdf",
+  "Motorista 1": "fdssdf",
+  "Caminhão 2": "VW placa sdf343sdf",
+  "Motorista 2": "sdfsdf"
+}
+
+OBSERVAÇÕES IMPORTANTES:
+- Gere os arquivos integralmente a fim de minimizar a possibilidade de erro humano
+- NÃO faça modificações que afetem as etapas já funcionais.
+
+Mensagem "Você está offline..." Ao pressionar botão de "Enviar relatório..."
+
+
+11:00 26/08/2025
+Os arquivos em anexo são da segunda parte de um aplicativo Web da Fazenda Agro Verde. Essa parte é chamada de "Relatório de Operações" e depende dos dados da primeira parte "Ordem de serviço". As etapas 1, 2 e 3 e 4 estão completas. A etapa 5 "Colheita", está em desenvolvimento.
+Nova URL da planilha onde está o script appsScript.js:
+https://script.google.com/macros/s/AKfycbw8j6Vfrtib5S5rsDQZrirwasSyqmudQw0UVohsajbK7uYZNgKPELG_nQTdJ1bo_uEM/exec
+
+Quando o usuário seleciona o botão de rádio da opção "Colhedeira", há alguns problemas a serem corrigidos. Vamos começar com este listado a seguir:
+
+Mensagem "Você está offline..."
+A planilha onde os dados devem ser gravados, está sendo atualizada normalmente e os arquivos de PDF estão sendo gerados e armazenados na pasta correta.
+Preciso que este erro de "offline" seja corrigido. Pode fazer isso?
+
+
+
+12:59 26/08/2025
+Rollback para 25/08/2025
+Os arquivos em anexo são da segunda parte de um aplicativo Web da Fazenda Agro Verde. Essa parte é chamada de "Relatório de Operações" e depende dos dados da primeira parte "Ordem de serviço". As etapas 1, 2 e 3 e 4 estão completas. A etapa 5 "Colheita", está em desenvolvimento.
+Nesta etapa, o usuário deve selecionar um dos três botões de rádio para um dos equipamentos do qual ele está fazendo o relatório: Colhedeira, caminhão ou trator, nesta ordem.
+Na geração de PDF, apenas os dados referentes ao equipamento selecionado deve permanecer. Os outros dados devem ser eliminados (apenas no PDF, neste caso). Há alguma maneira de fazer uma marca de separação de forma que o script do app consiga identificar e apagar os dados que não estão sendo relatados no momento?
+
+
+16:06 26/08/2025
+Os arquivos em anexo são da segunda parte de um aplicativo Web da Fazenda Agro Verde. Essa parte é chamada de "Relatório de Operações" e depende dos dados da primeira parte "Ordem de serviço". As etapas 1, 2 e 3 e 4 estão completas. A etapa 5 "Colheita", está em desenvolvimento.
+Nesta etapa, o usuário deve selecionar um dos três botões de rádio para um dos equipamentos do qual ele está fazendo o relatório: Colhedeira, caminhão ou trator, nesta ordem.
+Na geração de PDF, apenas os dados referentes ao equipamento selecionado deve permanecer. Os outros dados devem ser eliminados (apenas no PDF, neste caso).
+No arquivo de template 
+https://docs.google.com/document/d/1T0QA820ZVrgkSmX08HZm6w-8FMM6Qb7aub508jmR7DA/edit?tab=t.0
+Há placeholders marcando início e fim de cada seção de dados dos equipamentos. Exemplo:
+
+{{START_COLHEDEIRA}} // início dos dados e texto da colhedeira
+
+{{END_COLHEDEIRA}} // fim dos dados e texto da colhedeira
+
+Caso o botão de rádio da colhedeira não tenha sido selecionado, as linhas com os placeholders marcando início e fim e todas as outra entre elas, devem ser eliminadas do PDF.
+
+Pode fazer isso?
+
+
+16:28 26/08/2025
+Na planilha gravo os dados corretamente. Antes de gerar o PDF apareceu uma janela de alerta com a mensagem "Você está offline..."
+Pode corrigir isso?
+
+
+16:42 26/08/2025
+Não deu certo.
+Tentar mais uma vez amanhã. Caso não funcione, tentar outra abordagem:
+- fazer rollback até antes de "Colheita"
+- Dividir o relatório de "Colheita" em três partes:
+a) Colhedeira
+b) Caminhão
+c) Trator
+
+Assim, quando o usuário pressionar o botão colheita, o app deve abrir outra tela com quatro botões:
+Colhedeira
+Caminhão
+Trator
+(os três com texto branco sobre verde)
+← Voltar
+(texto branco sobre vermelho)
+
+Cada um dos botões terá um formulário específico
+
+
+07:26 27/08/2025
+
+Etapa 5 - colheita - Nova abordagem:
+Um template para cada equipamento:
+
+Os arquivos em anexo são da segunda parte de um aplicativo Web da Fazenda Agro Verde. Essa parte é chamada de "Relatório de Operações" e depende dos dados da primeira parte "Ordem de serviço". As etapas 1, 2 e 3 e 4 estão completas. Vamos agora para a etapa 5 "Colheita".
+Apresentar 3 botões de rádio, um para cada equipamento usado na operação de colheita: "Colhedeira", "Caminhão" e "Trator".
+Nesta etapa, o usuário deve selecionar um dos três botões de rádio para um dos equipamentos do qual ele está fazendo o relatório.
+Há um template para cada opção. Assim, o template a ser usado dependerá exclusivamente da seleção do botão de rádio pelo usuário:
+
+Colhedeira
+https://docs.google.com/document/d/1T0QA820ZVrgkSmX08HZm6w-8FMM6Qb7aub508jmR7DA/edit?tab=t.0
+
+Caminhão
+https://docs.google.com/document/d/1ukAVbuC5NM8TmxZ8LXM6c3_yCbBKTwMypTZmb6Qsmto/edit?tab=t.0
+
+Trator
+https://docs.google.com/document/d/1JIlAlTUciVKFFX_-_Zpw9Zkux-7T-3-tq3Evgsl42wk/edit?tab=t.0
+
+Para facilitar a parte da planilha, os campos recebidos da OS vem nas seguintes formas:
+Dados recebidos da OS:
+
+{
+  "Timestamp": "2025-08-20T17:19:31.192Z",
+  "ID da OS": "H-FAZEN-661j-",
+  "Nome do Usuário": "henrique",
+  "Local": "Fazenda Campína (Custódio)",
+  "Talhoes (Area)": "Custódio 100 (61.13 ha); Custódio 101 (53.4 ha)",
+  "Área Total (ha)": "114.53",
+  "Data de Inicio": "2025-08-20T03:00:00.000Z",
+  "Data de Termino": "2025-08-27T03:00:00.000Z",
+  "Cultura e Cultivar": "guandu rajado",
+  "Produtividade estimada": 1100,
+  "Colhedeira": "DSFSDF",
+  "Operador(es) Colhedeira": "ASDGSD",
+  "Trator": "asdfas",
+  "Operador(es) Trator": "sdfas",
+  "Implemento": "transbordo 1",
+  "Observacao": "teste - apagar",
+  "Caminhão 1": "MAN  PLACA  adf45sdf",
+  "Motorista 1": "fdssdf",
+  "Caminhão 2": "VW placa sdf343sdf",
+  "Motorista 2": "sdfsdf"
+}
+
+
+Pode fazer as atualizações e alterações necessárias para concluir essa etapa?
+
+
+08:45 27/08/2025
+Lista dos placeholders de campos específicos em cada template, que devem aparecer nos formulários:
+
+Colhedeira
+Colhedeira - Identificação: {{MAQUINA}} 
+Colhedeira Horímetro Início: {{horimetro_colhe_inicio}}
+Colhedeira Horímetro Término:: {{horimetro_colhe_fim}}
+Operador(es) Colhedeira: {{OPERADORES_MAQUINA}}
+Paradas imprevistas da colhedeira: {{PARADAS_IMPREVISTAS_COLHEDEIRA}} 
+Número de abastecimentos da colhedeira: {{NUMERO_ABASTECIMENTO_COLHEDEIRA}}
+Horímetro: {{horimetro_colhe_abast}}
+Litros de combustível: {{combustivel_colhedeira}}
+Observação do relatório: {{OBSERVACAO_OS_RELATORIO}}
+
+
+Caminhão
+Caminhão - identificação: {{Caminhao_ID}}
+Motorista: {{MOTORISTA_CAMINHAO}}
+Quilometragem do início: {{km_inicio}}
+Quilometragem do término: {{km_fim}}
+Número de abastecimentos do caminhão: {{NUMERO_ABASTECIMENTO_CAMINHAO}}
+Quilometragem: {{km_abastecimento}}
+Litros de combustível: {{combustivel_caminhao}}
+Observação do relatório: {{OBSERVACAO_OS_RELATORIO}}
+
+
+Trator
+Trator - identificação: {{TRATOR}} 
+Horímetro Início: {{horimetro_trator_inicio}}
+Horímetro Término: {{horimetro_trator_fim}}
+Operador(es):{{OPERADORES}} 
+Implemento - Identificação: {{IMPLEMENTO}} 
+Paradas imprevistas: {{PARADAS_IMPREVISTAS_TRATOR}}
+Número de abastecimentos do trator: {{NUMERO_ABASTECIMENTO_TRATOR}}
+Horímetro: {{horimetro_trator_abast}}
+Litros de combustível: {{combustivel_trator}}
+Observação do relatório: {{OBSERVACAO_OS_RELATORIO}}
+
+
+
+10:00 27/08/2025
+Os arquivos em anexo são da segunda parte de um aplicativo Web da Fazenda Agro Verde. Essa parte é chamada de "Relatório de Operações" e depende dos dados da primeira parte "Ordem de serviço". As etapas 1, 2 e 3 e 4 estão completas. Na etapa 5, ao escolher qualquer uma das 3 opções, preencher os campos, e pressionar o botão de enviar o relatório, aparece uma janela de alerta com a mensagem "Você está offline..." Repetindo a operação, pressionando F12 e acompanhando no console, tenho a seguinte mensagem de erro: Requisição cross-origin bloqueada: A diretiva Same Origin (mesma origem) não permite a leitura do recurso remoto em https://script.google.com/macros/s/AKfycbznEdqNDvPH34VOE6EQ510BUkk3s5NtZyN8KRMKaCns--qerlsupNlUaQdil1tPdK5R/exec (motivo: falta cabeçalho 'Access-Control-Allow-Origin' no CORS). Código de status: 200. Pode corrigir isso?
+
+
+11:20 27/08/2025
+A planilha foi atualizada (dados inseridos) e o PDF foi gerado, mas a janela de alerta com a mensagem "Você está offline..." continua aparecendo.
+O que deveria acontecer, a exemplo das outras etapas, seria o app mostrar duas opções: "Abrir o Relatório" e "Abrir pasta com os relatórios". 
+Aqui vai uma cópia do console do navegador (F12) com as mensagens de erro:
+
+(índice):1  Access to fetch at 'https://script.google.com/macros/s/AKfycbznEdqNDvPH34VOE6EQ510BUkk3s5NtZyN8KRMKaCns--qerlsupNlUaQdil1tPdK5R/exec' from origin 'http://192.168.1.26:8080' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.
+script.js:322   POST https://script.google.com/macros/s/AKfycbznEdqNDvPH34VOE6EQ510BUkk3s5NtZyN8KRMKaCns--qerlsupNlUaQdil1tPdK5R/exec net::ERR_FAILED 200 (OK)
+submitReport @ script.js:322
+script.js:327  Falha ao enviar. Salvando relatório offline. 
+submitReport @ script.js:327
+
+
+16:33 27/08/2025
+Permanece a mensagem:
+Você está offline. O relatório foi salvo e será enviado quando houver conexão.
+
+Código 302 ocorreu 2 vezes:
+- exec?activity=Colheita
+- exec?activity=Colheita&osID
+
+e uma última listagem com status 200
+exec
+
+Falha ao carregar os dados da resposta
+NO data found for resource with given identifier
+
+
+
+
+08:28 28/08/2025
+Rollback outra vez - v17
+
+Os arquivos em anexo são da segunda parte de um aplicativo Web da Fazenda Agro Verde. Essa parte é chamada de "Relatório de Operações" e depende dos dados da primeira parte "Ordem de serviço". As etapas 1, 2 e 3 e 4 estão completas. Vamos agora para a etapa 5 "Colheita".
+Apresentar 3 botões de rádio, um para cada equipamento usado na operação de colheita: "Colhedeira", "Caminhão" e "Trator".
+Nesta etapa, o usuário deve selecionar um dos três botões de rádio para um dos equipamentos do qual ele está fazendo o relatório.
+Há um template para cada opção. Assim, o template a ser usado dependerá exclusivamente da seleção do botão de rádio pelo usuário:
+
+Colhedeira
+https://docs.google.com/document/d/1T0QA820ZVrgkSmX08HZm6w-8FMM6Qb7aub508jmR7DA/edit?tab=t.0
+
+Lista dos placeholders
+Colhedeira - Identificação: {{MAQUINA}} 
+Colhedeira Horímetro Início: {{horimetro_colhe_inicio}}
+Colhedeira Horímetro Término:: {{horimetro_colhe_fim}}
+Operador(es) Colhedeira: {{OPERADORES_MAQUINA}}
+Paradas imprevistas da colhedeira: {{PARADAS_IMPREVISTAS_COLHEDEIRA}} 
+Número de abastecimentos da colhedeira: {{NUMERO_ABASTECIMENTO_COLHEDEIRA}}
+Horímetro: {{horimetro_colhe_abast}}
+Litros de combustível: {{combustivel_colhedeira}}
+Observação do relatório: {{OBSERVACAO_OS_RELATORIO}}
+
+Caminhão
+https://docs.google.com/document/d/1ukAVbuC5NM8TmxZ8LXM6c3_yCbBKTwMypTZmb6Qsmto/edit?tab=t.0
+
+Lista dos placeholders
+Caminhão - identificação: {{Caminhao_ID}}
+Motorista: {{MOTORISTA_CAMINHAO}}
+Quilometragem do início: {{km_inicio}}
+Quilometragem do término: {{km_fim}}
+Número de abastecimentos do caminhão: {{NUMERO_ABASTECIMENTO_CAMINHAO}}
+Quilometragem: {{km_abastecimento}}
+Litros de combustível: {{combustivel_caminhao}}
+Observação do relatório: {{OBSERVACAO_OS_RELATORIO}}
+
+Trator
+https://docs.google.com/document/d/1JIlAlTUciVKFFX_-_Zpw9Zkux-7T-3-tq3Evgsl42wk/edit?tab=t.0
+Lista dos placeholders
+Trator - identificação: {{TRATOR}} 
+Horímetro Início: {{horimetro_trator_inicio}}
+Horímetro Término: {{horimetro_trator_fim}}
+Operador(es):{{OPERADORES}} 
+Implemento - Identificação: {{IMPLEMENTO}} 
+Paradas imprevistas: {{PARADAS_IMPREVISTAS_TRATOR}}
+Número de abastecimentos do trator: {{NUMERO_ABASTECIMENTO_TRATOR}}
+Horímetro: {{horimetro_trator_abast}}
+Litros de combustível: {{combustivel_trator}}
+Observação do relatório: {{OBSERVACAO_OS_RELATORIO}}
+
+O placeholder a seguir é comum aos três equipamentos e deve aparecer logo abaixo dos campos específicos no formulário e no PDF
+
+Para facilitar a parte da planilha, os campos recebidos da OS vem nas seguintes formas:
+Dados recebidos da OS:
+
+{
+  "Timestamp": "2025-08-20T17:19:31.192Z",
+  "ID da OS": "H-FAZEN-661j-",
+  "Nome do Usuário": "henrique",
+  "Local": "Fazenda Campína (Custódio)",
+  "Talhoes (Area)": "Custódio 100 (61.13 ha); Custódio 101 (53.4 ha)",
+  "Área Total (ha)": "114.53",
+  "Data de Inicio": "2025-08-20T03:00:00.000Z",
+  "Data de Termino": "2025-08-27T03:00:00.000Z",
+  "Cultura e Cultivar": "guandu rajado",
+  "Produtividade estimada": 1100,
+  "Colhedeira": "DSFSDF",
+  "Operador(es) Colhedeira": "ASDGSD",
+  "Trator": "asdfas",
+  "Operador(es) Trator": "sdfas",
+  "Implemento": "transbordo 1",
+  "Observacao": "teste - apagar",
+  "Caminhão 1": "MAN  PLACA  adf45sdf",
+  "Motorista 1": "fdssdf",
+  "Caminhão 2": "VW placa sdf343sdf",
+  "Motorista 2": "sdfsdf"
+}
+
+
+Pode fazer as atualizações e alterações necessárias para concluir essa etapa?
+
+--------------------------------------------------
+Mensagem não enviada:
+Console do navegador (F12):
+script.js:316  Falha ao enviar. Salvando relatório offline. Error: Ocorreu um erro no servidor: Exception: O número de colunas no intervalo precisa ser pelo menos 1.
+    at HTMLButtonElement.submitReport (script.js:313:19)
+-------------------------------------------------
+A mensagem de erro (gerada em colheita) não foi enviada porque espera-se que o mesmo seja corrigido ao implementar a etapa 5 "Colheita"
+[FOI CORRIGIDA]
+
+
+
+11:17 28/08/2025
+
+Mensagem de erro no console ao pressionar o botão "Adicionar Abastecimentos". Nesse caso foi digitado o valor 1 para num. de abastecimentos
+
+script.js:648  Uncaught TypeError: Cannot read properties of null (reading 'value')
+    at HTMLDivElement.<anonymous> (script.js:648:51)
+(anônimo) @ script.js:648
+
+APARENTEMENTE não afetou a geração de PDF
+ nem a planilha
+
+Resultado desta nova tentativa:
+PDF gerado sem falhas 
+
+Planilha: Todos os campos preenchidos
+
+
+09:15 29/08/2025
+
+Pequenas atualizações em colheita (e outras etapas onde for aplicável):
+- Todos os valores numéricos que usam "ponto" como separador de decimais, este "ponto" deve ser substituído por vírgula e o valor formatado como numérico.
+- O valor a ser considerado para um campo, é sempre o que consta nos campos da coluna "Realizado/Usado" ou seu equivalente, no lado direito do formulário (ver imagem). 
+- o Horímetro inicial e de término (colhedeira e trator) bem como a quilometragem inicial e de término (caminhão) devem ser obrigatórios. Caso o número de abastecimentos seja maior que zero, os campos de horímetro ou quilometragem e a quantidade de combustível (Litros) também devem ser obrigatórios.
+
+-----------------------------
+
+Na planilha deu tudo certo. No PDF os campos originários da OS ficaram em branco. Então vamos mudar o raciocínio:
+
+- Se o usuário mantiver a confirmação, ou seja, botão de rádio "Sim" selecionado, o valor vindo da OS é o válido, caso contrário vale o valor que for digitado no campo a direita, ao lado do botão de rádio "Não".
+
+
+Não deu certo a correção
+Fazendo rollback nos dois arquivos (em anexo).
+
+- o Horímetro inicial e de término (colhedeira e trator) bem como a quilometragem inicial e de término (caminhão) devem ser obrigatórios. Caso o número de abastecimentos seja maior que zero, os campos de horímetro ou quilometragem e a quantidade de combustível (Litros) também devem ser obrigatórios.
+
+- Se o usuário mantiver a confirmação, ou seja, botão de rádio "Sim" selecionado, o valor vindo da OS é o válido, caso contrário vale o valor que for digitado no campo a direita, ao lado do botão de rádio "Não".
+
+
+
+
+17:33 30/08/2025
+Novo rollback
+
+- o Horímetro inicial e de término (colhedeira e trator) bem como a quilometragem inicial e de término (caminhão) devem ser obrigatórios. Caso o número de abastecimentos seja maior que zero, os campos de horímetro ou quilometragem e a quantidade de combustível (Litros) também devem ser obrigatórios.
+Se o usuário tentar enviar o relatório com um ou mais desses camposem branco, indique aqueles que falta preencher.
+ - Se o botão de rádio de confirmação "Sim", estiver selecionado, o campo do usado/realizado é igual ao valor que veio da OS. Se o usuário selecionar o botão de rádio "Não", o valor para aquele campo passa a ser o usado/realizado. Ou seja, o valor "usado/realizado" estará sempre correto, então é mais fácil deixá-lo como valor padrão.
+
+[NÃO FOI FEITO]
+
+
+14:43 01/09/2025
+Novo rollback
+
+Os arquivos em anexo são da segunda parte de um aplicativo Web da Fazenda Agro Verde. Essa parte é chamada de "Relatório de Operações" e depende dos dados da primeira parte "Ordem de serviço". As etapas 1, 2 e 3 e 4 estão completas. Para a etapa 5, faltam apenas alguns detalhes. Dois deles estão listados a seguir.
+
+- o Horímetro inicial e de término (colhedeira e trator) bem como a quilometragem inicial e de término (caminhão) devem ser obrigatórios. Caso o número de abastecimentos seja maior que zero, os campos de horímetro ou quilometragem e a quantidade de combustível (Litros) também devem ser obrigatórios.
+Se o usuário tentar enviar o relatório com um ou mais desses camposem branco, indique aqueles que falta preencher.
+ - Se o botão de rádio de confirmação "Sim", estiver selecionado, o campo do usado/realizado é igual ao valor que veio da OS. Se o usuário selecionar o botão de rádio "Não", o valor para aquele campo passa a ser o usado/realizado. 
+
+
+
+15:22 01/09/2025
+Deu certo \o/
+
+Agora os dois últimos detalhes:
+
+- Valores que sejam algarismos numéricos separados por "ponto" devem ser tratados como números no formato brasileiro, isto é, o "ponto" deve ser substituído por "vírgula" e o valor formatado como número com dois decimais
+
+- Valores que estejam em branco, isto é, que não tenham nada vinculado na OS ou que não tenha sido digitado nada nesta etapa, os respectivos placeholders nos templates devem ser substituídos por um espaço em branco. Essa atualização deve ser feita tanto no PDF quanto na planilha, uma vez que a configuração regional da Planilha Google (para o Brasil) faz com que ela só reconheça números com vírgula como separador decimal. O aplicativo envia com ponto, e por isso a planilha trata os valores como texto.
+
+Pode fazer essas alterações sem comprometer o que já está funcionando? 
+
+
+15:43 01/09/2025
+
+Problemas encontrados
+Quando mudo o valor do campo "Colhedeira" no formulário, selecionando o botão de rádio "não" e digitando o respectivo nome no campo ao lado, acontece o seguinte:
+	• A identificação da colhedeira no PDF fica em branco 
+	• A identificação da colhedeira na planilha permanece aquela que veio da OS
+        Ambos resultados estão errados - DEVERIA ser a nova identificação digitada
+
+Quando mudo o valor do campo de qualquer um dos motoristas dos caminhões no formulário, selecionando o botão de rádio "não" e digitando o respectivo nome no campo ao lado, acontece o seguinte:
+	• O nome do motorista no PDF permanece o que veio da OS (errado - o nome deve ser o novo digitado)
+	• O nome do motorista na planilha corresponde a mudança (correto)
+
+Quando mudo o valor do campo de identificação de qualquer um dos caminhões acontece o seguinte:
+	• A identificação do caminhão NO PDF permanece a mesma (errado DEVE ser a nova identificação digitada
+	• A identificação do caminhão na planilha corresponde à mudança (correto)
+
+No caso dos caminhões o erro talvez 'seja porque assim que o botão de rádio "caminhão" é selecionado, um dropdown com os valores anteriores de identificação dos caminhões é criado. Uma possível correção seria, antes de  popular a lista dropdown, verificar se houve alguma não confirmação com a respectiva digitação de novos valores.
+
+-----------------------------------------
+Para amanhã - 02/09/2025
+-----------------------------------------
+Fazer novo rollback a partir da pasta dentro da versão 22 (funcionando até colheita (sem detalhes))
+- Usar os dados dos campos  "Realizado/usado", assim caso tenha havido qualquer alteração, o dado atualizado é o que aparecerá no PDF e na planilha. Tenha certeza de que em colheita, "Caminhões", os dados da lista dropdwon use estes campos.
+
+
+
+
+
+07:05 02/09/2025
+
+Os arquivos em anexo são da segunda parte de um aplicativo Web da Fazenda Agro Verde. Essa parte é chamada de "Relatório de Operações" e depende dos dados da primeira parte "Ordem de serviço". As etapas 1, 2 e 3 e 4 estão completas. Para a etapa 5, faltam apenas alguns detalhes.
+
+- Usar os dados dos campos  "Realizado/usado", assim caso tenha havido qualquer alteração, o dado atualizado é o que aparecerá no PDF e na planilha. Tenha certeza de que em colheita, "Caminhões", os dados da lista dropdwon use os valores destes campos.
+
+- Na geração do PDF o placeholder a seguir não é subtituído pelo valor correspondente:
+
+Produtividade estimada: {{PRODUTIVIDADE_ESTIMADA}}
+
+[R E S O L V I D O]
+YAY!!!!
+
+
+07:44 02/09/2025
+
+LANÇAS
+
+Os arquivos em anexo são da segunda parte de um aplicativo Web da Fazenda Agro Verde. Essa parte é chamada de "Relatório de Operações" e depende dos dados da primeira parte "Ordem de serviço". As etapas 1, 2, 3, 4 e 5 estão completas. Falta agora a etapa 6 "Lanças".
+
+O template com os respectivos placeholders tem o seguinte endereço:
+
+https://docs.google.com/document/d/1mvKGzXB5LPAKrk24XEZOGs4JXB_ybBhCkmFch64WmaA/edit?tab=t.0
+
+A seguir a lista de placeholders:
+ID da operação: {{ID_OPERACAO}} 
+Data de Emissão: {{DATA_RELATORIO}}  
+Registrado por: {{USUARIO_RELATORIO}} 
+Local da Atividade: {{LOCAL_OS_RELATORIO}} 
+Talhão(ões) (Área): {{TALHOES_OS_RELATORIO}} 
+Área Total (ha): {{AREA_TOTAL_OS_RELATORIO}} 
+Data de Início: {{DATA_INICIO_OS_RELATORIO}} 
+Data de Término: {{DATA_TERMINO_OS_RELATORIO}}
+Trator: {{TRATOR_OS}} 
+Implemento - Identificação: {{IMPLEMENTO_OS}} 
+Operador(es): {{OPERADORES_OS}} 
+Observação: {{OBSERVACAO_OS}}
+Cultura e cultivar: {{CULTURA_CULTIVAR}} 
+Produtos e quantidades: {{PRODUTOS_QTD_HA}}
+Paradas imprevistas: {{PARADAS_IMPREVISTAS}}
+Horímetro inicial: {{HORIMETRO_INICIO}} 
+Horímetro final: {{HORIMETRO_FIM}}
+Paradas imprevistas: {{PARADAS_IMPREVISTAS}}
+Número de abastecimentos:  {{NUM_ABASTECIMENTOS}}
+Horímetro (h): {{HorimetroAbastecimento}}
+Combustível (L): {{LitrosAbastecimento}}
+Observação do relatório: {{OBSERVACAO_OS-RELATORIO}}
+
+
+Pode fazer essas alterações sem comprometer o que já está funcionando? 
+
+
+
+08:35 02/09/2025
+
+Data e hora atuais: 02/09/2025 - 09:38 
+Os arquivos em anexo são da segunda parte de um aplicativo Web da Fazenda Agro Verde. Essa parte é chamada de "Relatório de Operações" e depende dos dados da primeira parte "Ordem de serviço". Todas as etapas, de 1 a 6 estão implementadas, porém detectei alguns problemas:
+
+Etapa 1 "Preparo de Área" - tudo ok
+--> Problemas encontrados na etapa 2 "Tratamento de Sementes":
+• Campos em branco
+- PDF
+Cultura e Cultivar: {{CULTURA_CULTIVAR_OS}}
+Máquina - Identificação: {{MAQUINA_OS}}
+
+- Planilha
+OS Planejado - Maquina
+OS Realizado - Maquina
+ 
+etapa 3 "Plantio" - tudo ok
+
+etapa 4 "Pulverização" - tudo ok
+etapa 5 "Colheita" - tudo ok
+
+--> Problemas encontrados na etapa 6:
+• Campos em branco:
+PDF
+• Trator: {{TRATOR_OS}} 
+• Observação: {{OBSERVACAO_OS}}
+• Produtos e quantidades: {{PRODUTOS_QTD_HA}}
+
+Pode consertar esses problemas sem comprometer o que já está funcionando? 
+Por favor, gere os scripts integralmente, com as alterações necessárias, a fim de diminuir a possibilidade de erro humano.
+Obrigado.
+
+
+09:59 02/09/2025
+
+Data e hora atuais: 02/09/2025 - 11:45
+Os arquivos em anexo são da segunda parte de um aplicativo Web da Fazenda Agro Verde. Essa parte é chamada de "Relatório de Operações" e depende dos dados da primeira parte "Ordem de serviço". Todas as etapas, de 1 a 6 estão implementadas, porém detectei alguns problemas:
+
+
+Etapa 1 - tudo ok
+
+Etapa 2 "Tratamento de Sementes" - problemas detectados:
+• Campos em branco
+- PDF
+Cultura e Cultivar: {{CULTURA_CULTIVAR_OS}}
+Máquina - Identificação: {{MAQUINA_OS}}
+
+- Planilha
+OS Planejado - Maquina
+OS Realizado - Maquina
+
+Etapa 3 "Plantio" - tudo ok
+
+Etapa 4 "pulverização" - tudo ok
+
+Etapa 5 "Colheita"  - tudo ok
+Adicionar o campo "Paradas imprevistas" também para os caminhões
+
+Etapa 6 - "Lanças" - problemas detectados:
+• Campos em branco:
+
+- Planilha
+OS Planejado - Trator
+OS Realizado - Trator
+OS Planejado - Produtos e quantidades
+OS Realizado - Produtos e quantidades
+
+No caso do campo "Trator" o valor, na planilha original OS, a coluna que contem o valor está com título "Maquina".
+No caso de "Produtos e quantidades", o valor, na planilha original OS, a coluna que contem o valor está com título  "Quantidade de produto/hectare"
+

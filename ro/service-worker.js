@@ -14,7 +14,7 @@ const urlsToCache = [
 
 // ********* as linhas a seguir foram incluidas manualmente, além das geradas por IA
 // URL do seu Apps Script (precisa ser o mesmo do script.js)
-const appsScriptUrl = 'https://script.google.com/macros/s/AKfycbyS8G4Yar6Bjx5clsorCNrb_tWOelWbXBdEm97Alj9kWgQGCDUw04zRQW9pH9TT3OHozA/exec'; // <-- COLOQUE SEU URL AQUI!
+const appsScriptUrl = 'https://script.google.com/macros/s/AKfycbznEdqNDvPH34VOE6EQ510BUkk3s5NtZyN8KRMKaCns--qerlsupNlUaQdil1tPdK5R/exec'; // <-- COLOQUE SEU URL AQUI!
 
 const DB_NAME = 'osAgroDB'; // Nome do DB igual ao script.js
 const STORE_NAME = 'pendingOSData'; // Nome da store igual ao script.js
