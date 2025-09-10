@@ -7,6 +7,8 @@ const reportAppsScriptUrl = 'https://script.google.com/macros/s/AKfycbznEdqNDvPH
 let userName = '';
 let selectedActivityKey = '';
 let currentOsDetails = {};
+let currentIrrigationData = { isUpdate: false, originalId: '' };
+
 
 // CORREÇÃO: O mapa de chaves foi expandido para garantir que todos os cabeçalhos,
 // especialmente aqueles com acentos ou variações, sejam padronizados corretamente antes do envio.
@@ -85,36 +87,53 @@ const ACTIVITIES = {
     "Plantio": "Plantio",
     "Pulverizacao": "Pulverização",
     "Colheita": "Colheita",
-    "Lancas": "Lanças"
+    "Lancas": "Lanças",
+    "Irrigacao": "Irrigação"
 };
 
 
 // Referências de elementos do DOM
 const activitySelectionDiv = document.getElementById('activitySelection');
 const formContainerDiv = document.getElementById('formContainer');
+const irrigationContainer = document.getElementById('irrigationContainer'); // CORREÇÃO: Adicionada referência ao container de irrigação
 const backToActivitiesBtn = document.getElementById('backToActivities');
 const osIdRadioContainer = document.getElementById('osIdRadioContainer');
 const operationIdDisplay = document.getElementById('operationIdDisplay');
 const osDetailsContainer = document.getElementById('osDetailsContainer');
-const harvestEquipmentSelectionContainer = document.getElementById('harvestEquipmentSelectionContainer'); // Novo container
+const harvestEquipmentSelectionContainer = document.getElementById('harvestEquipmentSelectionContainer');
 const preparoAreaReportFieldsDiv = document.getElementById('preparoAreaReportFields');
 const observacoesRelatorioContainer = document.getElementById('observacoesRelatorioContainer');
 const submitReportButton = document.getElementById('submitReportButton');
+const submitIrrigationReportButton = document.getElementById('submitIrrigationReportButton'); // CORREÇÃO: Adicionada referência
 const activityTitleSpan = document.getElementById('activityTitle');
 const currentUserSpan = document.getElementById('currentUser');
-const numAbastecimentosInput = document.getElementById('numAbastecimentos');
-const abastecimentosContainer = document.getElementById('abastecimentosContainer');
-const addAbastecimentoFieldsBtn = document.getElementById('addAbastecimentoFields');
+const irrigationChoiceContainer = document.getElementById('irrigationChoiceContainer');
+const irrigationFormContainer = document.getElementById('irrigationFormContainer');
+const backToActivitiesFromIrrigationBtn = document.getElementById('backToActivitiesFromIrrigation'); // CORREÇÃO: Adicionada referência
+const backToIrrigationChoiceBtn = document.getElementById('backToIrrigationChoice'); // CORREÇÃO: Adicionada referência
 
-function showActivitySelection() {
-    activitySelectionDiv.style.display = 'grid';
+
+// CORREÇÃO: Função central para controlar a visibilidade das telas principais
+function showScreen(screenId) {
+    activitySelectionDiv.style.display = 'none';
     formContainerDiv.style.display = 'none';
+    irrigationContainer.style.display = 'none';
+
+    const screenToShow = document.getElementById(screenId);
+    if (screenToShow) {
+        // Usa grid para a seleção de atividades, e block para os formulários
+        screenToShow.style.display = (screenId === 'activitySelection') ? 'grid' : 'block';
+    }
 }
 
-function showForm() {
-    activitySelectionDiv.style.display = 'none';
-    formContainerDiv.style.display = 'block';
-    currentUserSpan.textContent = userName;
+function showActivitySelection() {
+    showScreen('activitySelection');
+    // Limpa estados anteriores para evitar confusão
+    osIdRadioContainer.innerHTML = '';
+    osDetailsContainer.innerHTML = '';
+    preparoAreaReportFieldsDiv.style.display = 'none';
+    harvestEquipmentSelectionContainer.innerHTML = '';
+    submitReportButton.style.display = 'none';
 }
 
 function renderActivityButtons() {
@@ -123,20 +142,55 @@ function renderActivityButtons() {
         const button = document.createElement('button');
         button.className = 'activity-button';
         button.textContent = ACTIVITIES[key];
+
+        // Aplica a classe full-width para o botão de irrigação se necessário
+        if (key === "Irrigacao") {
+            button.style.gridColumn = "1 / -1"; // Garante que ocupe a largura toda
+            button.classList.add('orange-button');
+        }
+
         button.addEventListener('click', () => {
             selectedActivityKey = key;
-            renderOsSelectionForm(key);
+            if (key === "Irrigacao") {
+                showScreen('irrigationContainer');
+                showIrrigationChoice();
+            } else {
+                showScreen('formContainer');
+                renderOsSelectionForm(key);
+            }
         });
         activitySelectionDiv.appendChild(button);
     }
 }
 
+function showIrrigationChoice() {
+    // Apenas manipula a visibilidade dentro do container de irrigação
+    irrigationChoiceContainer.style.display = 'block';
+    irrigationFormContainer.style.display = 'none';
+    activityTitleSpan.textContent = "Irrigação";
+    currentUserSpan.textContent = userName;
+
+    // Garante que os botões existam antes de adicionar listeners
+    irrigationChoiceContainer.innerHTML = `
+        <h3>Irrigação</h3>
+        <div class="activity-buttons">
+            <button id="newIrrigationButton" class="activity-button orange-button">Nova Operação</button>
+            <button id="queryIrrigationButton" class="activity-button">Consulta Operação</button>
+        </div>
+    `;
+
+    document.getElementById('newIrrigationButton').addEventListener('click', handleNewIrrigationOp);
+    document.getElementById('queryIrrigationButton').addEventListener('click', handleQueryIrrigationOp);
+}
+
 async function renderOsSelectionForm(activityKey) {
-    showForm();
+    showScreen('formContainer');
     activityTitleSpan.textContent = ACTIVITIES[activityKey];
+    currentUserSpan.textContent = userName;
     osIdRadioContainer.innerHTML = `<p class="loading-message">Carregando Ordens de Serviço...</p>`;
     osDetailsContainer.innerHTML = '';
     harvestEquipmentSelectionContainer.innerHTML = '';
+    preparoAreaReportFieldsDiv.innerHTML = '';
     preparoAreaReportFieldsDiv.style.display = 'none';
     if (observacoesRelatorioContainer) observacoesRelatorioContainer.style.display = 'none';
     submitReportButton.style.display = 'none';
@@ -149,6 +203,7 @@ async function renderOsSelectionForm(activityKey) {
             osIdRadioContainer.innerHTML = `<p class="error-message">Nenhuma OS encontrada para esta atividade.</p>`;
             return;
         }
+        osIdRadioContainer.classList.add('vertical');
         osIdRadioContainer.innerHTML = osIds.map((id, index) => `
             <div class="radio-item">
                 <input type="radio" id="os_${index}" name="osIdRadio" value="${id}">
@@ -169,7 +224,7 @@ function formatClientDate(dateInput) {
     if (!dateInput) return '';
     const date = new Date(dateInput);
     if (isNaN(date.getTime())) return dateInput;
-    return new Intl.DateTimeFormat('pt-BR').format(date);
+    return new Intl.DateTimeFormat('pt-BR', { timeZone: 'UTC' }).format(date);
 }
 
 function formatClientNumber(numInput) {
@@ -179,7 +234,6 @@ function formatClientNumber(numInput) {
     return num.toFixed(1).replace('.', ',');
 }
 
-// NOVA FUNÇÃO: Renderiza a seleção de equipamento para a Colheita
 function renderHarvestEquipmentSelection() {
     harvestEquipmentSelectionContainer.innerHTML = `
         <label>Selecione o Equipamento do Relatório:</label>
@@ -205,7 +259,85 @@ function renderHarvestEquipmentSelection() {
     });
 }
 
-// FUNÇÃO ATUALIZADA: Renderiza os campos de relatório específicos para cada equipamento da Colheita
+async function fetchAndDisplayOsData(osId) {
+    osDetailsContainer.innerHTML = `<p class="loading-message">Buscando detalhes da OS...</p>`;
+    harvestEquipmentSelectionContainer.innerHTML = '';
+    if(document.getElementById('observacoesRelatorio')) document.getElementById('observacoesRelatorio').value = '';
+
+    try {
+        const response = await fetch(`${osAppsScriptUrl}?activity=${selectedActivityKey}&osId=${encodeURIComponent(osId)}`);
+        const osDetails = await response.json();
+        if (osDetails.error) throw new Error(osDetails.error);
+        currentOsDetails = osDetails;
+
+        const fieldsToExclude = ["Timestamp", "Nome do Usuário", "ID da OS"];
+        let tableHtml = `<div class="os-data-container"><h4>Confirme os dados da Operação:</h4><div class="os-data-grid"><div class="grid-header">Item</div><div class="grid-header">Dados da OS</div><div class="grid-header center">Sim</div><div class="grid-header center">Não</div><div class="grid-header" style="color: grey;">Realizado/Usado</div>`;
+        const numericKeys = ["Área Total (ha)", "Capacidade do tanque", "Vazão (L/ha)", "Pressão", "Dose/ha", "Dose/tanque", "Vazão", "Pressao", "Vazao (L/ha)"];
+        for (const key in osDetails) {
+            if (fieldsToExclude.includes(key) || key.toLowerCase().includes('observa') || !osDetails[key]) continue;
+            
+            const cleanKey = keyMap[key] || key.replace(/[^a-zA-Z0-9]/g, '');
+            let value = key.includes("Data") ? formatClientDate(osDetails[key]) : (numericKeys.includes(key) ? formatClientNumber(osDetails[key]) : osDetails[key]);
+            
+            tableHtml += `<div class="grid-item" data-label="Item"><strong>${key}</strong></div><div class="grid-item" data-label="Dados da OS">${value}</div><div class="grid-item center" data-label="Sim"><input type="radio" name="confirm_${cleanKey}" value="sim" checked></div><div class="grid-item center" data-label="Não"><input type="radio" name="confirm_${cleanKey}" value="nao"></div><div class="grid-item" data-label="Realizado/Usado"><input type="text" id="realizado_${cleanKey}" value="${value}" ${key.includes("Data") ? 'readonly' : ''} disabled></div>`;
+        }
+        const osObservacaoKey = Object.keys(osDetails).find(k => k.toLowerCase().includes('observa'));
+        if (osObservacaoKey && osDetails[osObservacaoKey]) {
+            tableHtml += `<div class="grid-item" style="grid-column: 1 / -1;"><strong>Observação da OS:</strong> ${osDetails[osObservacaoKey]}</div>`;
+        }
+        tableHtml += `</div></div>`;
+        osDetailsContainer.innerHTML = tableHtml;
+
+        osDetailsContainer.querySelector('.os-data-grid').addEventListener('change', (event) => {
+            if (event.target.type === 'radio' && event.target.name.startsWith('confirm_')) {
+                const cleanKey = event.target.name.replace('confirm_', '');
+                document.getElementById(`realizado_${cleanKey}`).disabled = event.target.value !== 'nao';
+            }
+        });
+
+        if (selectedActivityKey === "Colheita") {
+            preparoAreaReportFieldsDiv.style.display = 'none';
+            renderHarvestEquipmentSelection();
+        } else if (["PreparodeArea", "Plantio", "Pulverizacao", "Lancas"].includes(selectedActivityKey)) {
+            preparoAreaReportFieldsDiv.style.display = 'block';
+            preparoAreaReportFieldsDiv.innerHTML = `<h3>Detalhes do Relatório</h3>
+                <div class="form-line">
+                    <label for="horimetroInicio">Horímetro Início da Operação:</label>
+                    <input type="number" id="horimetroInicio" name="horimetroInicio" step="0.01" required>
+                </div>
+                <div class="form-line">
+                    <label for="horimetroFim">Horímetro Fim da Operação:</label>
+                    <input type="number" id="horimetroFim" name="horimetroFim" step="0.01" required>
+                </div>
+                <div class="form-line">
+                    <label for="paradasImprevistas">Número de Paradas Imprevistas:</label>
+                    <input type="number" id="paradasImprevistas" name="paradasImprevistas" min="0" value="0">
+                </div>
+                <div class="form-line">
+                    <label for="numAbastecimentos">Número de Abastecimentos:</label>
+                    <input type="number" id="numAbastecimentos" name="numAbastecimentos" min="0" value="0">
+                </div>
+                <button type="button" class="activity-button" id="addAbastecimentoFields">Adicionar/Atualizar Campos de Abastecimento</button>
+                <div id="abastecimentosContainer" class="abastecimentos-table-wrapper"></div>`;
+                document.getElementById('addAbastecimentoFields').addEventListener('click', () => generateAbastecimentoFields(document.getElementById('numAbastecimentos').value, document.getElementById('abastecimentosContainer')));
+
+        } else {
+            preparoAreaReportFieldsDiv.style.display = 'none';
+        }
+
+        if (observacoesRelatorioContainer) {
+            observacoesRelatorioContainer.style.display = 'block';
+        }
+
+        if (selectedActivityKey !== "Colheita") {
+            submitReportButton.style.display = 'block';
+        }
+
+    } catch (error) {
+        osDetailsContainer.innerHTML = `<p class="error-message">Erro ao buscar detalhes: ${error.message}</p>`;
+    }
+}
+
 function renderHarvestReportFields(equipmentType) {
     preparoAreaReportFieldsDiv.style.display = 'block';
     preparoAreaReportFieldsDiv.innerHTML = `<h3>Detalhes do Relatório (${equipmentType})</h3>`;
@@ -239,24 +371,21 @@ function renderHarvestReportFields(equipmentType) {
                     <label for="NUMERO_ABASTECIMENTO_COLHEDEIRA">Nº de Abastecimentos:</label>
                     <input type="number" id="NUMERO_ABASTECIMENTO_COLHEDEIRA" min="0" value="0">
                 </div>
-                <button type="button" id="addAbastecimentoFields">Adicionar Abastecimentos</button>
+                <button type="button" class="activity-button" id="addAbastecimentoFields">Adicionar Abastecimentos</button>
                 <div id="abastecimentosContainer" class="abastecimentos-table-wrapper"></div>
             `;
             break;
         case 'Caminhao':
-            // *** INÍCIO DA CORREÇÃO PARA O PROBLEMA DO CAMINHÃO ***
             let caminhaoOptions = '';
             const caminhao1Element = document.getElementById('realizado_Caminhao1');
             const caminhao2Element = document.getElementById('realizado_Caminhao2');
 
-            // Verifica se o elemento existe antes de tentar ler seu valor
             if (caminhao1Element && caminhao1Element.value) {
                 caminhaoOptions += `<option value="1">${caminhao1Element.value}</option>`;
             }
             if (caminhao2Element && caminhao2Element.value) {
                 caminhaoOptions += `<option value="2">${caminhao2Element.value}</option>`;
             }
-            // *** FIM DA CORREÇÃO ***
 
             fieldsHtml = `
                 <div class="form-line">
@@ -283,7 +412,7 @@ function renderHarvestReportFields(equipmentType) {
                     <label for="NUMERO_ABASTECIMENTO_CAMINHAO">Nº de Abastecimentos:</label>
                     <input type="number" id="NUMERO_ABASTECIMENTO_CAMINHAO" min="0" value="0">
                 </div>
-                <button type="button" id="addAbastecimentoFields">Adicionar Abastecimentos</button>
+                <button type="button" class="activity-button" id="addAbastecimentoFields">Adicionar Abastecimentos</button>
                 <div id="abastecimentosContainer" class="abastecimentos-table-wrapper"></div>
             `;
             break;
@@ -317,7 +446,7 @@ function renderHarvestReportFields(equipmentType) {
                     <label for="NUMERO_ABASTECIMENTO_TRATOR">Nº de Abastecimentos:</label>
                     <input type="number" id="NUMERO_ABASTECIMENTO_TRATOR" min="0" value="0">
                 </div>
-                <button type="button" id="addAbastecimentoFields">Adicionar Abastecimentos</button>
+                <button type="button" class="activity-button" id="addAbastecimentoFields">Adicionar Abastecimentos</button>
                 <div id="abastecimentosContainer" class="abastecimentos-table-wrapper"></div>
             `;
             break;
@@ -325,7 +454,6 @@ function renderHarvestReportFields(equipmentType) {
 
     preparoAreaReportFieldsDiv.innerHTML += fieldsHtml;
 
-    // Adiciona event listeners para os novos botões/campos
     const addAbastecimentoBtn = preparoAreaReportFieldsDiv.querySelector('#addAbastecimentoFields');
     if(addAbastecimentoBtn) {
         addAbastecimentoBtn.addEventListener('click', () => {
@@ -335,19 +463,18 @@ function renderHarvestReportFields(equipmentType) {
         });
     }
 
-    // Lógica específica para o dropdown de caminhão
     if (equipmentType === 'Caminhao') {
         const select = document.getElementById('Caminhao_ID_Select');
         const motoristaInput = document.getElementById('MOTORISTA_CAMINHAO');
         const updateMotorista = () => {
-            if (select.value) { // Garante que há uma opção selecionada
-                const selectedIndex = select.value; // "1" ou "2"
+            if (select.value) {
+                const selectedIndex = select.value;
                 const motoristaElement = document.getElementById(`realizado_Motorista${selectedIndex}`);
                 motoristaInput.value = motoristaElement ? motoristaElement.value : '';
             }
         };
         select.addEventListener('change', updateMotorista);
-        updateMotorista(); // Chama uma vez para preencher o valor inicial
+        updateMotorista();
     }
 
     if (observacoesRelatorioContainer) observacoesRelatorioContainer.style.display = 'block';
@@ -355,95 +482,6 @@ function renderHarvestReportFields(equipmentType) {
 }
 
 
-async function fetchAndDisplayOsData(osId) {
-    osDetailsContainer.innerHTML = `<p class="loading-message">Buscando detalhes da OS...</p>`;
-    harvestEquipmentSelectionContainer.innerHTML = ''; // Limpa a seleção de equipamento
-    document.getElementById('observacoesRelatorio').value = '';
-
-    try {
-        const response = await fetch(`${osAppsScriptUrl}?activity=${selectedActivityKey}&osId=${encodeURIComponent(osId)}`);
-        const osDetails = await response.json();
-        if (osDetails.error) throw new Error(osDetails.error);
-        currentOsDetails = osDetails;
-
-        // Renderiza os dados comuns da OS
-        const fieldsToExclude = ["Timestamp", "Nome do Usuário", "ID da OS"];
-        let tableHtml = `<div class="os-data-container"><h4>Confirme os dados da Operação:</h4><div class="os-data-grid"><div class="grid-header">Item</div><div class="grid-header">Dados da OS</div><div class="grid-header center">Sim</div><div class="grid-header center">Não</div><div class="grid-header" style="color: grey;">Realizado/Usado</div>`;
-        const numericKeys = ["Área Total (ha)", "Capacidade do tanque", "Vazão (L/ha)", "Pressão", "Dose/ha", "Dose/tanque", "Vazão", "Pressao", "Vazao (L/ha)"];
-        for (const key in osDetails) {
-            if (fieldsToExclude.includes(key) || key.toLowerCase().includes('observa') || !osDetails[key]) continue;
-            
-            const cleanKey = keyMap[key] || key.replace(/[^a-zA-Z0-9]/g, '');
-            let value = key.includes("Data") ? formatClientDate(osDetails[key]) : (numericKeys.includes(key) ? formatClientNumber(osDetails[key]) : osDetails[key]);
-            
-            tableHtml += `<div class="grid-item"><strong>${key}</strong></div><div class="grid-item">${value}</div><div class="grid-item center"><input type="radio" name="confirm_${cleanKey}" value="sim" checked></div><div class="grid-item center"><input type="radio" name="confirm_${cleanKey}" value="nao"></div><div class="grid-item"><input type="text" id="realizado_${cleanKey}" value="${value}" disabled></div>`;
-        }
-        const osObservacaoKey = Object.keys(osDetails).find(k => k.toLowerCase().includes('observa'));
-        if (osObservacaoKey && osDetails[osObservacaoKey]) {
-            tableHtml += `<div class="grid-item"><strong>Observação da OS</strong></div><div class="grid-item" style="grid-column: 2 / -1; font-style: italic;">${osDetails[osObservacaoKey]}</div>`;
-        }
-        tableHtml += `</div></div>`;
-        osDetailsContainer.innerHTML = tableHtml;
-
-        osDetailsContainer.querySelector('.os-data-grid').addEventListener('change', (event) => {
-            if (event.target.type === 'radio' && event.target.name.startsWith('confirm_')) {
-                const cleanKey = event.target.name.replace('confirm_', '');
-                document.getElementById(`realizado_${cleanKey}`).disabled = event.target.value !== 'nao';
-            }
-        });
-
-        // Lógica de exibição de campos de relatório
-        if (selectedActivityKey === "Colheita") {
-            preparoAreaReportFieldsDiv.style.display = 'none'; // Esconde até selecionar equipamento
-            renderHarvestEquipmentSelection(); // Mostra a seleção de equipamento
-        } else if (["PreparodeArea", "Plantio", "Pulverizacao", "Lancas"].includes(selectedActivityKey)) {
-            preparoAreaReportFieldsDiv.style.display = 'block';
-            preparoAreaReportFieldsDiv.innerHTML = `<h3>Detalhes do Relatório</h3>
-                <div class="form-line">
-                    <label for="horimetroInicio">Horímetro Início da Operação:</label>
-                    <input type="number" id="horimetroInicio" name="horimetroInicio" step="0.01" required>
-                </div>
-                <div class="form-line">
-                    <label for="horimetroFim">Horímetro Fim da Operação:</label>
-                    <input type="number" id="horimetroFim" name="horimetroFim" step="0.01" required>
-                </div>
-                <div class="form-line">
-                    <label for="paradasImprevistas">Número de Paradas Imprevistas:</label>
-                    <input type="number" id="paradasImprevistas" name="paradasImprevistas" min="0" value="0">
-                </div>
-                <div class="form-line">
-                    <label for="numAbastecimentos">Número de Abastecimentos:</label>
-                    <input type="number" id="numAbastecimentos" name="numAbastecimentos" min="0" value="0">
-                </div>
-                <button type="button" id="addAbastecimentoFields">Adicionar/Atualizar Campos de Abastecimento</button>
-                <div id="abastecimentosContainer" class="abastecimentos-table-wrapper"></div>`;
-                document.getElementById('addAbastecimentoFields').addEventListener('click', () => generateAbastecimentoFields(document.getElementById('numAbastecimentos').value, document.getElementById('abastecimentosContainer')));
-
-        } else {
-            preparoAreaReportFieldsDiv.style.display = 'none';
-        }
-
-        if (observacoesRelatorioContainer) {
-            const label = observacoesRelatorioContainer.querySelector('label');
-            const textarea = observacoesRelatorioContainer.querySelector('textarea');
-            observacoesRelatorioContainer.style.display = 'block';
-            observacoesRelatorioContainer.style.width = '100%';
-            observacoesRelatorioContainer.querySelector('.form-line').style.flexDirection = 'column';
-            label.style.textAlign = 'left';
-            label.style.width = '100%';
-            textarea.style.width = '100%';
-        }
-
-        if (selectedActivityKey !== "Colheita") {
-            submitReportButton.style.display = 'block';
-        }
-
-    } catch (error) {
-        osDetailsContainer.innerHTML = `<p class="error-message">Erro ao buscar detalhes: ${error.message}</p>`;
-    }
-}
-
-// NOVA FUNÇÃO: Gera campos de abastecimento específicos para a Colheita
 function generateHarvestAbastecimentoFields(equipmentType, numFields, container) {
     numFields = parseInt(numFields, 10) || 0;
     if (numFields > 10) {
@@ -462,7 +500,7 @@ function generateHarvestAbastecimentoFields(equipmentType, numFields, container)
         header2 = 'Litros (L)';
         id1 = 'km_abastecimento';
         id2 = 'combustivel_caminhao';
-    } else { // Colhedeira e Trator usam horímetro
+    } else {
         header1 = 'Horímetro (h)';
         header2 = 'Litros (L)';
         id1 = (equipmentType === 'Colhedeira') ? 'horimetro_colhe_abast' : 'horimetro_trator_abast';
@@ -509,25 +547,29 @@ function sanitizeNumericInput(value) {
 }
 
 async function submitReport() {
-    // --- INÍCIO DO BLOCO DE VALIDAÇÃO ---
-    const requiredFields = [];
-    let isValid = true;
+    const loadingOverlay = document.getElementById('loadingOverlay');
+    const currentSubmitButton = (selectedActivityKey === 'Irrigacao') ? submitIrrigationReportButton : submitReportButton;
 
-    // Função auxiliar para validar um campo e mostrar o balão de erro
-    function validateField(id, message) {
-        const field = document.getElementById(id);
-        if (field) {
-            field.setCustomValidity(''); // Limpa mensagens antigas
-            if (!field.value.trim()) {
-                field.setCustomValidity(message);
-                field.reportValidity();
-                isValid = false;
-                return false; // Interrompe na primeira falha
-            }
+    // --- INÍCIO DO BLOCO DE VALIDAÇÃO ---
+    let isValid = true;
+    const formToValidate = (selectedActivityKey === 'Irrigacao') ?
+        document.getElementById('irrigationForm') :
+        formContainerDiv; // Para operações gerais, validamos o container todo
+
+    const requiredInputs = formToValidate.querySelectorAll('[required]');
+
+    for (const input of requiredInputs) {
+        input.setCustomValidity(''); // Limpa validações anteriores
+        if (!input.value.trim()) {
+            input.setCustomValidity('Este campo é obrigatório.');
+            input.reportValidity();
+            isValid = false;
+            break;
         }
-        return true;
     }
-    
+
+    if (!isValid) return;
+
     if (selectedActivityKey === "Colheita") {
         const equipmentType = document.querySelector('input[name="equipmentType"]:checked')?.value;
         if (!equipmentType) {
@@ -535,72 +577,108 @@ async function submitReport() {
             return;
         }
 
+        let numAbastecimentos = 0;
+        let horimetroInicio, horimetroFim, kmInicio, kmFim;
+
         switch (equipmentType) {
             case 'Colhedeira':
-                requiredFields.push({ id: 'horimetro_colhe_inicio', msg: 'Horímetro inicial é obrigatório.' });
-                requiredFields.push({ id: 'horimetro_colhe_fim', msg: 'Horímetro de término é obrigatório.' });
-                const numAbastColhedeira = parseInt(document.getElementById('NUMERO_ABASTECIMENTO_COLHEDEIRA').value, 10) || 0;
-                for (let i = 1; i <= numAbastColhedeira; i++) {
-                    requiredFields.push({ id: `horimetro_colhe_abast_${i}`, msg: `Horímetro do abastecimento ${i} é obrigatório.` });
-                    requiredFields.push({ id: `combustivel_colhedeira_${i}`, msg: `Litros do abastecimento ${i} é obrigatório.` });
+                horimetroInicio = parseFloat(sanitizeNumericInput(document.getElementById('horimetro_colhe_inicio').value));
+                horimetroFim = parseFloat(sanitizeNumericInput(document.getElementById('horimetro_colhe_fim').value));
+                if (horimetroFim <= horimetroInicio) {
+                    alert('O horímetro final deve ser maior que o inicial.');
+                    return;
+                }
+                numAbastecimentos = parseInt(document.getElementById('NUMERO_ABASTECIMENTO_COLHEDEIRA').value, 10) || 0;
+                for (let i = 1; i <= numAbastecimentos; i++) {
+                    if (!document.getElementById(`horimetro_colhe_abast_${i}`).value || !document.getElementById(`combustivel_colhedeira_${i}`).value) {
+                         alert(`Por favor, preencha os dados do abastecimento ${i}.`); return;
+                    }
                 }
                 break;
             case 'Caminhao':
-                requiredFields.push({ id: 'km_inicio', msg: 'KM inicial é obrigatório.' });
-                requiredFields.push({ id: 'km_fim', msg: 'KM de término é obrigatório.' });
-                const numAbastCaminhao = parseInt(document.getElementById('NUMERO_ABASTECIMENTO_CAMINHAO').value, 10) || 0;
-                for (let i = 1; i <= numAbastCaminhao; i++) {
-                    requiredFields.push({ id: `km_abastecimento_${i}`, msg: `KM do abastecimento ${i} é obrigatório.` });
-                    requiredFields.push({ id: `combustivel_caminhao_${i}`, msg: `Litros do abastecimento ${i} é obrigatório.` });
+                kmInicio = parseFloat(sanitizeNumericInput(document.getElementById('km_inicio').value));
+                kmFim = parseFloat(sanitizeNumericInput(document.getElementById('km_fim').value));
+                 if (kmFim <= kmInicio) {
+                    alert('A quilometragem final deve ser maior que a inicial.');
+                    return;
+                }
+                numAbastecimentos = parseInt(document.getElementById('NUMERO_ABASTECIMENTO_CAMINHAO').value, 10) || 0;
+                 for (let i = 1; i <= numAbastecimentos; i++) {
+                    if (!document.getElementById(`km_abastecimento_${i}`).value || !document.getElementById(`combustivel_caminhao_${i}`).value) {
+                         alert(`Por favor, preencha os dados do abastecimento ${i}.`); return;
+                    }
                 }
                 break;
             case 'Trator':
-                requiredFields.push({ id: 'horimetro_trator_inicio', msg: 'Horímetro inicial é obrigatório.' });
-                requiredFields.push({ id: 'horimetro_trator_fim', msg: 'Horímetro de término é obrigatório.' });
-                const numAbastTrator = parseInt(document.getElementById('NUMERO_ABASTECIMENTO_TRATOR').value, 10) || 0;
-                for (let i = 1; i <= numAbastTrator; i++) {
-                    requiredFields.push({ id: `horimetro_trator_abast_${i}`, msg: `Horímetro do abastecimento ${i} é obrigatório.` });
-                    requiredFields.push({ id: `combustivel_trator_${i}`, msg: `Litros do abastecimento ${i} é obrigatório.` });
+                horimetroInicio = parseFloat(sanitizeNumericInput(document.getElementById('horimetro_trator_inicio').value));
+                horimetroFim = parseFloat(sanitizeNumericInput(document.getElementById('horimetro_trator_fim').value));
+                 if (horimetroFim <= horimetroInicio) {
+                    alert('O horímetro final deve ser maior que o inicial.');
+                    return;
+                }
+                 numAbastecimentos = parseInt(document.getElementById('NUMERO_ABASTECIMENTO_TRATOR').value, 10) || 0;
+                 for (let i = 1; i <= numAbastecimentos; i++) {
+                    if (!document.getElementById(`horimetro_trator_abast_${i}`).value || !document.getElementById(`combustivel_trator_${i}`).value) {
+                         alert(`Por favor, preencha os dados do abastecimento ${i}.`); return;
+                    }
                 }
                 break;
         }
+
     } else if (["PreparodeArea", "Plantio", "Pulverizacao", "Lancas"].includes(selectedActivityKey)) {
-         requiredFields.push({ id: 'horimetroInicio', msg: 'Horímetro inicial é obrigatório.' });
-         requiredFields.push({ id: 'horimetroFim', msg: 'Horímetro de término é obrigatório.' });
-         const numAbastecimentos = parseInt(document.getElementById('numAbastecimentos').value, 10) || 0;
+        const horimetroInicio = parseFloat(sanitizeNumericInput(document.getElementById('horimetroInicio').value));
+        const horimetroFim = parseFloat(sanitizeNumericInput(document.getElementById('horimetroFim').value));
+        if (horimetroFim <= horimetroInicio) {
+            alert('O horímetro final deve ser maior que o inicial.');
+            return;
+        }
+        const numAbastecimentos = parseInt(document.getElementById('numAbastecimentos').value, 10) || 0;
          for (let i = 1; i <= numAbastecimentos; i++) {
-            requiredFields.push({ id: `abastecimento_horimetro_${i}`, msg: `Horímetro do abastecimento ${i} é obrigatório.` });
-            requiredFields.push({ id: `abastecimento_litros_${i}`, msg: `Litros do abastecimento ${i} é obrigatório.` });
+            if (!document.getElementById(`abastecimento_horimetro_${i}`).value || !document.getElementById(`abastecimento_litros_${i}`).value) {
+                 alert(`Por favor, preencha os dados do abastecimento ${i}.`); return;
+            }
          }
     }
-
-    for (const field of requiredFields) {
-        if (!validateField(field.id, field.msg)) {
-            return; // Para a execução se um campo for inválido
-        }
-    }
-
-    if (!isValid) return; // Segurança extra para parar o envio
     // --- FIM DO BLOCO DE VALIDAÇÃO ---
 
 
     const reportData = {
         activity: selectedActivityKey,
         userName: userName,
-        osId: currentOsDetails['ID da OS'],
     };
-
-    // Adiciona dados comuns da OS ao relatório
-    for (const key in currentOsDetails) {
-        if (["Timestamp", "Nome do Usuário", "ID da OS"].includes(key)) continue;
-        const cleanKey = keyMap[key] || key.replace(/[^a-zA-Z0-9]/g, '');
-        const realizadoInput = document.getElementById(`realizado_${cleanKey}`);
-        
-        reportData[cleanKey] = currentOsDetails[key];
-        if (realizadoInput) {
-            reportData[`realizado_${cleanKey}`] = realizadoInput.disabled ? currentOsDetails[key] : realizadoInput.value;
-        } else if(key.toLowerCase().includes('observa')) {
+    
+    // Coleta de dados específica por atividade
+    if (selectedActivityKey === 'Irrigacao') {
+        Object.assign(reportData, {
+            operationId: document.getElementById('irrigation_op_id').textContent,
+            local: document.getElementById('irrigation_local').value,
+            pivo: document.getElementById('irrigation_pivo').value,
+            dataInicio: document.getElementById('irrigation_data_inicio').value,
+            horaInicio: document.getElementById('irrigation_hora_inicio').value,
+            dataTermino: document.getElementById('irrigation_data_termino').value,
+            horaTermino: document.getElementById('irrigation_hora_termino').value,
+            volta: document.querySelector('input[name="irrigation_volta"]:checked').value,
+            intensidade: document.getElementById('irrigation_intensidade').value,
+            operador: document.getElementById('irrigation_operador').value,
+            paradas: document.getElementById('irrigation_paradas').value,
+            observacao: document.getElementById('irrigation_observacao').value,
+            isUpdate: currentIrrigationData.isUpdate,
+            originalId: currentIrrigationData.originalId
+        });
+    } else {
+        reportData.osId = currentOsDetails['ID da OS'];
+        // Adiciona dados comuns da OS ao relatório
+        for (const key in currentOsDetails) {
+            if (["Timestamp", "Nome do Usuário", "ID da OS"].includes(key)) continue;
+            const cleanKey = keyMap[key] || key.replace(/[^a-zA-Z0-9]/g, '');
+            const realizadoInput = document.getElementById(`realizado_${cleanKey}`);
+            
             reportData[cleanKey] = currentOsDetails[key];
+            if (realizadoInput) {
+                reportData[`realizado_${cleanKey}`] = realizadoInput.disabled ? currentOsDetails[key] : realizadoInput.value;
+            } else if(key.toLowerCase().includes('observa')) {
+                reportData[cleanKey] = currentOsDetails[key];
+            }
         }
     }
     reportData.observacao = document.getElementById('observacoesRelatorio')?.value || '';
@@ -643,7 +721,7 @@ async function submitReport() {
                 reportData.OPERADORES = document.getElementById('OPERADORES').value;
                 reportData.PARADAS_IMPREVISTAS_TRATOR = sanitizeNumericInput(document.getElementById('PARADAS_IMPREVISTAS_TRATOR').value);
                 const numAbastTrator = parseInt(document.getElementById('NUMERO_ABASTECIMENTO_TRATOR').value, 10) || 0;
-                reportData.NUMERO_ABASTECimento_TRATOR = numAbastTrator;
+                reportData.NUMERO_ABASTECIMENTO_TRATOR = numAbastTrator;
                  for (let i = 1; i <= numAbastTrator; i++) {
                     reportData[`horimetro_trator_abast_${i}`] = sanitizeNumericInput(document.getElementById(`horimetro_trator_abast_${i}`).value);
                     reportData[`combustivel_trator_${i}`] = sanitizeNumericInput(document.getElementById(`combustivel_trator_${i}`).value);
@@ -664,10 +742,9 @@ async function submitReport() {
             }
         }
     }
-
-    const loadingOverlay = document.getElementById('loadingOverlay');
+    
     loadingOverlay.style.display = 'flex';
-    submitReportButton.disabled = true;
+    currentSubmitButton.disabled = true;
 
     try {
         const response = await fetch(reportAppsScriptUrl, {
@@ -687,7 +764,7 @@ async function submitReport() {
         await saveReportOffline(reportData);
     } finally {
         loadingOverlay.style.display = 'none';
-        submitReportButton.disabled = false;
+        currentSubmitButton.disabled = false;
     }
 }
 
@@ -736,6 +813,205 @@ function getOrSetUserName() {
     }
 }
 
+
+function createAndShowIrrigationForm(isQuery = false, data = {}) {
+    irrigationChoiceContainer.style.display = 'none';
+    irrigationFormContainer.style.display = 'block';
+    
+    currentIrrigationData = { isUpdate: isQuery, originalId: data['ID da Operacao'] || '' };
+
+    const pivos = {
+        Sede: ['Pivo 15', 'Pivo 33', 'Pivo 60', 'Pivo 80'],
+        Wieke: ['Pivo 17/19', 'Pivo 45'],
+        Kakay: ['Pivo 100', 'Pivo 103', 'Pivo 135', 'Pivo 180']
+    };
+
+    // Atualiza os elementos da interface de irrigação
+    const irrigationTitle = document.getElementById('irrigationTitle');
+    const irrigationCurrentUser = document.getElementById('irrigationCurrentUser');
+    const irrigationOperationIdDisplay = document.getElementById('irrigationOperationIdDisplay');
+    const irrigationForm = document.getElementById('irrigationForm');
+    
+    irrigationTitle.textContent = isQuery ? 'Consulta/Edição de Irrigação' : 'Nova Operação de Irrigação';
+    irrigationCurrentUser.textContent = userName;
+    irrigationOperationIdDisplay.textContent = data['ID da Operacao'] || '';
+
+    const formHtml = `
+            <div class="form-line">
+                <label for="irrigation_local">Local:</label>
+                <select id="irrigation_local" required ${isQuery ? 'disabled' : ''}>
+                    <option value="">Selecione...</option>
+                    <option value="Sede" ${data.Local === 'Sede' ? 'selected' : ''}>Sede</option>
+                    <option value="Wieke" ${data.Local === 'Wieke' ? 'selected' : ''}>Wieke</option>
+                    <option value="Kakay" ${data.Local === 'Kakay' ? 'selected' : ''}>Kakay</option>
+                </select>
+            </div>
+            <div class="form-line">
+                <label for="irrigation_pivo">Pivô:</label>
+                <select id="irrigation_pivo" required></select>
+            </div>
+             <div class="form-grid"> <div class="form-line">
+                    <label for="irrigation_data_inicio">Data de Início:</label>
+                    <input type="date" id="irrigation_data_inicio" value="${data['Data de Inicio'] ? new Date(data['Data de Inicio']).toISOString().split('T')[0] : ''}" required>
+                </div>
+                <div class="form-line">
+                    <label for="irrigation_hora_inicio">Hora de Início:</label>
+                    <input type="time" id="irrigation_hora_inicio" value="${data['Hora de Inicio'] || ''}" required>
+                </div>
+                <div class="form-line">
+                    <label for="irrigation_data_termino">Data de Término:</label>
+                    <input type="date" id="irrigation_data_termino" value="${data['Data de Termino'] ? new Date(data['Data de Termino']).toISOString().split('T')[0] : ''}" required>
+                </div>
+                <div class="form-line">
+                    <label for="irrigation_hora_termino">Hora de Término:</label>
+                    <input type="time" id="irrigation_hora_termino" value="${data['Hora de Termino'] || ''}" required>
+                </div>
+            </div>
+             <div class="form-line-column">
+                <label>Volta:</label>
+                <div class="radio-group-container vertical">
+                    ${['completa', 'quase completa', 'Metade', 'Menos da metade'].map(v => `
+                        <div class="radio-item"><input type="radio" id="volta_${v.replace(/\s+/g, '')}" name="irrigation_volta" value="${v}" ${data.Volta === v ? 'checked' : ''} required><label for="volta_${v.replace(/\s+/g, '')}">${v.charAt(0).toUpperCase() + v.slice(1)}</label></div>
+                    `).join('')}
+                </div>
+            </div>
+            <div class="form-line">
+                <label for="irrigation_intensidade">Intensidade:</label>
+                <select id="irrigation_intensidade" required>
+                    ${['50%', '60%', '70%', '80%', '90%', '100%'].map(v => `<option value="${v}" ${data.Intensidade === v ? 'selected' : ''}>${v}</option>`).join('')}
+                </select>
+            </div>
+            <div class="form-line">
+                <label for="irrigation_operador">Operador:</label>
+                <input type="text" id="irrigation_operador" value="${data.Operador || userName}" required>
+            </div>
+            <div class="form-line">
+                <label for="irrigation_paradas">Nº de Paradas Imprevistas:</label>
+                <input type="number" id="irrigation_paradas" min="0" value="${data['Numero de Paradas Imprevistas'] || '0'}" required>
+            </div>
+            <div class="form-line full-width-label">
+                <label for="irrigation_observacao">Observação:</label>
+                <textarea id="irrigation_observacao" rows="3">${data.Observacao || ''}</textarea>
+            </div>
+    `;
+    irrigationForm.innerHTML = formHtml; // Renderiza o formulário de irrigação
+    submitIrrigationReportButton.style.display = 'block';
+
+    const localSelect = document.getElementById('irrigation_local');
+    const pivoSelect = document.getElementById('irrigation_pivo');
+    const dataInicioInput = document.getElementById('irrigation_data_inicio');
+    const opIdDisplay = document.getElementById('irrigation_op_id');
+
+    function updatePivos() {
+        pivoSelect.innerHTML = '<option value="">Selecione...</option>';
+        const selectedLocal = localSelect.value;
+        if (pivos[selectedLocal]) {
+            pivos[selectedLocal].forEach(pivo => {
+                const isSelected = pivo === data.Pivo;
+                pivoSelect.innerHTML += `<option value="${pivo}" ${isSelected ? 'selected' : ''}>${pivo}</option>`;
+            });
+        }
+        updateOperationId();
+    }
+    
+    function updateOperationId() {
+        const local = localSelect.value;
+        const pivo = pivoSelect.value.replace(/\D/g, '');
+        const dataInicio = dataInicioInput.value;
+        if (local && pivo && dataInicio && !isQuery) { // Só atualiza se for nova operação
+            const date = new Date(dataInicio);
+            const d = String(date.getUTCDate()).padStart(2, '0');
+            const m = String(date.getUTCMonth() + 1).padStart(2, '0');
+            const a = String(date.getUTCFullYear()).slice(-2);
+            irrigationOperationIdDisplay.textContent = `${local}${pivo}${d}${m}${a}`;
+        }
+    }
+    
+    localSelect.addEventListener('change', updatePivos);
+    pivoSelect.addEventListener('change', updateOperationId);
+    dataInicioInput.addEventListener('change', updateOperationId);
+
+    updatePivos();
+}
+
+function handleNewIrrigationOp() {
+    createAndShowIrrigationForm(false);
+}
+
+function handleQueryIrrigationOp() {
+    irrigationChoiceContainer.style.display = 'none';
+    irrigationFormContainer.style.display = 'block';
+    submitIrrigationReportButton.style.display = 'none';
+
+    // Limpa o conteúdo anterior e configura a UI para consulta
+    document.getElementById('irrigationTitle').textContent = "Consulta de Irrigação";
+    document.getElementById('irrigationCurrentUser').textContent = userName;
+    document.getElementById('irrigationOperationIdDisplay').textContent = '';
+    document.getElementById('irrigationForm').innerHTML = `
+        <div class="form-line">
+            <label for="query_local">Local:</label>
+            <select id="query_local">
+                <option value="">Selecione o local para consulta...</option>
+                <option value="Sede">Sede</option>
+                <option value="Wieke">Wieke</option>
+                <option value="Kakay">Kakay</option>
+            </select>
+        </div>
+        <div id="query_results_container"></div>
+    `;
+    
+    document.getElementById('query_local').addEventListener('change', async (e) => {
+        const location = e.target.value;
+        const resultsContainer = document.getElementById('query_results_container');
+        if (!location) {
+            resultsContainer.innerHTML = '';
+            return;
+        }
+        resultsContainer.innerHTML = `<p class="loading-message">Buscando operações...</p>`;
+        
+        try {
+            const response = await fetch(`${reportAppsScriptUrl}?action=getIrrigationIdsByLocation&location=${location}`);
+            const result = await response.json();
+
+            if (result.error) throw new Error(result.message);
+            if (result.data.length === 0) {
+                 resultsContainer.innerHTML = `<p class="info-message">${result.message}</p>`;
+                 return;
+            }
+
+            resultsContainer.innerHTML = `
+                <div class="form-line">
+                    <label for="query_id_select">ID da Operação:</label>
+                    <select id="query_id_select">
+                        <option value="">Selecione a operação...</option>
+                        ${result.data.map(id => `<option value="${id}">${id}</option>`).join('')}
+                    </select>
+                </div>
+                <button type="button" class="activity-button" id="editOpBtn" disabled>Habilitar Edição</button>
+            `;
+
+            const idSelect = document.getElementById('query_id_select');
+            const editBtn = document.getElementById('editOpBtn');
+            idSelect.onchange = () => { editBtn.disabled = !idSelect.value; };
+            editBtn.onclick = async () => {
+                const opId = idSelect.value;
+                document.getElementById('irrigationForm').innerHTML = `<p class="loading-message">Carregando dados da operação...</p>`;
+                try {
+                    const dataResponse = await fetch(`${reportAppsScriptUrl}?action=getIrrigationDataById&id=${opId}`);
+                    const dataResult = await dataResponse.json();
+                    if(dataResult.error) throw new Error(dataResult.message);
+                    createAndShowIrrigationForm(true, dataResult.data);
+                } catch(err) {
+                     document.getElementById('irrigationForm').innerHTML = `<p class="error-message">Erro ao carregar dados: ${err.message}</p>`;
+                }
+            };
+        } catch(err) {
+            resultsContainer.innerHTML = `<p class="error-message">Erro: ${err.message}</p>`;
+        }
+    });
+}
+
+
 document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('nameForm').addEventListener('submit', (event) => {
         event.preventDefault();
@@ -749,21 +1025,39 @@ document.addEventListener('DOMContentLoaded', () => {
 
     getOrSetUserName();
 
+    // Listeners dos botões de "Voltar"
     backToActivitiesBtn.addEventListener('click', showActivitySelection);
+    backToActivitiesFromIrrigationBtn.addEventListener('click', showActivitySelection);
+    backToIrrigationChoiceBtn.addEventListener('click', showIrrigationChoice);
+
+    // Listeners dos botões de "Enviar"
     submitReportButton.addEventListener('click', submitReport);
+    submitIrrigationReportButton.addEventListener('click', submitReport);
+
     
-    // Adiciona o listener ao container que existe desde o início
-    preparoAreaReportFieldsDiv.addEventListener('click', (event) => {
+    formContainerDiv.addEventListener('click', (event) => {
         if (event.target && event.target.id === 'addAbastecimentoFields') {
-             const numInput = preparoAreaReportFieldsDiv.querySelector('input[id^="numAbastecimentos"]');
-             const container = preparoAreaReportFieldsDiv.querySelector('#abastecimentosContainer');
-             generateAbastecimentoFields(numInput.value, container);
+             const numInput = formContainerDiv.querySelector('input[id^="numAbastecimentos"], input[id^="NUMERO_ABASTECIMENTO"]');
+             const container = formContainerDiv.querySelector('#abastecimentosContainer');
+             if(numInput && container){
+                if(selectedActivityKey === "Colheita"){
+                    const equipmentType = document.querySelector('input[name="equipmentType"]:checked').value;
+                    generateHarvestAbastecimentoFields(equipmentType, numInput.value, container);
+                } else {
+                    generateAbastecimentoFields(numInput.value, container);
+                }
+             }
         }
     });
 
-    // Listener para limpar balões de erro ao digitar
     formContainerDiv.addEventListener('input', (event) => {
-        if (event.target.tagName === 'INPUT') {
+        if (event.target.tagName === 'INPUT' || event.target.tagName === 'SELECT' || event.target.tagName === 'TEXTAREA') {
+            event.target.setCustomValidity('');
+        }
+    });
+    // Adiciona listener para o formulário de irrigação também
+    irrigationFormContainer.addEventListener('input', (event) => {
+        if (event.target.tagName === 'INPUT' || event.target.tagName === 'SELECT' || event.target.tagName === 'TEXTAREA') {
             event.target.setCustomValidity('');
         }
     });

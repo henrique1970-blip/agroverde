@@ -1,32 +1,68 @@
 /* Importação do CSS base64 da logo */
 @import url('logoFAVbase64.css');
 
+/* Definição de Variáveis de Cor para fácil manutenção */
+:root {
+    --primary-green: #28a745;
+    --primary-orange: #f0ad4e;
+    --primary-red: #d9534f;
+    --background-color: #f8f9fa;
+    --container-bg: #ffffff;
+    --text-color: #333;
+    --label-color: #555;
+    --border-color: #dee2e6;
+    --font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* Estilos Globais */
 body {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-family: var(--font-family);
+    background-color: var(--background-color);
+    color: var(--text-color);
+    margin: 0;
+    padding: 20px;
+    box-sizing: border-box;
     display: flex;
     flex-direction: column;
     align-items: center;
     min-height: 100vh;
-    background-color: #EFEFEF;
-    margin: 0;
-    padding: 20px;
+}
+
+.container {
+    background: var(--container-bg);
+    padding: 30px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    width: 100%;
+    max-width: 600px;
     box-sizing: border-box;
 }
 
+hr {
+    border: 0;
+    height: 1px;
+    background: #e9ecef;
+    margin: 1.5rem 0;
+}
+
+/* Cabeçalho */
 .app-header {
-    display: flex;
-    align-items: center;
-    background-color: #fff;
-    padding: 0.5px 30px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);    
-    margin-bottom: 20px;
     width: 100%;
     max-width: 600px;
+    margin-bottom: 20px;
+    background-color: var(--container-bg);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    padding: 5px 30px;
+    box-sizing: border-box;
+}
+
+.header-content {
+    display: flex;
+    align-items: center;
 }
 
 .app-header .logo {
-    width: 250px; 
-    height: 250px; 
+    width: 150px;
+    height: 150px;
     background-image: var(--logo-fav);
     background-size: contain;
     background-repeat: no-repeat;
@@ -35,95 +71,76 @@ body {
 }
 
 .app-header h1 {
-    color: #333;
-    margin: 0;
     font-size: 1.8em;
 }
 
-.container {
-    background-color: #fff;
-    padding: 30px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-    width: 100%;
-    max-width: 600px; 
-    text-align: center;
-    display: flex;
-    flex-direction: column;
-    align-items: stretch;
-}
-
+/* Botões */
 .activity-buttons {
     display: grid;
-    grid-template-columns: 1fr 1fr; 
+    grid-template-columns: 1fr 1fr;
     gap: 15px;
-    background-color: #fff;
-    padding: 20px;
-    border-radius: 10px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); 
 }
 
-.activity-button, #ongoingOperations {
-    background-color: #28a745; 
+.activity-button, .back-button, #submitReportButton, #submitIrrigationReportButton, #enableIrrigationEdit {
+    background-color: var(--primary-green);
     color: white;
-    padding: 20px;
+    padding: 15px;
     border: none;
-    border-radius: 10px;
+    border-radius: 8px;
     cursor: pointer;
     font-size: 1.1em;
     font-weight: bold;
     transition: background-color 0.2s ease, transform 0.2s ease;
     text-decoration: none;
+    text-align: center;
 }
 
-.activity-button:hover, #ongoingOperations:hover {
-    transform: translateY(-2px); 
+.activity-button:hover, .back-button:hover, #submitReportButton:hover, #submitIrrigationReportButton:hover {
+    transform: translateY(-2px);
     filter: brightness(1.1);
 }
 
-#ongoingOperations {
-    background-color: #f0ad4e;
+.activity-button.orange-button {
+    background-color: var(--primary-orange);
+}
+
+.activity-button[style*="grid-column"] {
     grid-column: 1 / -1;
 }
 
-/* ESTILOS PARA A TELA DE FORMULÁRIO */
-.form-container {
-    text-align: left;
-    padding: 20px;
-    border-radius: 8px;
-}
-
 .back-button {
-    background-color: #d9534f;
-    color: white;
-    padding: 12px 20px;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    font-size: 1.1em;
+    background-color: var(--primary-red);
     width: 100%;
+    box-sizing: border-box;
     margin-bottom: 20px;
-    transition: background-color 0.3s ease;
 }
 
-.back-button:hover {
-    background-color: #c9302c;
+#submitReportButton, #submitIrrigationReportButton {
+    width: 100%;
+    margin-top: 25px;
+    font-size: 1.2em;
 }
 
-.form-container label {
+#submitReportButton:disabled, #submitIrrigationReportButton:disabled {
+    background-color: #cccccc;
+    cursor: not-allowed;
+}
+
+/* Formulários */
+label {
     display: block;
     margin-bottom: 8px;
     font-weight: bold;
-    color: #555;
+    color: var(--label-color);
 }
 
-.radio-group-container {
-    border: 1px solid #ddd;
+.radio-group-container.vertical {
+    border: 1px solid var(--border-color);
     border-radius: 5px;
     padding: 10px;
     margin-bottom: 15px;
     max-height: 220px;
     overflow-y: auto;
-    background-color: #f8f9fa;
 }
 
 .radio-item {
@@ -133,277 +150,200 @@ body {
     cursor: pointer;
 }
 
-.radio-item:hover {
-    background-color: #e9ecef;
-}
-
 .radio-item input[type="radio"] {
     margin-right: 10px;
 }
 
 .radio-item label {
-    font-weight: normal; 
+    font-weight: normal;
     margin-bottom: 0;
+}
+
+.form-line {
+    display: flex;
+    align-items: center;
+    margin-bottom: 15px;
+    flex-wrap: wrap;
+}
+
+.form-line.full-width-label {
+    flex-direction: column;
+    align-items: stretch;
+}
+
+.form-line.full-width-label label {
+    text-align: left;
+}
+
+textarea {
     width: 100%;
-    cursor: pointer;
+    box-sizing: border-box;
 }
 
-.os-data-container {
-    margin-top: 20px;
-    border-top: 1px solid #ddd;
-    padding-top: 15px;
-}
-
+/* Grade de Confirmação de Dados da OS */
 .os-data-grid {
     display: grid;
-    grid-template-columns: 1fr 1.5fr 50px 50px 1.5fr;
+    grid-template-columns: 1.2fr 1.8fr 0.5fr 0.5fr 1.5fr;
     gap: 10px 15px;
     align-items: center;
 }
 
 .grid-header {
     font-weight: bold;
-    color: #555;
+    color: var(--label-color);
     padding-bottom: 5px;
     border-bottom: 1px solid #ccc;
 }
-
-.grid-header.center {
-    text-align: center;
-}
-
-.grid-item {
-    text-align: left;
-    word-break: break-word;
-}
-
-.grid-item.center {
-    text-align: center;
-}
-
+.grid-header.center { text-align: center; }
+.grid-item { word-break: break-word; }
+.grid-item.center { text-align: center; }
 .grid-item input[type="text"] {
     width: 100%;
     padding: 8px;
     border: 1px solid #ccc;
     border-radius: 4px;
     box-sizing: border-box;
-    font-size: 1em; /* Este será sobrescrito pela nova regra abaixo */
+    font-size: 1em;
 }
-
 .grid-item input[type="text"]:disabled {
     background-color: #e9ecef;
     cursor: not-allowed;
 }
+.os-data-grid .grid-item { font-size: 0.8em; }
 
-/* Ajuste original para as colunas "Item" e "Dados da OS" na tabela de detalhes da OS */
-.os-data-grid .grid-item strong,
-.os-data-grid .grid-item:nth-child(5n+2) {
-    font-size: 1em; /* Este também será sobrescrito */
-    vertical-align: middle;
-}
-
-/* ESTILOS PARA FORMATAÇÃO DO RELATÓRIO */
-#preparoAreaReportFields {
-    margin-top: 25px;
-    padding: 20px;
-    border: 1px solid #e0e0e0;
-    border-radius: 8px;
-    background-color: #fdfdfd;
-}
-
-#preparoAreaReportFields h3 {
-    text-align: center;
-    color: #0056b3;
-    margin-top: 0;
-    margin-bottom: 20px;
-    border-bottom: 2px solid #0056b3;
-    padding-bottom: 10px;
-}
-
-.form-line {
-    display: flex;
-    align-items: center;
-    margin-bottom: 10px;
-}
-
-.form-line label {
-    flex: 0 0 50%;
-    text-align: right;
-    padding-right: 15px;
-    margin-bottom: 0;
-}
-
-.form-line input[type="number"] {
-    flex: 1;
-    max-width: 50%;
-    margin-bottom: 0;
-}
-
-.full-width-label {
-    width: 100%;
-    text-align: left !important;
-    margin-top: 15px;
-}
-
-#preparoAreaReportFields textarea {
-    width: 100%;
-    resize: vertical;
-    min-height: 80px;
-}
-
-#preparoAreaReportFields button {
-    background-color: #28a745;
-    color: white;
-    padding: 10px 15px;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    margin: 15px auto;
-    display: block;
-}
-
-#submitReportButton {
-    background-color: #007bff;
-    color: white;
-    padding: 15px 25px;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    font-size: 1.2em;
-    width: 100%;
-    margin-top: 25px;
-}
-
-#submitReportButton:disabled {
-    background-color: #cccccc;
-    cursor: not-allowed;
-}
-
-.abastecimentos-table {
-    width: 100%;
-    border-collapse: collapse;
-}
-
-.abastecimentos-table th, .abastecimentos-table td {
-    border: 1px solid #ddd;
-    padding: 8px;
-    text-align: center;
-}
-
-.abastecimentos-table th {
-    background-color: #f2f2f2;
-}
-
-.abastecimentos-table input[type="number"] {
-    width: calc(100% - 16px);
-    text-align: center;
-}
-
-.loading-message, .error-message {
-    text-align: center;
-    padding: 10px;
-    font-weight: bold;
-}
-
-/* --- ESTILOS PARA O OVERLAY E MODAL --- */
+/* Overlay e Modais */
 .overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0, 0, 0, 0.6);
-    display: none;
-    justify-content: center;
-    align-items: center;
-    z-index: 1000;
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background-color: rgba(0, 0, 0, 0.6); display: none;
+    justify-content: center; align-items: center; z-index: 1000;
 }
-
-.loading-text {
-    color: white;
-    font-size: 1.8em;
-    font-weight: bold;
-    animation: pulse 1.5s infinite;
-}
-
-@keyframes pulse {
-    0% { transform: scale(1); opacity: 1; }
-    50% { transform: scale(1.1); opacity: 0.7; }
-    100% { transform: scale(1); opacity: 1; }
-}
-
+.loading-text { color: white; font-size: 1.8em; font-weight: bold; }
 .modal-content {
-    background-color: white;
-    padding: 30px 40px;
-    border-radius: 10px;
-    text-align: center;
-    position: relative;
-    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
-    max-width: 90%;
-    width: 400px;
+    background-color: white; padding: 30px 40px; border-radius: 10px;
+    text-align: center; position: relative; max-width: 90%; width: 400px;
 }
-
 .close-button {
-    position: absolute;
-    top: 10px;
-    right: 15px;
-    font-size: 28px;
-    font-weight: bold;
-    color: #aaa;
-    cursor: pointer;
+    position: absolute; top: 10px; right: 15px; font-size: 28px;
+    font-weight: bold; color: #aaa; cursor: pointer;
 }
-
-.close-button:hover {
-    color: #333;
-}
-
-.modal-actions {
-    margin-top: 20px;
-    display: block;
-    text-align: center;
-}
-
+.modal-actions { margin-top: 20px; display: flex; flex-direction: column; gap: 10px; }
 .modal-button {
-    display: block;
-    padding: 12px 25px;
-    margin-bottom: 10px;
-    border-radius: 5px;
-    text-decoration: none;
-    color: white;
-    font-weight: bold;
-    transition: background-color 0.2s;
+    padding: 12px 25px; border-radius: 5px; text-decoration: none;
+    color: white; font-weight: bold;
 }
-
-.modal-button.pdf {
-    background-color: #d9534f;
-}
-.modal-button.pdf:hover {
-    background-color: #c9302c;
-}
-.modal-button.folder {
-    background-color: #f0ad4e;
-}
-.modal-button.folder:hover {
-    background-color: #ec971f;
-}
-
-/* --- NOVAS REGRAS PARA AJUSTE DE FONTE --- */
-
-/* Ajusta a fonte na grade "Confirme os dados da Operação" */
-.os-data-grid .grid-item {
-    font-size: 0.8em;
-}
-.os-data-grid .grid-item input[type="text"] {
-    font-size: 1em; /* A fonte do input deve ter o tamanho relativo ao seu contêiner (grid-item) */
+.modal-button.pdf { background-color: var(--primary-red); }
+.modal-button.folder { background-color: var(--primary-orange); }
+#nameForm input {
+    width: 100%; padding: 10px; margin-bottom: 15px; box-sizing: border-box;
+    border: 1px solid #ccc; border-radius: 4px;
 }
 
 
-/* Ajusta a fonte na seção "Detalhes do Relatório" */
-#preparoAreaReportFields .form-line label,
-#preparoAreaReportFields .form-line input[type="number"],
-#preparoAreaReportFields textarea,
-#preparoAreaReportFields .full-width-label,
-.abastecimentos-table td,
-.abastecimentos-table input[type="number"] {
-    font-size: 0.8em;
+/* ########## CORREÇÃO PARA DISPOSITIVOS MÓVEIS ########## */
+@media (max-width: 600px) {
+    body {
+        padding: 0;
+    }
+    .container {
+        margin: 0;
+        padding: 15px;
+        box-shadow: none;
+        border-radius: 0;
+    }
+    .app-header {
+        padding: 10px 15px;
+    }
+    .app-header .logo {
+        width: 80px;
+        height: 80px;
+    }
+    .app-header h1 {
+        font-size: 1.5em;
+    }
+    .activity-buttons {
+        grid-template-columns: 1fr;
+    }
+    
+    /* A Mágica Acontece Aqui: Reorganizando a Grade de Dados */
+    .os-data-grid {
+        display: block; /* Remove o layout de grade e empilha os itens */
+    }
+
+    .os-data-grid .grid-header {
+        display: none; /* Esconde os cabeçalhos que não fazem mais sentido */
+    }
+
+    .os-data-grid .grid-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px 5px;
+        border-bottom: 1px solid #f0f0f0;
+        flex-wrap: wrap; /* Garante que o conteúdo quebre a linha se necessário */
+    }
+
+    /* Cria um título de seção para cada grupo de dados */
+    .os-data-grid .grid-item:nth-child(5n + 1) {
+        display: block; /* Volta a ser um bloco para ocupar a linha toda */
+        background-color: #f2f2f2;
+        margin-top: 20px;
+        border-radius: 4px;
+        padding: 8px;
+        border-bottom: none;
+        text-align: center;
+    }
+    .os-data-grid .grid-item:first-child,
+    .os-data-grid .grid-item:nth-child(2),
+    .os-data-grid .grid-item:nth-child(3),
+    .os-data-grid .grid-item:nth-child(4),
+    .os-data-grid .grid-item:nth-child(5) {
+        margin-top: 0; /* Remove a margem extra do primeiro grupo */
+    }
+
+    /* Adiciona os rótulos via CSS para clareza */
+    .os-data-grid .grid-item:nth-child(5n + 2)::before,
+    .os-data-grid .grid-item:nth-child(5n + 3)::before,
+    .os-data-grid .grid-item:nth-child(5n + 5)::before {
+        font-weight: bold;
+        color: var(--label-color);
+        margin-right: 10px;
+    }
+    .os-data-grid .grid-item:nth-child(5n + 2)::before { content: "Dados da OS:"; }
+    .os-data-grid .grid-item:nth-child(5n + 3)::before { content: "Confirmado:"; }
+    .os-data-grid .grid-item:nth-child(5n + 5)::before { content: "Realizado:"; }
+
+    /* Agrupamento dos botões Sim/Não */
+    .os-data-grid .grid-item:nth-child(5n + 3) {
+        flex-grow: 1;
+    }
+    .os-data-grid .grid-item:nth-child(5n + 4) {
+        flex-grow: 1;
+        justify-content: flex-end; /* Joga o "Não" para a direita */
+    }
+    
+    .os-data-grid .grid-item:nth-child(5n + 3),
+    .os-data-grid .grid-item:nth-child(5n + 4) {
+        border-bottom: none; /* Remove a borda entre eles para parecer um grupo */
+        padding-top: 5px;
+        padding-bottom: 5px;
+    }
+
+    /* Adiciona o texto "Sim" e "Não" */
+    .os-data-grid .grid-item:nth-child(5n + 3)::after {
+        content: "Sim";
+        padding-left: 5px;
+    }
+    .os-data-grid .grid-item:nth-child(5n + 4)::after {
+        content: "Não";
+        padding-left: 5px;
+    }
+
+    /* Garante que o input "Realizado" ocupe o espaço restante */
+    .os-data-grid .grid-item:nth-child(5n + 5) {
+        border-bottom: 1px solid var(--border-color); /* Adiciona borda apenas no último item do grupo */
+    }
+    .os-data-grid .grid-item:nth-child(5n + 5) input[type="text"] {
+        flex-grow: 1;
+        text-align: right;
+    }
 }

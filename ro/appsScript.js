@@ -6,12 +6,13 @@
 * 3. Criar abas dinamicamente, se necessário.
 * 4. Gerar PDFs de relatório para as operações.
 * 5. Salvar os PDFs na pasta '1YeUqLtTnClJJ834KkqcO4Yy1_0SlzGAI'.
+* 6. Fornecer dados para a funcionalidade "Consulta Operação" de Irrigação (via doGet).
 */
 
 const REPORT_SPREADSHEET_ID = "1b8LMyDTfkqIfl0bftvQNdpGRg0O1PRvNjrOV0LkEtf8";
 const PDF_REPORT_FOLDER_ID = "1YeUqLtTnClJJ834KkqcO4Yy1_0SlzGAI";
 
-// ATUALIZAÇÃO: Templates de Colheita adicionados
+// ATUALIZAÇÃO: Templates de Colheita e Irrigação adicionados
 const REPORT_TEMPLATE_IDS = {
   "PreparodeArea": "1mpWpIZkZ58zV_SojCAG7ibqSoC_OyXHmSTBNm2FcMq0",
   "TratamentodeSementes": "1D-zNji40SaoO-1Smy46kbAZnZIqx5JRpL63tYTqpfgQ",
@@ -22,27 +23,22 @@ const REPORT_TEMPLATE_IDS = {
     "Caminhao": "1ukAVbuC5NM8TmxZ8LXM6c3_yCbBKTwMypTZmb6Qsmto",
     "Trator": "1JIlAlTUciVKFFX_-_Zpw9Zkux-7T-3-tq3Evgsl42wk"
   },
-  "Lancas": "1mvKGzXB5LPAKrk24XEZOGs4JXB_ybBhCkmFch64WmaA"
+  "Lancas": "1mvKGzXB5LPAKrk24XEZOGs4JXB_ybBhCkmFch64WmaA",
+  "Irrigacao": "1HB7o9eiC3FpOw7VAfBrRdsN3sUOZqIYIGbKyHFi8wKs" // NOVO TEMPLATE
 };
 
 const COMMON_OS_HEADERS = [ "OS Planejado - Local", "OS Realizado - Local", "OS Planejado - Talhoes (Area)", "OS Realizado - Talhoes (Area)", "OS Planejado - Área Total (ha)", "OS Realizado - Área Total (ha)", "OS Planejado - Data de Inicio", "OS Realizado - Data de Inicio", "OS Planejado - Data de Termino", "OS Realizado - Data de Termino", "OS Planejado - Trator", "OS Realizado - Trator", "OS Planejado - Operador(es)", "OS Realizado - Operador(es)", "OS Planejado - Implemento", "OS Realizado - Implemento", "OS Planejado - Observacao", "OS Realizado - Observacao" ];
 const TDS_COMMON_HEADERS = COMMON_OS_HEADERS.filter(h => !h.includes("Trator") && !h.includes("Implemento"));
 
-// ATUALIZAÇÃO: Headers para Colheita adicionados e corrigidos
+// ATUALIZAÇÃO: Headers para Colheita e Irrigação adicionados
 const REPORT_HEADERS_CONFIG = {
   "PreparodeArea": [ "Timestamp Relatorio", "ID da OS", "Nome do Usuario", ...COMMON_OS_HEADERS, "OS Planejado - Cultura / Cultivar", "OS Realizado - Cultura / Cultivar", "Relatorio - Horimetro Inicio", "Relatorio - Horimetro Fim", "Relatorio - Paradas Imprevistas", "Relatorio - Numero Abastecimentos" ],
   "TratamentodeSementes": [ "Timestamp Relatorio", "ID da OS", "Nome do Usuario", ...TDS_COMMON_HEADERS, "OS Planejado - Cultura e Cultivar", "OS Realizado - Cultura e Cultivar", "OS Planejado - Qtd Sementes (Kg)", "OS Realizado - Qtd Sementes (Kg)", "OS Planejado - Produtos e Dosagens", "OS Realizado - Produtos e Dosagens", "OS Planejado - Maquina", "OS Realizado - Maquina" ],
   "Plantio": [ "Timestamp Relatorio", "ID da OS", "Nome do Usuario", "OS Planejado - Local", "OS Realizado - Local", "OS Planejado - Talhoes (Area)", "OS Realizado - Talhoes (Area)", "OS Planejado - Área Total (ha)", "OS Realizado - Área Total (ha)", "OS Planejado - Data de Inicio", "OS Realizado - Data de Inicio", "OS Planejado - Data de Termino", "OS Realizado - Data de Termino", "OS Planejado - Cultura e Cultivar", "OS Realizado - Cultura e Cultivar", "OS Planejado - Quantidade/ha - Máximo", "OS Realizado - Quantidade/ha - Máximo", "OS Planejado - Quantidade/ha - Mínimo", "OS Realizado - Quantidade/ha - Mínimo", "OS Planejado - Produtos e Dosagens", "OS Realizado - Produtos e Dosagens", "OS Planejado - Trator", "OS Realizado - Trator", "OS Planejado - Implemento", "OS Realizado - Implemento", "OS Planejado - Plantas por metro", "OS Realizado - Plantas por metro", "OS Planejado - Espacamento entre plantas", "OS Realizado - Espacamento entre plantas", "OS Planejado - PMS", "OS Realizado - PMS", "OS Planejado - Operador(es)", "OS Realizado - Operador(es)", "OS Planejado - Observacao", "OS Realizado - Observacao", "Relatorio - Horimetro Inicio", "Relatorio - Horimetro Fim", "Relatorio - Paradas Imprevistas", "Relatorio - Numero Abastecimentos" ],
   "Pulverizacao": [ "Timestamp Relatorio", "ID da OS", "Nome do Usuario", "OS Planejado - Local", "OS Realizado - Local", "OS Planejado - Talhoes (Area)", "OS Realizado - Talhoes (Area)", "OS Planejado - Área Total (ha)", "OS Realizado - Área Total (ha)", "OS Planejado - Data de Inicio", "OS Realizado - Data de Inicio", "OS Planejado - Data de Termino", "OS Realizado - Data de Termino", "OS Planejado - Cultura e Cultivar", "OS Realizado - Cultura e Cultivar", "OS Planejado - Produtos e quantidades", "OS Realizado - Produtos e quantidades", "OS Planejado - Bico", "OS Realizado - Bico", "OS Planejado - Capacidade do tanque", "OS Realizado - Capacidade do tanque", "OS Planejado - Vazão (L/ha)", "OS Realizado - Vazão (L/ha)", "OS Planejado - Pressão", "OS Realizado - Pressão", "OS Planejado - Dose/ha", "OS Realizado - Dose/ha", "OS Planejado - Dose/tanque", "OS Realizado - Dose/tanque", "OS Planejado - Máquina (Pulverizador)", "OS Realizado - Máquina (Pulverizador)", "OS Planejado - Implemento", "OS Realizado - Implemento", "OS Planejado - Operador(es)", "OS Realizado - Operador(es)", "OS Planejado - Observacao", "OS Realizado - Observacao", "Relatorio - Horimetro Inicio", "Relatorio - Horimetro Fim", "Relatorio - Paradas Imprevistas", "Relatorio - Numero Abastecimentos" ],
   "Colheita": ["Timestamp Relatorio", "ID da OS", "Nome do Usuario", "Relatorio - Equipamento", "OS Planejado - Local", "OS Realizado - Local", "OS Planejado - Talhoes (Area)", "OS Realizado - Talhoes (Area)", "OS Planejado - Área Total (ha)", "OS Realizado - Área Total (ha)", "OS Planejado - Data de Inicio", "OS Realizado - Data de Inicio", "OS Planejado - Data de Termino", "OS Realizado - Data de Termino", "OS Planejado - Cultura e Cultivar", "OS Realizado - Cultura e Cultivar", "OS Planejado - Produtividade estimada", "OS Realizado - Produtividade estimada", "OS Planejado - Colhedeira", "OS Realizado - Colhedeira", "OS Planejado - Operador(es) Colhedeira", "OS Realizado - Operador(es) Colhedeira", "OS Planejado - Trator", "OS Realizado - Trator", "OS Planejado - Operador(es) Trator", "OS Realizado - Operador(es) Trator", "OS Planejado - Implemento", "OS Realizado - Implemento", "OS Planejado - Caminhão 1", "OS Realizado - Caminhão 1", "OS Planejado - Motorista 1", "OS Realizado - Motorista 1", "OS Planejado - Caminhão 2", "OS Realizado - Caminhão 2", "OS Planejado - Motorista 2", "OS Realizado - Motorista 2", "OS Planejado - Observacao", "OS Realizado - Observacao", "Relatorio - Horimetro Colhedeira Inicio", "Relatorio - Horimetro Colhedeira Fim", "Relatorio - Paradas Colhedeira", "Relatorio - Abastecimentos Colhedeira", "Relatorio - Caminhao ID", "Relatorio - Motorista", "Relatorio - KM Inicio", "Relatorio - KM Fim", "Relatorio - Abastecimentos Caminhao", "Relatorio - Paradas Caminhao", "Relatorio - Horimetro Trator Inicio", "Relatorio - Horimetro Trator Fim", "Relatorio - Paradas Trator", "Relatorio - Abastecimentos Trator" ],
-  "Lancas": [
-    "Timestamp Relatorio", "ID da OS", "Nome do Usuario", 
-    ...COMMON_OS_HEADERS, 
-    "OS Planejado - Cultura e Cultivar", "OS Realizado - Cultura e Cultivar", 
-    "OS Planejado - Produtos e quantidades", "OS Realizado - Produtos e quantidades",
-    "Relatorio - Horimetro Inicio", "Relatorio - Horimetro Fim", 
-    "Relatorio - Paradas Imprevistas", "Relatorio - Numero Abastecimentos"
-  ]
+  "Lancas": [ "Timestamp Relatorio", "ID da OS", "Nome do Usuario", ...COMMON_OS_HEADERS, "OS Planejado - Cultura e Cultivar", "OS Realizado - Cultura e Cultivar", "OS Planejado - Produtos e quantidades", "OS Realizado - Produtos e quantidades","Relatorio - Horimetro Inicio", "Relatorio - Horimetro Fim", "Relatorio - Paradas Imprevistas", "Relatorio - Numero Abastecimentos"],
+  "Irrigacao": [ "Timestamp Relatorio", "ID da Operacao", "Nome do Usuario", "Local", "Pivo", "Data de Inicio", "Hora de Inicio", "Data de Termino", "Hora de Termino", "Volta", "Intensidade", "Operador", "Numero de Paradas Imprevistas", "Observacao"] // NOVOS HEADERS
 };
 
 function createJsonResponse(obj) { return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON); }
@@ -93,12 +89,75 @@ function formatNumberForSheet(numInput) {
   return numInput.toString().replace('.', ',');
 }
 
+function doGet(e) {
+  try {
+    const action = e.parameter.action;
+    const ss = SpreadsheetApp.openById(REPORT_SPREADSHEET_ID);
+    const sheet = ss.getSheetByName("Irrigacao");
+
+    if (!sheet || sheet.getLastRow() < 2) {
+      if (action === "getIrrigationIdsByLocation") {
+        return createJsonResponse({ error: false, message: "Nenhuma operação de irrigação registrada até o momento.", data: [] });
+      } else {
+        return createJsonResponse({ error: true, message: "Planilha de Irrigação não encontrada ou vazia." });
+      }
+    }
+
+    const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+    const dataRange = sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).getValues();
+    const idColIndex = headers.indexOf("ID da Operacao");
+    const localColIndex = headers.indexOf("Local");
+
+    if (action === "getIrrigationIdsByLocation") {
+      const location = e.parameter.location;
+      if (!location) return createJsonResponse({ error: true, message: "Local não especificado." });
+
+      const filteredIds = dataRange
+        .filter(row => row[localColIndex] === location)
+        .map(row => row[idColIndex])
+        .filter((id, index, self) => self.indexOf(id) === index);
+
+      if (filteredIds.length === 0) {
+        return createJsonResponse({ error: false, message: `Nenhuma operação de irrigação registrada para ${location}.`, data: [] });
+      }
+
+      return createJsonResponse({ success: true, data: filteredIds });
+    }
+
+    if (action === "getIrrigationDataById") {
+      const id = e.parameter.id;
+      if (!id) return createJsonResponse({ error: true, message: "ID da Operação não especificado." });
+
+      const rowData = dataRange.find(row => row[idColIndex] === id);
+      if (!rowData) return createJsonResponse({ error: true, message: `Operação com ID ${id} não encontrada.` });
+      
+      const operationDetails = {};
+      headers.forEach((header, index) => {
+        operationDetails[header] = rowData[index];
+      });
+
+      return createJsonResponse({ success: true, data: operationDetails });
+    }
+
+    return createJsonResponse({ error: true, message: "Ação inválida." });
+
+  } catch (error) {
+    Logger.log("Erro no doGet: " + error.toString());
+    return createJsonResponse({ error: true, message: "Erro no servidor: " + error.toString() });
+  }
+}
+
 function doPost(e) {
   try {
     const data = e.parameter;
     Logger.log(JSON.stringify(data, null, 2));
     
     const activity = data.activity;
+    
+    if (activity === "Irrigacao") {
+      return handleIrrigationPost(data);
+    }
+    
     const osId = data.osId;
 
     if (!activity || !osId) {
@@ -348,4 +407,92 @@ function doPost(e) {
     Logger.log("Erro no servidor: " + error.toString() + " Stack: " + error.stack);
     return createJsonResponse({ success: false, message: "Ocorreu um erro no servidor: " + error.toString() });
   }
+}
+
+function handleIrrigationPost(data) {
+  const activity = "Irrigacao";
+  const ss = SpreadsheetApp.openById(REPORT_SPREADSHEET_ID);
+  let sheet = ss.getSheetByName(activity);
+  const headers = REPORT_HEADERS_CONFIG[activity];
+
+  if (!sheet) {
+    sheet = ss.insertSheet(activity);
+    sheet.appendRow(headers);
+  } else if (sheet.getLastRow() === 0) {
+    sheet.appendRow(headers);
+  }
+
+  if (data.isUpdate === 'true' && data.originalId) {
+    const dataRange = sheet.getDataRange().getValues();
+    const idColIndex = headers.indexOf("ID da Operacao");
+    for (let i = dataRange.length - 1; i >= 1; i--) { 
+      if (dataRange[i][idColIndex] == data.originalId) {
+        sheet.deleteRow(i + 1);
+        break; 
+      }
+    }
+  }
+
+  const timestampReport = new Date();
+  
+  const rowDataMap = {
+    "Timestamp Relatorio": timestampReport,
+    "ID da Operacao": data.operationId,
+    "Nome do Usuario": data.userName,
+    "Local": data.local,
+    "Pivo": data.pivo,
+    "Data de Inicio": parseDateForSheet(data.dataInicio),
+    "Hora de Inicio": data.horaInicio,
+    "Data de Termino": parseDateForSheet(data.dataTermino),
+    "Hora de Termino": data.horaTermino,
+    "Volta": data.volta,
+    "Intensidade": data.intensidade,
+    "Operador": data.operador,
+    "Numero de Paradas Imprevistas": data.paradas,
+    "Observacao": data.observacao
+  };
+
+  const rowValues = headers.map(header => rowDataMap[header] !== undefined ? rowDataMap[header] : '');
+  sheet.appendRow(rowValues);
+  
+  const templateId = REPORT_TEMPLATE_IDS[activity];
+  if (!templateId) {
+    return createJsonResponse({ success: true, message: "Dados registrados! Template PDF não configurado." });
+  }
+
+  const pdfFolder = DriveApp.getFolderById(PDF_REPORT_FOLDER_ID);
+  const templateFile = DriveApp.getFileById(templateId);
+  const newFileName = `Relatorio - ${activity} - ${data.operationId} - ${Utilities.formatDate(timestampReport, Session.getScriptTimeZone(), "dd-MM-yyyy")}`;
+
+  const tempDocFile = templateFile.makeCopy(pdfFolder);
+  const doc = DocumentApp.openById(tempDocFile.getId());
+  const body = doc.getBody();
+
+  const placeholderMap = {
+    '{{ID_IRRIGACAO}}': data.operationId,
+    '{{DATA_EMISSAO}}': formatDateForPdf(timestampReport),
+    '{{USUARIO_REGISTRO}}': data.userName,
+    '{{LOCAL_ATIVIDADE}}': data.local,
+    '{{PIVO_CENTRAL}}': data.pivo,
+    '{{DATA_INICIO}}': formatDateForPdf(data.dataInicio),
+    '{{DATA_TERMINO}}': formatDateForPdf(data.dataTermino),
+    '{{HORA_INICIO}}': data.horaInicio,
+    '{{HORA_TERMINO}}': data.horaTermino,
+    '{{VOLTA}}': data.volta,
+    '{{INTENSIDADE}}': data.intensidade,
+    '{{OPERADORES}}': data.operador,
+    '{{PARADAS_IMPREVISTAS}}': data.paradas,
+    '{{OBSERVACAO_OS_RELATORIO}}': data.observacao || ' '
+  };
+
+  for (const placeholder in placeholderMap) {
+    body.replaceText(placeholder, placeholderMap[placeholder]);
+  }
+
+  doc.saveAndClose();
+  const pdfBlob = tempDocFile.getAs('application/pdf');
+  const finalPdfFile = pdfFolder.createFile(pdfBlob).setName(newFileName);
+  tempDocFile.setTrashed(true);
+
+  return createJsonResponse({ success: true, pdfUrl: finalPdfFile.getUrl(), folderUrl: pdfFolder.getUrl() });
 }

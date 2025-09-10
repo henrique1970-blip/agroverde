@@ -5,11 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Fazenda Agro Verde - Relatório de Operações</title>
     <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icon-192x192.png">
 </head>
 <body>
     <header class="app-header">
-        <div class="logo"></div>
-        <h1>Relatório de Operações</h1>
+        <div class="header-content">
+            <div class="logo"></div>
+            <h1>Relatório de Operações</h1>
+        </div>
     </header>
 
     <div class="container">
@@ -23,28 +27,50 @@
             <hr>
 
             <label>Selecione a Ordem de Serviço (ID):</label>
-            <div id="osIdRadioContainer" class="radio-group-container">
+            <div id="osIdRadioContainer" class="radio-group-container vertical">
                 </div>
             <p style="font-size: 1.2em;"><strong>ID da Operação:</strong> <strong id="operationIdDisplay"></strong></p>
 
             <div id="osDetailsContainer">
                 </div>
 
-            <div id="harvestEquipmentSelectionContainer"></div>
-
+            <div id="harvestEquipmentSelectionContainer">
+                </div>
+            
             <div id="preparoAreaReportFields" style="display: none;">
                 </div>
             <div id="observacoesRelatorioContainer" style="display: none;">
-                <div class="form-line">
-                    <label for="observacoesRelatorio" class="full-width-label">Observações do Relatório:</label>
+                <div class="form-line full-width-label">
+                    <label for="observacoesRelatorio">Observações do Relatório:</label>
                     <textarea id="observacoesRelatorio" name="observacoesRelatorio" rows="3"></textarea>
                 </div>
             </div>
             <button type="button" id="submitReportButton" style="display: none;">Enviar Relatório de Operação</button>
         </div>
-    </div>
 
-    <script src="script.js"></script>
+        <div id="irrigationContainer" style="display: none;">
+            <button id="backToActivitiesFromIrrigation" class="back-button">← Voltar para Atividades</button>
+            
+            <div id="irrigationChoiceContainer">
+                <h3>Irrigação</h3>
+                <div class="activity-buttons">
+                    <button id="newIrrigationButton" class="activity-button orange-button">Nova Operação</button>
+                    <button id="queryIrrigationButton" class="activity-button">Consulta Operação</button>
+                </div>
+            </div>
+
+            <div id="irrigationFormContainer" style="display: none;">
+                <button id="backToIrrigationChoice" class="back-button">← Voltar</button>
+                <h3><span id="irrigationTitle"></span></h3>
+                <p><strong>Usuário:</strong> <span id="irrigationCurrentUser"></span></p>
+                <hr>
+                <p style="font-size: 1.2em;"><strong>ID da Operação:</strong> <strong id="irrigationOperationIdDisplay"></strong></p>
+                <form id="irrigationForm">
+                    </form>
+                <button type="button" id="submitIrrigationReportButton" style="display: none;">Enviar Relatório de Irrigação</button>
+            </div>
+        </div>
+    </div>
 
     <div id="loadingOverlay" class="overlay">
         <div class="loading-text">Enviando relatório...</div>
@@ -67,11 +93,12 @@
             <h2>Identificação</h2>
             <p>Por favor, digite seu nome para registrar as operações.</p>
             <form id="nameForm">
-                <input type="text" id="nameInput" required placeholder="Digite seu nome aqui..." aria-label="Nome do usuário" style="width: 100%; padding: 10px; margin-bottom: 15px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px;">
+                <input type="text" id="nameInput" required placeholder="Digite seu nome aqui..." aria-label="Nome do usuário">
                 <button type="submit" class="modal-button" style="background-color: #28a745; width: 100%; font-size: 1.1em;">Continuar</button>
             </form>
         </div>
     </div>
 
+    <script src="script.js"></script>
 </body>
 </html>
