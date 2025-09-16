@@ -95,7 +95,7 @@ const ACTIVITIES = {
 // Referências de elementos do DOM
 const activitySelectionDiv = document.getElementById('activitySelection');
 const formContainerDiv = document.getElementById('formContainer');
-const irrigationContainer = document.getElementById('irrigationContainer'); // CORREÇÃO: Adicionada referência ao container de irrigação
+const irrigationContainer = document.getElementById('irrigationContainer');
 const backToActivitiesBtn = document.getElementById('backToActivities');
 const osIdRadioContainer = document.getElementById('osIdRadioContainer');
 const operationIdDisplay = document.getElementById('operationIdDisplay');
@@ -104,16 +104,15 @@ const harvestEquipmentSelectionContainer = document.getElementById('harvestEquip
 const preparoAreaReportFieldsDiv = document.getElementById('preparoAreaReportFields');
 const observacoesRelatorioContainer = document.getElementById('observacoesRelatorioContainer');
 const submitReportButton = document.getElementById('submitReportButton');
-const submitIrrigationReportButton = document.getElementById('submitIrrigationReportButton'); // CORREÇÃO: Adicionada referência
+const submitIrrigationReportButton = document.getElementById('submitIrrigationReportButton');
 const activityTitleSpan = document.getElementById('activityTitle');
 const currentUserSpan = document.getElementById('currentUser');
 const irrigationChoiceContainer = document.getElementById('irrigationChoiceContainer');
 const irrigationFormContainer = document.getElementById('irrigationFormContainer');
-const backToActivitiesFromIrrigationBtn = document.getElementById('backToActivitiesFromIrrigation'); // CORREÇÃO: Adicionada referência
-const backToIrrigationChoiceBtn = document.getElementById('backToIrrigationChoice'); // CORREÇÃO: Adicionada referência
+const backToActivitiesFromIrrigationBtn = document.getElementById('backToActivitiesFromIrrigation');
+const backToIrrigationChoiceBtn = document.getElementById('backToIrrigationChoice');
 
 
-// CORREÇÃO: Função central para controlar a visibilidade das telas principais
 function showScreen(screenId) {
     activitySelectionDiv.style.display = 'none';
     formContainerDiv.style.display = 'none';
@@ -121,14 +120,12 @@ function showScreen(screenId) {
 
     const screenToShow = document.getElementById(screenId);
     if (screenToShow) {
-        // Usa grid para a seleção de atividades, e block para os formulários
         screenToShow.style.display = (screenId === 'activitySelection') ? 'grid' : 'block';
     }
 }
 
 function showActivitySelection() {
     showScreen('activitySelection');
-    // Limpa estados anteriores para evitar confusão
     osIdRadioContainer.innerHTML = '';
     osDetailsContainer.innerHTML = '';
     preparoAreaReportFieldsDiv.style.display = 'none';
@@ -143,9 +140,8 @@ function renderActivityButtons() {
         button.className = 'activity-button';
         button.textContent = ACTIVITIES[key];
 
-        // Aplica a classe full-width para o botão de irrigação se necessário
         if (key === "Irrigacao") {
-            button.style.gridColumn = "1 / -1"; // Garante que ocupe a largura toda
+            button.style.gridColumn = "1 / -1";
             button.classList.add('orange-button');
         }
 
@@ -164,13 +160,11 @@ function renderActivityButtons() {
 }
 
 function showIrrigationChoice() {
-    // Apenas manipula a visibilidade dentro do container de irrigação
     irrigationChoiceContainer.style.display = 'block';
     irrigationFormContainer.style.display = 'none';
     activityTitleSpan.textContent = "Irrigação";
     currentUserSpan.textContent = userName;
 
-    // Garante que os botões existam antes de adicionar listeners
     irrigationChoiceContainer.innerHTML = `
         <h3>Irrigação</h3>
         <div class="activity-buttons">
@@ -554,12 +548,12 @@ async function submitReport() {
     let isValid = true;
     const formToValidate = (selectedActivityKey === 'Irrigacao') ?
         document.getElementById('irrigationForm') :
-        formContainerDiv; // Para operações gerais, validamos o container todo
+        formContainerDiv;
 
     const requiredInputs = formToValidate.querySelectorAll('[required]');
 
     for (const input of requiredInputs) {
-        input.setCustomValidity(''); // Limpa validações anteriores
+        input.setCustomValidity('');
         if (!input.value.trim()) {
             input.setCustomValidity('Este campo é obrigatório.');
             input.reportValidity();
@@ -649,16 +643,20 @@ async function submitReport() {
     
     // Coleta de dados específica por atividade
     if (selectedActivityKey === 'Irrigacao') {
+        const intensidadeInput = document.getElementById('irrigation_intensidade');
+        const voltaInput = document.querySelector('input[name="irrigation_volta"]:checked');
+
         Object.assign(reportData, {
-            operationId: document.getElementById('irrigation_op_id').textContent,
+            operationId: document.getElementById('irrigationOperationIdDisplay').textContent,
             local: document.getElementById('irrigation_local').value,
             pivo: document.getElementById('irrigation_pivo').value,
             dataInicio: document.getElementById('irrigation_data_inicio').value,
             horaInicio: document.getElementById('irrigation_hora_inicio').value,
             dataTermino: document.getElementById('irrigation_data_termino').value,
             horaTermino: document.getElementById('irrigation_hora_termino').value,
-            volta: document.querySelector('input[name="irrigation_volta"]:checked').value,
-            intensidade: document.getElementById('irrigation_intensidade').value,
+            volta: voltaInput ? voltaInput.value : '',
+            // CORREÇÃO: Envia apenas o número, o backend adicionará o '%' para o PDF
+            intensidade: intensidadeInput ? intensidadeInput.value : '',
             operador: document.getElementById('irrigation_operador').value,
             paradas: document.getElementById('irrigation_paradas').value,
             observacao: document.getElementById('irrigation_observacao').value,
@@ -667,7 +665,6 @@ async function submitReport() {
         });
     } else {
         reportData.osId = currentOsDetails['ID da OS'];
-        // Adiciona dados comuns da OS ao relatório
         for (const key in currentOsDetails) {
             if (["Timestamp", "Nome do Usuário", "ID da OS"].includes(key)) continue;
             const cleanKey = keyMap[key] || key.replace(/[^a-zA-Z0-9]/g, '');
@@ -680,10 +677,10 @@ async function submitReport() {
                 reportData[cleanKey] = currentOsDetails[key];
             }
         }
+        // CORREÇÃO: Esta linha foi movida para dentro do 'else' para não sobrescrever a observação da irrigação
+        reportData.observacao = document.getElementById('observacoesRelatorio')?.value || '';
     }
-    reportData.observacao = document.getElementById('observacoesRelatorio')?.value || '';
 
-    // Lógica específica para cada tipo de atividade
     if (selectedActivityKey === "Colheita") {
         const equipmentType = document.querySelector('input[name="equipmentType"]:checked').value;
         reportData.equipmentType = equipmentType;
@@ -707,7 +704,7 @@ async function submitReport() {
                 reportData.MOTORISTA_CAMINHAO = document.getElementById('MOTORISTA_CAMINHAO').value;
                 reportData.km_inicio = sanitizeNumericInput(document.getElementById('km_inicio').value);
                 reportData.km_fim = sanitizeNumericInput(document.getElementById('km_fim').value);
-                reportData.PARADAS_IMPREVISTAS_CAMINHAO = document.getElementById('PARADAS_IMPREVISTAS_CAMINHAO').value; // <-- ADICIONADO PARA COLHEITA
+                reportData.PARADAS_IMPREVISTAS_CAMINHAO = document.getElementById('PARADAS_IMPREVISTAS_CAMINHAO').value;
                 const numAbastCaminhao = parseInt(document.getElementById('NUMERO_ABASTECIMENTO_CAMINHAO').value, 10) || 0;
                 reportData.NUMERO_ABASTECIMENTO_CAMINHAO = numAbastCaminhao;
                 for (let i = 1; i <= numAbastCaminhao; i++) {
@@ -826,7 +823,6 @@ function createAndShowIrrigationForm(isQuery = false, data = {}) {
         Kakay: ['Pivo 100', 'Pivo 103', 'Pivo 135', 'Pivo 180']
     };
 
-    // Atualiza os elementos da interface de irrigação
     const irrigationTitle = document.getElementById('irrigationTitle');
     const irrigationCurrentUser = document.getElementById('irrigationCurrentUser');
     const irrigationOperationIdDisplay = document.getElementById('irrigationOperationIdDisplay');
@@ -835,7 +831,7 @@ function createAndShowIrrigationForm(isQuery = false, data = {}) {
     irrigationTitle.textContent = isQuery ? 'Consulta/Edição de Irrigação' : 'Nova Operação de Irrigação';
     irrigationCurrentUser.textContent = userName;
     irrigationOperationIdDisplay.textContent = data['ID da Operacao'] || '';
-
+    
     const formHtml = `
             <div class="form-line">
                 <label for="irrigation_local">Local:</label>
@@ -860,26 +856,24 @@ function createAndShowIrrigationForm(isQuery = false, data = {}) {
                 </div>
                 <div class="form-line">
                     <label for="irrigation_data_termino">Data de Término:</label>
-                    <input type="date" id="irrigation_data_termino" value="${data['Data de Termino'] ? new Date(data['Data de Termino']).toISOString().split('T')[0] : ''}" required>
+                    <input type="date" id="irrigation_data_termino" value="${data['Data de Termino'] ? new Date(data['Data de Termino']).toISOString().split('T')[0] : ''}">
                 </div>
                 <div class="form-line">
                     <label for="irrigation_hora_termino">Hora de Término:</label>
-                    <input type="time" id="irrigation_hora_termino" value="${data['Hora de Termino'] || ''}" required>
+                    <input type="time" id="irrigation_hora_termino" value="${data['Hora de Termino'] || ''}">
                 </div>
             </div>
              <div class="form-line-column">
                 <label>Volta:</label>
                 <div class="radio-group-container vertical">
                     ${['completa', 'quase completa', 'Metade', 'Menos da metade'].map(v => `
-                        <div class="radio-item"><input type="radio" id="volta_${v.replace(/\s+/g, '')}" name="irrigation_volta" value="${v}" ${data.Volta === v ? 'checked' : ''} required><label for="volta_${v.replace(/\s+/g, '')}">${v.charAt(0).toUpperCase() + v.slice(1)}</label></div>
+                        <div class="radio-item"><input type="radio" id="volta_${v.replace(/\s+/g, '')}" name="irrigation_volta" value="${v}" ${data.Volta === v ? 'checked' : ''}><label for="volta_${v.replace(/\s+/g, '')}">${v.charAt(0).toUpperCase() + v.slice(1)}</label></div>
                     `).join('')}
                 </div>
             </div>
             <div class="form-line">
-                <label for="irrigation_intensidade">Intensidade:</label>
-                <select id="irrigation_intensidade" required>
-                    ${['50%', '60%', '70%', '80%', '90%', '100%'].map(v => `<option value="${v}" ${data.Intensidade === v ? 'selected' : ''}>${v}</option>`).join('')}
-                </select>
+                <label for="irrigation_intensidade">Intensidade (%):</label>
+                <input type="number" id="irrigation_intensidade" min="0" max="100" value="${data.Intensidade ? parseInt(data.Intensidade) : ''}" required>
             </div>
             <div class="form-line">
                 <label for="irrigation_operador">Operador:</label>
@@ -887,20 +881,22 @@ function createAndShowIrrigationForm(isQuery = false, data = {}) {
             </div>
             <div class="form-line">
                 <label for="irrigation_paradas">Nº de Paradas Imprevistas:</label>
-                <input type="number" id="irrigation_paradas" min="0" value="${data['Numero de Paradas Imprevistas'] || '0'}" required>
+                <input type="number" id="irrigation_paradas" min="0" value="${data['Numero de Paradas Imprevistas'] || '0'}">
             </div>
             <div class="form-line full-width-label">
                 <label for="irrigation_observacao">Observação:</label>
                 <textarea id="irrigation_observacao" rows="3">${data.Observacao || ''}</textarea>
             </div>
     `;
-    irrigationForm.innerHTML = formHtml; // Renderiza o formulário de irrigação
+    if (irrigationForm) irrigationForm.reset();
+    irrigationForm.innerHTML = formHtml;
+    
     submitIrrigationReportButton.style.display = 'block';
 
     const localSelect = document.getElementById('irrigation_local');
     const pivoSelect = document.getElementById('irrigation_pivo');
     const dataInicioInput = document.getElementById('irrigation_data_inicio');
-    const opIdDisplay = document.getElementById('irrigation_op_id');
+    const opIdDisplay = document.getElementById('irrigationOperationIdDisplay');
 
     function updatePivos() {
         pivoSelect.innerHTML = '<option value="">Selecione...</option>';
@@ -918,12 +914,12 @@ function createAndShowIrrigationForm(isQuery = false, data = {}) {
         const local = localSelect.value;
         const pivo = pivoSelect.value.replace(/\D/g, '');
         const dataInicio = dataInicioInput.value;
-        if (local && pivo && dataInicio && !isQuery) { // Só atualiza se for nova operação
+        if (local && pivo && dataInicio && !isQuery) {
             const date = new Date(dataInicio);
             const d = String(date.getUTCDate()).padStart(2, '0');
             const m = String(date.getUTCMonth() + 1).padStart(2, '0');
             const a = String(date.getUTCFullYear()).slice(-2);
-            irrigationOperationIdDisplay.textContent = `${local}${pivo}${d}${m}${a}`;
+            opIdDisplay.textContent = `${local}${pivo}${d}${m}${a}`;
         }
     }
     
@@ -943,7 +939,6 @@ function handleQueryIrrigationOp() {
     irrigationFormContainer.style.display = 'block';
     submitIrrigationReportButton.style.display = 'none';
 
-    // Limpa o conteúdo anterior e configura a UI para consulta
     document.getElementById('irrigationTitle').textContent = "Consulta de Irrigação";
     document.getElementById('irrigationCurrentUser').textContent = userName;
     document.getElementById('irrigationOperationIdDisplay').textContent = '';
@@ -1025,12 +1020,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     getOrSetUserName();
 
-    // Listeners dos botões de "Voltar"
     backToActivitiesBtn.addEventListener('click', showActivitySelection);
     backToActivitiesFromIrrigationBtn.addEventListener('click', showActivitySelection);
     backToIrrigationChoiceBtn.addEventListener('click', showIrrigationChoice);
 
-    // Listeners dos botões de "Enviar"
     submitReportButton.addEventListener('click', submitReport);
     submitIrrigationReportButton.addEventListener('click', submitReport);
 
@@ -1055,7 +1048,6 @@ document.addEventListener('DOMContentLoaded', () => {
             event.target.setCustomValidity('');
         }
     });
-    // Adiciona listener para o formulário de irrigação também
     irrigationFormContainer.addEventListener('input', (event) => {
         if (event.target.tagName === 'INPUT' || event.target.tagName === 'SELECT' || event.target.tagName === 'TEXTAREA') {
             event.target.setCustomValidity('');

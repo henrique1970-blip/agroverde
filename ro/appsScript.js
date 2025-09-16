@@ -468,6 +468,9 @@ function handleIrrigationPost(data) {
   const doc = DocumentApp.openById(tempDocFile.getId());
   const body = doc.getBody();
 
+  // CORREÇÃO: Adiciona o símbolo de '%' ao valor numérico da intensidade apenas para o PDF.
+  const intensidadePdf = data.intensidade ? data.intensidade + '%' : '';
+
   const placeholderMap = {
     '{{ID_IRRIGACAO}}': data.operationId,
     '{{DATA_EMISSAO}}': formatDateForPdf(timestampReport),
@@ -479,14 +482,18 @@ function handleIrrigationPost(data) {
     '{{HORA_INICIO}}': data.horaInicio,
     '{{HORA_TERMINO}}': data.horaTermino,
     '{{VOLTA}}': data.volta,
-    '{{INTENSIDADE}}': data.intensidade,
+    '{{INTENSIDADE}}': intensidadePdf,
     '{{OPERADORES}}': data.operador,
     '{{PARADAS_IMPREVISTAS}}': data.paradas,
     '{{OBSERVACAO_OS_RELATORIO}}': data.observacao || ' '
   };
 
   for (const placeholder in placeholderMap) {
-    body.replaceText(placeholder, placeholderMap[placeholder]);
+    if (placeholderMap[placeholder] === null || placeholderMap[placeholder] === undefined) {
+        body.replaceText(placeholder, ' ');
+    } else {
+        body.replaceText(placeholder, placeholderMap[placeholder]);
+    }
   }
 
   doc.saveAndClose();
