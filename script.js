@@ -9,7 +9,7 @@ const MAX_PRODUCTS = 20; // ALTERADO: O valor máximo de produtos agora é 20
 
 // --- DADOS E CONFIGURAÇÕES ---
 const ACTIVITIES = {"PreparodeArea":"Preparo de Área","TratamentodeSementes":"Tratamento de Sementes","Plantio":"Plantio","Pulverizacao":"Pulverização","Colheita":"Colheita","Lancas":"Lanças"};
-const LOCATIONS_AND_FIELDS = {"Fazenda Agro Verde":{"P33":32.5,"P15":14.85,"P60":60.57,"P80":80.95,"Hendrik Jan":11.96,"Área 18":29.05,"SOBRAS P33, P15, P60":41.01,"TH 5 SOBRAS PIVO 80":30.04},"Fazenda Catingueiro Sador":{"Área 20/21":143.86,"Área 22":88.64,"Área 23":56.42,"Área 24":34.96,"Área 25":45.34,"Área 26/27":50.83,"Área 28":14.85,"Área 29":26.1},"Wieke":{"Barracão":21.04,"P45":50.06,"P17":19.88,"Sobra P45":6.94},"Canto Verde":{"Canto Verde":145.95},"João Paulista":{"Área 31/32/33":224.63,"Área 30":81.18},"Sergio":{"Sergio":121.44},"Fazenda Naturalicia Chaparral":{"Fazenda Naturalicia Chaparral":282.11},"Fazenda Cachoeirinha":{"Fazenda Cachoeirinha":290.95},"Kakay":{"P100":102.77,"P103":104.41,"P135":142.42,"P180":213.77,"Sobra 61":44.93,"Sobra 62":51.89,"Sobra 63":21.6,"Sobra 64":59.09,"Sobra 65":11.21},"Guimarães":{"Área 54":38.72,"Área 55":76.11},"Maribondo":{"Maribondo":199.92,"M104_1":44.28,"M104_2":20.79},"Fazenda Marcio":{"Área 80":68.1,"Área 81":80.36,"Área 81B":53.34,"Área 82":96.75,"Área 83":57.92,"Área 84":29.91,"Área 85/87":242.97,"Área 86A":188.03,"Área 86B":68.22,"Área 88":56.58,"Área 88B":24.18,"Área 89":66.33,"Área 90":68.3,"Área 91":13.97},"Fazenda Campina Custódio":{"Custódio 100":61.13,"Custódio 101":53.4}};
+const LOCATIONS_AND_FIELDS = {"AgroVerde":{"P33":32.5,"P15":14.85,"P60":60.57,"P80":80.95,"Hendrik Jan":11.96,"Área 18":29.05,"SOBRAS P33, P15, P60":41.01,"TH 5 SOBRAS PIVO 80":30.04},"Sador":{"Área 20/21":143.86,"Área 22":88.64,"Área 23":56.42,"Área 24":34.96,"Área 25":45.34,"Área 26/27":50.83,"Área 28":14.85,"Área 29":26.1, "Área 18":29.5},"Wieke":{"Barracão":21.04,"P45":50.06,"P17":19.88,"Sobra P45":6.94},"CantoVerde":{"Canto Verde":145.95},"João Paulista":{"Área 31/32/33":224.63,"Área 30":81.18},"Sergio":{"Sergio 46/47":121.44},"Chaparral":{"Fazenda Naturalícia (Chaparral)":282.11},"Cachoeirinha":{"Fazenda Cachoeirinha":290.95},"Kakay":{"P100":102.77,"P103":104.41,"P135":142.42,"P180":213.77,"Sobra 61":44.93,"Sobra 62":51.89,"Sobra 63":21.6,"Sobra 64":59.09,"Sobra 65":11.21},"Guimarães":{"Área 54":38.72,"Área 55":76.11},"Maribondo":{"Maribondo":199.92,"M104_1":44.28,"M104_2":20.79},"Fazenda Marcio":{"Área 80":68.1,"Área 81":80.36,"Área 81B":53.34,"Área 82":96.75,"Área 83":57.92,"Área 84":29.91,"Área 85/87":242.97,"Área 86A":188.03,"Área 86B":68.22,"Área 88":56.58,"Área 88B":24.18,"Área 89":66.33,"Área 90":68.3,"Área 91":13.97},"Custódio":{"Custódio 100":61.13,"Custódio 101":53.4}};
 const FORM_FIELDS = {"PreparodeArea":[{label:"Data de Início",name:"dataInicio",type:"date"},{label:"Data de Término",name:"dataTermino",type:"date"},{label:"Trator - identificação",name:"trator",type:"text"},{label:"Operador(es)",name:"operadores",type:"text"},{label:"Implemento - Identificação",name:"implemento",type:"text"},{label:"Observação",name:"observacao",type:"textarea"}],"TratamentodeSementes":[{label:"Cultura e Cultivar",name:"culturaCultivar",type:"text"},{label:"Quantidade de Sementes (Kg)",name:"qtdSementesKg",type:"number"},{label:"Data de Início",name:"dataInicio",type:"date"},{label:"Data de Término",name:"dataTermino",type:"date"},{label:"Número de Produtos",name:"numProducts",type:"number",min:0,max:MAX_PRODUCTS},{label:"Produtos e Dosagens",name:"productsContainer",type:"div"},{label:"Máquina - Identificação",name:"maquina",type:"text"},{label:"Operadores",name:"operadores",type:"text"},{label:"Observação",name:"observacao",type:"textarea"}],"Plantio":[{label:"Cultura e Cultivar",name:"culturaCultivar",type:"text"},{label:"Quantidade/ha - Máximo",name:"qtdHaMax",type:"number"},{label:"Quantidade/ha - Mínimo",name:"qtdHaMin",type:"number"},{label:"Número de Insumos",name:"numProducts",type:"number",min:0,max:MAX_PRODUCTS},{label:"Insumos (a serem usados e quantidades)",name:"productsContainer",type:"div"},{label:"Data de Início",name:"dataInicio",type:"date"},{label:"Data de Término",name:"dataTermino",type:"date"},{label:"Trator - identificação",name:"trator",type:"text"},{label:"Implemento",name:"implemento",type:"text"},{label:"Plantas por metro",name:"plantasPorMetro",type:"number"},{label:"Espaçamento entre plantas",name:"espacamentoPlantas",type:"number"},{label:"Peso de mil sementes (PMS)",name:"pms",type:"number"},{label:"Operador(es)",name:"operadores",type:"text"},{label:"Observação",name:"observacao",type:"textarea"}],"Pulverizacao":[{label:"Cultura e Cultivar",name:"culturaCultivar",type:"text"},{label:"Número de Produtos",name:"numProducts",type:"number",min:0,max:MAX_PRODUCTS},{label:"Produtos e quantidade/ha",name:"productsContainer",type:"div"},{label:"Data de Início",name:"dataInicio",type:"date"},{label:"Data de Término",name:"dataTermino",type:"date"},{label:"Máquina - Identificação",name:"maquina",type:"text"},{label:"Bico",name:"bico",type:"text"},{label:"Capacidade do tanque",name:"capacidadeTanque",type:"number"},{label:"Vazão (L/ha)",name:"vazaoLHa",type:"number"},{label:"Operador(es)",name:"operadores",type:"text"},{label:"Pressão",name:"pressao",type:"number"},{label:"Dose/ha",name:"doseHa",type:"number"},{label:"Dose/tanque",name:"doseTanque",type:"number"},{label:"Implemento - Identificação",name:"implemento",type:"text"},{label:"Observação",name:"observacao",type:"textarea"}],"Colheita":[{label:"Cultura e Cultivar",name:"culturaCultivar",type:"text"},{label:"Produtividade estimada",name:"produtividadeEstimada",type:"number"},{label:"Data de Início",name:"dataInicio",type:"date"},{label:"Data de Término",name:"dataTermino",type:"date"},{label:"Colhedeira - Identificação",name:"maquina",type:"text"},{label:"Operador(es) Colhedeira",name:"operadoresMaquina",type:"text"},{label:"Número de Caminhões",name:"numTrucks",type:"number",min:0,max:MAX_PRODUCTS},{label:"Caminhões e Motoristas",name:"trucksContainer",type:"div"},{label:"Trator - marca modelo e número",name:"trator",type:"text"},{label:"Operador(es) Trator",name:"operadoresTrator",type:"text"},{label:"Implemento - Identificação",name:"implemento",type:"text"},{label:"Observação",name:"observacao",type:"textarea"}],"Lancas":[{label:"Cultura e Cultivar",name:"culturaCultivar",type:"text"},{label:"Número de Produtos",name:"numProducts",type:"number",min:0,max:MAX_PRODUCTS},{label:"Produtos e quantidade/hectare",name:"productsContainer",type:"div"},{label:"Data de Início",name:"dataInicio",type:"date"},{label:"Data de Término",name:"dataTermino",type:"date"},{label:"Máquina - Identificação",name:"maquina",type:"text"},{label:"Operador(es)",name:"operadores",type:"text"},{label:"Implemento - Identificação",name:"implemento",type:"text"},{label:"Observação",name:"observacao",type:"textarea"}]};
 
 const activitySelectionDiv = document.getElementById('activitySelection');
@@ -156,30 +156,29 @@ function renderActivityButtons() {
 
 function generateOsId(userName, localName) {
     const userChar = userName ? userName.charAt(0).toUpperCase() : 'X';
-    let localPart = '';
 
-    if (localName === "Fazenda Agro Verde") {
-        localPart = "agroverde";
-    } else if (localName === "Canto Verde") {
-        localPart = "cantoverde";
-    } else if (localName) {
-        // Remove a parte com parênteses do final do nome, se houver
-        const cleanedName = localName.replace(/\s*\(.*\)\s*$/, '');
-        // Divide o nome em palavras e pega a última
-        const words = cleanedName.split(' ');
-        const lastWord = words.pop() || '';
-        // Converte para minúsculas e remove caracteres não alfanuméricos
-        localPart = lastWord.toLowerCase().replace(/[^a-z0-9]/gi, '');
-    }
+    // --- LÓGICA ALTERADA PARA PEGAR A ÚLTIMA PALAVRA DO LOCAL ---
+    // 1. Remove o texto entre parênteses (ex: "(Custódio)") e espaços extras.
+    let processedLocalName = localName ? localName.replace(/\s*\(.*\)\s*$/, '').trim() : ''; 
     
+    // 2. Divide o nome processado em um array de palavras.
+    const words = processedLocalName.split(' ');
+    
+    // 3. Pega a última palavra do array.
+    const lastWord = words[words.length - 1]; 
+    
+    // 4. Formata a última palavra (maiúsculas, 5 caracteres, sem especiais).
+    const localPart = lastWord ? lastWord.toUpperCase().replace(/[^A-Z0-9]/gi, '').substring(0, 5) : ''; 
+    // --- FIM DA ALTERAÇÃO ---
+
     const randomNum = Math.floor(100 + Math.random() * 900);
     const letras = "abcdefghijklmnopqrstuvwxyz";
     const caracteres = "!@#$%&*-";
     const letraAleatoria = letras.charAt(Math.floor(Math.random() * letras.length));
     const caracterAleatorio = caracteres.charAt(Math.floor(Math.random() * caracteres.length));
-    
     return `${userChar}-${localPart}-${randomNum}${letraAleatoria}${caracterAleatorio}`;
 }
+
 function updateTotalArea(talhoesListElement) {
     const totalAreaDisplay = document.getElementById('totalAreaDisplay');
     let total = 0;
@@ -305,24 +304,10 @@ async function handleFormSubmit(event) {
     const formData = new FormData(form);
 
     const data = { activity: currentActivityKey, userName: userName };
-
-    // Itera sobre todos os dados do formulário
-    for (const [key, value] of formData.entries()) {
-        // Verifica se o valor é uma string que representa um número decimal com ponto
-        if (typeof value === 'string' && value.includes('.') && !isNaN(parseFloat(value))) {
-            // Substitui o ponto por vírgula
-            data[key] = value.replace('.', ',');
-        } else {
-            data[key] = value;
-        }
-    }
+    for (let pair of formData.entries()) { data[pair[0]] = pair[1]; }
     
-    // Tratamento especial para a área total, que não vem do FormData
     const totalAreaDisplay = document.getElementById('totalAreaDisplay');
-    if (totalAreaDisplay) {
-        let areaValue = totalAreaDisplay.textContent.replace('TOTAL (ha):', '').trim();
-        data.areaTotalHectares = areaValue.replace('.', ',');
-    }
+    if (totalAreaDisplay) data.areaTotalHectares = totalAreaDisplay.textContent.replace('TOTAL (ha):', '').trim();
     
     const finalSelectedTalhoes = [];
     form.querySelectorAll('input[name="talhoes"]:checked').forEach(cb => finalSelectedTalhoes.push(cb.value));
@@ -330,19 +315,14 @@ async function handleFormSubmit(event) {
 
     const numProducts = parseInt(formData.get('numProducts') || '0', 10);
     for (let i = 1; i <= MAX_PRODUCTS; i++) {
-        // Os nomes dos produtos não são alterados, mas as dosagens sim (se forem numéricas)
         data[`nome_produto_${i}`] = (i <= numProducts) ? (formData.get(`product_name_${i}`) || "") : "";
-        let dosageValue = (i <= numProducts) ? (formData.get(`product_dosage_${i}`) || "") : "";
-        if (typeof dosageValue === 'string' && dosageValue.includes('.') && !isNaN(parseFloat(dosageValue))) {
-             data[`dose_produto_${i}`] = dosageValue.replace('.', ',');
-        } else {
-             data[`dose_produto_${i}`] = dosageValue;
-        }
+        data[`dose_produto_${i}`] = (i <= numProducts) ? (formData.get(`product_dosage_${i}`) || "") : "";
     }
 
+    // Coleta dados de caminhões e motoristas
     if (currentActivityKey === "Colheita") {
         const numTrucks = parseInt(formData.get('numTrucks') || '0', 10);
-        for (let i = 1; i <= MAX_PRODUCTS; i++) {
+        for (let i = 1; i <= MAX_PRODUCTS; i++) { // Reutilizando MAX_PRODUCTS como um limite razoável
             data[`identificacao_caminhao_${i}`] = (i <= numTrucks) ? (formData.get(`truck_id_${i}`) || "") : "";
             data[`motorista_caminhao_${i}`] = (i <= numTrucks) ? (formData.get(`truck_driver_${i}`) || "") : "";
         }
@@ -362,6 +342,7 @@ async function handleFormSubmit(event) {
             if (document.getElementById('talhoesList')) {
                 updateTotalArea(document.getElementById('talhoesList'));
             }
+            // Limpa os campos dinâmicos de produtos/caminhões
             if (document.getElementById('productsContainer')) {
                 document.getElementById('productsContainer').innerHTML = '';
             }
@@ -389,6 +370,7 @@ async function handleFormSubmit(event) {
         if (document.getElementById('talhoesList')) {
             updateTotalArea(document.getElementById('talhoesList'));
         }
+        // Limpa os campos dinâmicos de produtos/caminhões
         if (document.getElementById('productsContainer')) {
             document.getElementById('productsContainer').innerHTML = '';
         }
