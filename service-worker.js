@@ -1,4 +1,4 @@
-const CACHE_NAME = 'agro-os-cache-v6'; // Aumentamos a versão do cache para forçar a atualização
+const CACHE_NAME = 'agro-os-cache-v7'; // Aumentamos a versão do cache para forçar a atualização
 const urlsToCache = [
     '.', // Garante que a raiz do site seja cacheada
     'index.html',
