@@ -2,43 +2,81 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Fazenda Agro Verde - Relatório de Operações</title>
+
+    <!-- Abre as conexões com o Apps Script durante o parse do HTML, e não só na
+         hora do primeiro fetch. O /exec redireciona para googleusercontent.com,
+         por isso os dois hosts. Economiza 2 handshakes TLS na rede móvel. -->
+    <link rel="preconnect" href="https://script.google.com" crossorigin>
+    <link rel="preconnect" href="https://script.googleusercontent.com" crossorigin>
+
+    <link rel="preload" href="logo-fav.webp" as="image" type="image/webp">
     <link rel="stylesheet" href="style.css">
+
     <link rel="manifest" href="manifest.json">
-    <link rel="apple-touch-icon" href="icon-192x192.png">
+    <link rel="icon" href="favicon.ico" sizes="any">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png">
+    <meta name="theme-color" content="#28a745">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+    <script src="script.js" defer></script>
 </head>
 <body>
+    <div id="offlineBanner" class="status-banner offline" hidden>
+        Sem conexão &mdash; os relatórios serão salvos no aparelho e enviados depois.
+    </div>
+    <div id="pendingBanner" class="status-banner pending" hidden>
+        <span id="pendingBannerText"></span>
+        <button type="button" id="syncNowButton">Enviar agora</button>
+    </div>
+
     <header class="app-header">
         <div class="header-content">
-            <div class="logo"></div>
+            <div class="logo" role="img" aria-label="Fazenda Agro Verde"></div>
             <h1>Relatório de Operações</h1>
         </div>
     </header>
 
     <div class="container">
-        <div id="activitySelection" class="activity-buttons">
-            </div>
 
+        <!-- ============ Tela 1: seleção de atividade ============ -->
+        <div id="activitySelection">
+            <div class="mode-switch" role="group" aria-label="Modo de operação">
+                <button type="button" class="mode-button active" data-mode="novo">Nova operação</button>
+                <button type="button" class="mode-button" data-mode="consulta">Consultar / Editar</button>
+            </div>
+            <p id="modeHint" class="mode-hint">Escolha a atividade para registrar um novo relatório.</p>
+            <div id="activityButtons" class="activity-buttons"></div>
+        </div>
+
+        <!-- ============ Tela 2: lista de relatórios já enviados ============ -->
+        <div id="reportListContainer" style="display: none;">
+            <button type="button" id="backFromReportList" class="back-button">← Voltar para Atividades</button>
+            <h3>Relatórios de <span id="reportListTitle"></span></h3>
+            <div id="reportListResults"></div>
+        </div>
+
+        <!-- ============ Tela 3: formulário do relatório ============ -->
         <div id="formContainer" style="display: none;">
-            <button id="backToActivities" class="back-button">← Voltar para Atividades</button>
+            <button type="button" id="backToActivities" class="back-button">← Voltar para Atividades</button>
             <h3><span id="activityTitle"></span></h3>
             <p><strong>Usuário:</strong> <span id="currentUser"></span></p>
+            <div id="editingNotice" class="info-message" hidden></div>
             <hr>
 
-            <label>Selecione a Ordem de Serviço (ID):</label>
-            <div id="osIdRadioContainer" class="radio-group-container vertical">
-                </div>
+            <div id="osSelectionBlock">
+                <label>Selecione a Ordem de Serviço (ID):</label>
+                <div id="osIdRadioContainer" class="radio-group-container vertical"></div>
+            </div>
             <p style="font-size: 1.2em;"><strong>ID da Operação:</strong> <strong id="operationIdDisplay"></strong></p>
 
-            <div id="osDetailsContainer">
-                </div>
+            <div id="osDetailsContainer"></div>
+            <div id="harvestEquipmentSelectionContainer"></div>
+            <div id="preparoAreaReportFields" style="display: none;"></div>
 
-            <div id="harvestEquipmentSelectionContainer">
-                </div>
-            
-            <div id="preparoAreaReportFields" style="display: none;">
-                </div>
             <div id="observacoesRelatorioContainer" style="display: none;">
                 <div class="form-line full-width-label">
                     <label for="observacoesRelatorio">Observações do Relatório:</label>
@@ -48,42 +86,40 @@
             <button type="button" id="submitReportButton" style="display: none;">Enviar Relatório de Operação</button>
         </div>
 
+        <!-- ============ Tela 4: irrigação ============ -->
         <div id="irrigationContainer" style="display: none;">
-            <button id="backToActivitiesFromIrrigation" class="back-button">← Voltar para Atividades</button>
-            
-            <div id="irrigationChoiceContainer">
-                <h3>Irrigação</h3>
-                <div class="activity-buttons">
-                    <button id="newIrrigationButton" class="activity-button orange-button">Nova Operação</button>
-                    <button id="queryIrrigationButton" class="activity-button">Consulta Operação</button>
-                </div>
-            </div>
+            <button type="button" id="backToActivitiesFromIrrigation" class="back-button">← Voltar para Atividades</button>
+
+            <div id="irrigationChoiceContainer"></div>
 
             <div id="irrigationFormContainer" style="display: none;">
-                <button id="backToIrrigationChoice" class="back-button">← Voltar</button>
+                <button type="button" id="backToIrrigationChoice" class="back-button">← Voltar</button>
                 <h3><span id="irrigationTitle"></span></h3>
                 <p><strong>Usuário:</strong> <span id="irrigationCurrentUser"></span></p>
                 <hr>
                 <p style="font-size: 1.2em;"><strong>ID da Operação:</strong> <strong id="irrigationOperationIdDisplay"></strong></p>
-                <form id="irrigationForm">
-                    </form>
+                <form id="irrigationForm"></form>
                 <button type="button" id="submitIrrigationReportButton" style="display: none;">Enviar Relatório de Irrigação</button>
             </div>
         </div>
     </div>
 
     <div id="loadingOverlay" class="overlay">
-        <div class="loading-text">Enviando relatório...</div>
+        <div class="loading-box">
+            <div class="spinner" aria-hidden="true"></div>
+            <div class="loading-text" id="loadingText">Enviando relatório...</div>
+            <div class="loading-hint" id="loadingHint"></div>
+        </div>
     </div>
 
     <div id="successModal" class="overlay">
         <div class="modal-content">
-            <span class="close-button">&times;</span>
-            <h2>Relatório Enviado!</h2>
+            <span class="close-button" role="button" tabindex="0" aria-label="Fechar">&times;</span>
+            <h2 id="successTitle">Relatório Enviado!</h2>
             <p>O que você gostaria de fazer agora?</p>
             <div class="modal-actions">
-                <a id="pdfLink" href="#" target="_blank" class="modal-button pdf">Abrir PDF</a>
-                <a id="folderLink" href="#" target="_blank" class="modal-button folder">Acessar Pasta</a>
+                <a id="pdfLink" href="#" target="_blank" rel="noopener" class="modal-button pdf">Abrir PDF</a>
+                <a id="folderLink" href="#" target="_blank" rel="noopener" class="modal-button folder">Acessar Pasta</a>
             </div>
         </div>
     </div>
@@ -93,12 +129,11 @@
             <h2>Identificação</h2>
             <p>Por favor, digite seu nome para registrar as operações.</p>
             <form id="nameForm">
-                <input type="text" id="nameInput" required placeholder="Digite seu nome aqui..." aria-label="Nome do usuário">
+                <input type="text" id="nameInput" required placeholder="Digite seu nome aqui..." aria-label="Nome do usuário" autocomplete="name">
                 <button type="submit" class="modal-button" style="background-color: #28a745; width: 100%; font-size: 1.1em;">Continuar</button>
             </form>
         </div>
     </div>
 
-    <script src="script.js"></script>
 </body>
 </html>

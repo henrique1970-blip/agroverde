@@ -1,7 +1,7 @@
-/* Importação do CSS base64 da logo */
-@import url('logoFAVbase64.css');
+/* A logo deixou de vir de um @import de 92 KB em base64 (que bloqueava a
+   renderização em cascata: style.css -> logoFAVbase64.css) e passou a ser um
+   arquivo WebP de 20 KB, com PNG de reserva para navegadores antigos. */
 
-/* Definição de Variáveis de Cor para fácil manutenção */
 :root {
     --primary-green: #28a745;
     --primary-orange: #f0ad4e;
@@ -12,6 +12,7 @@
     --label-color: #555;
     --border-color: #dee2e6;
     --font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    --logo-fav: image-set(url('logo-fav.webp') type('image/webp'), url('logo-fav.png') type('image/png'));
 }
 
 /* Estilos Globais */
@@ -63,15 +64,80 @@ hr {
 .app-header .logo {
     width: 150px;
     height: 150px;
+    background-image: url('logo-fav.png');
     background-image: var(--logo-fav);
     background-size: contain;
     background-repeat: no-repeat;
     background-position: center;
     margin-right: 15px;
+    flex-shrink: 0;
 }
 
 .app-header h1 {
     font-size: 1.8em;
+}
+
+/* Avisos de conexão / fila de envio */
+.status-banner {
+    width: 100%;
+    max-width: 600px;
+    box-sizing: border-box;
+    padding: 10px 15px;
+    margin-bottom: 10px;
+    border-radius: 6px;
+    font-weight: bold;
+    font-size: 0.95em;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.status-banner[hidden] { display: none; }
+.status-banner.offline { background-color: #6c757d; color: #fff; }
+.status-banner.pending { background-color: var(--primary-orange); color: #3b2f10; }
+
+.status-banner button {
+    background: rgba(255, 255, 255, 0.85);
+    border: none;
+    border-radius: 4px;
+    padding: 6px 12px;
+    font-weight: bold;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+/* Alternador Nova operação / Consulta */
+.mode-switch {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0;
+    margin-bottom: 12px;
+    border: 2px solid var(--primary-green);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.mode-button {
+    background: none;
+    border: none;
+    padding: 12px 8px;
+    font-size: 1em;
+    font-weight: bold;
+    color: var(--primary-green);
+    cursor: pointer;
+    font-family: inherit;
+}
+
+.mode-button.active {
+    background-color: var(--primary-green);
+    color: #fff;
+}
+
+.mode-hint {
+    margin: 0 0 18px;
+    color: var(--label-color);
+    font-size: 0.95em;
 }
 
 /* Botões */
@@ -81,7 +147,7 @@ hr {
     gap: 15px;
 }
 
-.activity-button, .back-button, #submitReportButton, #submitIrrigationReportButton, #enableIrrigationEdit {
+.activity-button, .back-button, #submitReportButton, #submitIrrigationReportButton {
     background-color: var(--primary-green);
     color: white;
     padding: 15px;
@@ -90,6 +156,7 @@ hr {
     cursor: pointer;
     font-size: 1.1em;
     font-weight: bold;
+    font-family: inherit;
     transition: background-color 0.2s ease, transform 0.2s ease;
     text-decoration: none;
     text-align: center;
@@ -104,8 +171,14 @@ hr {
     background-color: var(--primary-orange);
 }
 
-.activity-button[style*="grid-column"] {
+.activity-button.full-width {
     grid-column: 1 / -1;
+}
+
+.activity-button:disabled {
+    background-color: #cccccc;
+    cursor: not-allowed;
+    transform: none;
 }
 
 .back-button {
@@ -166,9 +239,12 @@ label {
     flex-wrap: wrap;
 }
 
-.form-line.full-width-label {
+.form-line.full-width-label,
+.form-line-column {
+    display: flex;
     flex-direction: column;
     align-items: stretch;
+    margin-bottom: 15px;
 }
 
 .form-line.full-width-label label {
@@ -179,6 +255,52 @@ textarea {
     width: 100%;
     box-sizing: border-box;
 }
+
+/* Mensagens */
+.loading-message, .error-message, .info-message {
+    padding: 10px;
+    border-radius: 5px;
+    margin: 10px 0;
+}
+.loading-message { background: #eef2f5; color: var(--label-color); }
+.error-message { background: #fdecea; color: #922; }
+.info-message { background: #fff4e0; color: #6b4d10; }
+.info-message[hidden] { display: none; }
+
+/* Lista de relatórios enviados (consulta / edição) */
+.report-list { list-style: none; margin: 0; padding: 0; }
+
+.report-list li {
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 12px;
+    margin-bottom: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.report-list .report-info { flex: 1 1 60%; min-width: 0; }
+.report-list .report-info strong { display: block; }
+.report-list .report-meta { font-size: 0.85em; color: var(--label-color); }
+.report-list .report-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+.report-list .report-actions a,
+.report-list .report-actions button {
+    padding: 8px 14px;
+    border: none;
+    border-radius: 5px;
+    font-weight: bold;
+    font-size: 0.9em;
+    font-family: inherit;
+    cursor: pointer;
+    text-decoration: none;
+    color: #fff;
+    background-color: var(--primary-green);
+}
+.report-list .report-actions a.pdf { background-color: var(--primary-red); }
 
 /* Grade de Confirmação de Dados da OS */
 .os-data-grid {
@@ -211,13 +333,33 @@ textarea {
 }
 .os-data-grid .grid-item { font-size: 0.8em; }
 
+.abastecimentos-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+.abastecimentos-table th, .abastecimentos-table td { border: 1px solid var(--border-color); padding: 6px; text-align: center; }
+.abastecimentos-table input { width: 100%; box-sizing: border-box; padding: 6px; }
+
 /* Overlay e Modais */
 .overlay {
     position: fixed; top: 0; left: 0; width: 100%; height: 100%;
     background-color: rgba(0, 0, 0, 0.6); display: none;
     justify-content: center; align-items: center; z-index: 1000;
 }
-.loading-text { color: white; font-size: 1.8em; font-weight: bold; }
+.loading-box { text-align: center; padding: 20px; }
+.loading-text { color: white; font-size: 1.6em; font-weight: bold; }
+.loading-hint { color: #e6e6e6; font-size: 1em; margin-top: 8px; min-height: 1.2em; }
+
+.spinner {
+    width: 48px; height: 48px; margin: 0 auto 18px;
+    border: 5px solid rgba(255, 255, 255, 0.3);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin 0.9s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+    .spinner { animation-duration: 3s; }
+    .activity-button, .back-button, #submitReportButton, #submitIrrigationReportButton { transition: none; }
+}
+
 .modal-content {
     background-color: white; padding: 30px 40px; border-radius: 10px;
     text-align: center; position: relative; max-width: 90%; width: 400px;
@@ -229,7 +371,8 @@ textarea {
 .modal-actions { margin-top: 20px; display: flex; flex-direction: column; gap: 10px; }
 .modal-button {
     padding: 12px 25px; border-radius: 5px; text-decoration: none;
-    color: white; font-weight: bold;
+    color: white; font-weight: bold; border: none; font-size: 1em;
+    font-family: inherit; cursor: pointer;
 }
 .modal-button.pdf { background-color: var(--primary-red); }
 .modal-button.folder { background-color: var(--primary-orange); }
@@ -244,6 +387,7 @@ textarea {
     body {
         padding: 0;
     }
+    .status-banner { border-radius: 0; margin-bottom: 0; }
     .container {
         margin: 0;
         padding: 15px;
@@ -263,7 +407,7 @@ textarea {
     .activity-buttons {
         grid-template-columns: 1fr;
     }
-    
+
     /* A Mágica Acontece Aqui: Reorganizando a Grade de Dados */
     .os-data-grid {
         display: block; /* Remove o layout de grade e empilha os itens */
@@ -279,12 +423,12 @@ textarea {
         align-items: center;
         padding: 12px 5px;
         border-bottom: 1px solid #f0f0f0;
-        flex-wrap: wrap; /* Garante que o conteúdo quebre a linha se necessário */
+        flex-wrap: wrap;
     }
 
     /* Cria um título de seção para cada grupo de dados */
     .os-data-grid .grid-item:nth-child(5n + 1) {
-        display: block; /* Volta a ser um bloco para ocupar a linha toda */
+        display: block;
         background-color: #f2f2f2;
         margin-top: 20px;
         border-radius: 4px;
@@ -297,7 +441,7 @@ textarea {
     .os-data-grid .grid-item:nth-child(3),
     .os-data-grid .grid-item:nth-child(4),
     .os-data-grid .grid-item:nth-child(5) {
-        margin-top: 0; /* Remove a margem extra do primeiro grupo */
+        margin-top: 0;
     }
 
     /* Adiciona os rótulos via CSS para clareza */
@@ -318,17 +462,16 @@ textarea {
     }
     .os-data-grid .grid-item:nth-child(5n + 4) {
         flex-grow: 1;
-        justify-content: flex-end; /* Joga o "Não" para a direita */
+        justify-content: flex-end;
     }
-    
+
     .os-data-grid .grid-item:nth-child(5n + 3),
     .os-data-grid .grid-item:nth-child(5n + 4) {
-        border-bottom: none; /* Remove a borda entre eles para parecer um grupo */
+        border-bottom: none;
         padding-top: 5px;
         padding-bottom: 5px;
     }
 
-    /* Adiciona o texto "Sim" e "Não" */
     .os-data-grid .grid-item:nth-child(5n + 3)::after {
         content: "Sim";
         padding-left: 5px;
@@ -338,9 +481,8 @@ textarea {
         padding-left: 5px;
     }
 
-    /* Garante que o input "Realizado" ocupe o espaço restante */
     .os-data-grid .grid-item:nth-child(5n + 5) {
-        border-bottom: 1px solid var(--border-color); /* Adiciona borda apenas no último item do grupo */
+        border-bottom: 1px solid var(--border-color);
     }
     .os-data-grid .grid-item:nth-child(5n + 5) input[type="text"] {
         flex-grow: 1;
