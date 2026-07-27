@@ -1,11 +1,17 @@
 /*
 * Apps Script da PLANILHA DE RELATÓRIOS DE OPERAÇÕES.
+* Este é o script do Google Apps Script para a PLANILHA DE RELATÓRIOS DE OPERAÇÕES.
 *
 * Responsabilidades:
 *  1. Receber os dados do formulário (doPost) e gravá-los na planilha.
-*  2. Gerar o PDF do relatório a partir do template do Google Docs.
-*  3. Servir as consultas de Irrigação e de Relatórios de Operação (doGet).
-*  4. ATUALIZAR um relatório já enviado (edição), regerando o PDF.
+*  2. Gravar esses dados na planilha '1b8LMyDTfkqIfl0bftvQNdpGRg0O1PRvNjrOV0LkEtf8'.
+*  3. Criar abas dinamicamente, se necessário.
+*  4. Gerar o PDF do relatório a partir do template do Google Docs, para as operações.
+*  5. Salvar os PDFs na pasta '1YeUqLtTnClJJ834KkqcO4Yy1_0SlzGAI'.
+*  6. Servir as consultas de Irrigação e de Relatórios de Operação (doGet).
+*  7. ATUALIZAR um relatório já enviado (edição), regerando o PDF.
+*  8. Fornecer dados para a funcionalidade "Consulta Operação" de Irrigação (via doGet).
+*
 *
 * ---------------------------------------------------------------------------
 * GERAÇÃO DE PDF — o que mudou
@@ -194,7 +200,9 @@ function abrirAbaRelatorio(activity, criarSeNaoExistir) {
     if (!criarSeNaoExistir) return null;
     sheet = ss.insertSheet(activity);
     if (headersConfig.length > 0) sheet.appendRow(headersConfig);
-  } else if (sheet.getLastRow() === 0 && headersConfig.length > 0) {
+  } else if (criarSeNaoExistir && sheet.getLastRow() === 0 && headersConfig.length > 0) {
+    // Só o doPost escreve. Antes uma simples consulta podia gravar cabeçalhos
+    // numa aba vazia — efeito colateral indesejado num caminho de leitura.
     sheet.appendRow(headersConfig);
   }
   return sheet;

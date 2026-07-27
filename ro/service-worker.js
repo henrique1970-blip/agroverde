@@ -42,7 +42,11 @@ const PRECACHE_URLS = [
     'icon-512x512.png'
 ];
 
-const REPORT_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbznEdqNDvPH34VOE6EQ510BUkk3s5NtZyN8KRMKaCns--qerlsupNlUaQdil1tPdK5R/exec';
+// Endereço de reserva. O normal é cada relatório da fila trazer o seu próprio
+// (campo __endpoint, gravado pelo script.js no momento em que foi enfileirado),
+// para que a URL do Apps Script exista num lugar só — o script.js. Este valor
+// só entra em cena para registros enfileirados por versões anteriores.
+const REPORT_APPS_SCRIPT_URL_FALLBACK = 'https://script.google.com/macros/s/AKfycbznEdqNDvPH34VOE6EQ510BUkk3s5NtZyN8KRMKaCns--qerlsupNlUaQdil1tPdK5R/exec';
 
 const DB_NAME = 'reportAgroDB';
 const DB_VERSION = 2;
@@ -182,9 +186,9 @@ async function enviarPendentes() {
 
     let enviados = 0;
     for (const item of pendentes) {
-        const { id, savedAt, ...reportData } = item;
+        const { id, savedAt, __endpoint, ...reportData } = item;
         try {
-            const resposta = await fetch(REPORT_APPS_SCRIPT_URL, {
+            const resposta = await fetch(__endpoint || REPORT_APPS_SCRIPT_URL_FALLBACK, {
                 method: 'POST',
                 mode: 'cors',
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },

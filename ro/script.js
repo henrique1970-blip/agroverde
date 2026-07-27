@@ -1019,7 +1019,10 @@ function showSuccessModal(pdfUrl, folderUrl, editando) {
 
 async function saveReportOffline(reportData) {
     try {
-        await idbAdd(STORE_PENDING, { ...reportData, savedAt: Date.now() });
+        // O endereço de envio vai junto do registro. Assim o service worker não
+        // precisa de uma cópia da URL: se o Apps Script for reimplantado num
+        // endereço novo, basta trocar aqui em cima, num lugar só.
+        await idbAdd(STORE_PENDING, { ...reportData, __endpoint: reportAppsScriptUrl, savedAt: Date.now() });
         await atualizarBannerPendentes();
         alert('Relatório salvo no aparelho. Ele será enviado automaticamente quando houver conexão.');
         showActivitySelection();
@@ -1054,7 +1057,7 @@ async function flushPendingReports(manual) {
     let enviados = 0;
     let falhou = false;
     for (const item of pendentes) {
-        const { id, savedAt, ...reportData } = item;
+        const { id, savedAt, __endpoint, ...reportData } = item;
         try {
             const result = await postReport(reportData);
             if (result.success) {
