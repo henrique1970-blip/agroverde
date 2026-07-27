@@ -14,8 +14,14 @@
  *  - O app de Relatório de Operações (/ro/) é ignorado por este worker.
  * ========================================================================= */
 
+// O Cache Storage é compartilhado por ORIGEM, não por escopo: este worker e o
+// do app de Relatório de Operações (/ro/) enxergam os mesmos caches. Por isso a
+// limpeza de versões antigas filtra pelo prefixo — apagar "tudo que não é meu"
+// derrubaria o cache do outro app, que então só voltaria a abrir offline depois
+// de ser aberto uma vez com sinal.
+const CACHE_PREFIX = 'agro-os-';
 const CACHE_VERSION = 'v6';
-const CACHE_NAME = `agro-os-${CACHE_VERSION}`;
+const CACHE_NAME = `${CACHE_PREFIX}${CACHE_VERSION}`;
 
 const PRECACHE_URLS = [
     './',
@@ -56,7 +62,9 @@ self.addEventListener('activate', event => {
             await self.registration.navigationPreload.enable();
         }
         const names = await caches.keys();
-        await Promise.all(names.map(name => (name !== CACHE_NAME ? caches.delete(name) : null)));
+        await Promise.all(names.map(name =>
+            (name.indexOf(CACHE_PREFIX) === 0 && name !== CACHE_NAME) ? caches.delete(name) : null
+        ));
         await self.clients.claim();
     })());
 });
