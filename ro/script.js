@@ -1673,9 +1673,14 @@ function registrarServiceWorker() {
         if (event.data && event.data.type === 'PENDING_SYNCED') atualizarBannerPendentes();
     });
 
+    // Recarrega quando um service worker NOVO assume — é assim que a versão
+    // atualizada entra sem o operador precisar fazer nada. Na primeira
+    // instalação não há controlador anterior; recarregar aí seria um piscar
+    // de tela sem motivo, já que a página aberta é a versão nova.
+    const jaTinhaControlador = !!navigator.serviceWorker.controller;
     let recarregando = false;
     navigator.serviceWorker.addEventListener('controllerchange', () => {
-        if (recarregando) return;
+        if (!jaTinhaControlador || recarregando) return;
         recarregando = true;
         window.location.reload();
     });
