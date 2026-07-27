@@ -262,6 +262,154 @@ async function fetchWithCache(key, url, onData) {
 
 
 /* =========================================================================
+ * 2b. Pré-carregamento das Ordens de Serviço para uso offline
+ *
+ * O cache só guardava o que o operador já tinha aberto com sinal. Quem chegava
+ * ao talhão sem ter entrado antes numa atividade encontrava a lista vazia —
+ * e o detalhe de cada OS só existia se aquela OS específica tivesse sido
+ * aberta. Aqui as OS passam a ser baixadas por inteiro, antes de precisar.
+ * ========================================================================= */
+
+/**
+ * Uma chamada resolve os dois casos. Se o Apps Script de Ordem de Serviço
+ * souber responder `&detalhes=1` (ver OTIMIZACOES.md), devolve todas as OS
+ * completas de uma vez; senão devolve a lista de IDs de sempre, e os detalhes
+ * são buscados um a um. Distinguimos pelo formato da resposta.
+ */
+function respostaEhLote(dados) {
+    return Array.isArray(dados) && dados.length > 0 && typeof dados[0] === 'object';
+}
+
+async function buscarListaOs(activityKey, onData) {
+    const chaveLista = `osIds:${activityKey}`;
+    const cached = await readCache(chaveLista);
+    if (cached) onData(cached.data, 'cache');
+
+    try {
+        const bruto = await apiFetch(`${osAppsScriptUrl}?activity=${encodeURIComponent(activityKey)}&detalhes=1`);
+        let ids;
+
+        if (respostaEhLote(bruto)) {
+            ids = bruto.map(d => d['ID da OS']).filter(Boolean);
+            for (const detalhe of bruto) {
+                await writeCache(`osDetails:${activityKey}:${detalhe['ID da OS']}`, detalhe);
+            }
+        } else {
+            ids = Array.isArray(bruto) ? bruto : [];
+        }
+
+        await writeCache(chaveLista, ids);
+        if (!cached || JSON.stringify(ids) !== JSON.stringify(cached.data)) onData(ids, 'rede');
+        return ids;
+
+    } catch (error) {
+        if (cached) {
+            onData(cached.data, 'cache-stale', Math.round((Date.now() - cached.savedAt) / 60000));
+            return cached.data;
+        }
+        throw error;
+    }
+}
+
+/** Baixa os detalhes que ainda faltam, dois de cada vez para não afogar o
+ *  Apps Script nem a conexão do celular. */
+async function baixarDetalhesFaltantes(activityKey, ids, onProgresso) {
+    const faltando = [];
+    for (const id of ids) {
+        if (!(await readCache(`osDetails:${activityKey}:${id}`))) faltando.push(id);
+    }
+    if (!faltando.length) return 0;
+
+    const fila = faltando.slice();
+    let concluidos = 0;
+
+    const trabalhador = async () => {
+        while (fila.length) {
+            if (!navigator.onLine) return;
+            const id = fila.shift();
+            try {
+                const detalhe = await apiFetch(
+                    `${osAppsScriptUrl}?activity=${encodeURIComponent(activityKey)}&osId=${encodeURIComponent(id)}`);
+                await writeCache(`osDetails:${activityKey}:${id}`, detalhe);
+            } catch (e) {
+                // Uma OS que falhe não pode interromper as outras.
+            }
+            concluidos++;
+            if (onProgresso) onProgresso(concluidos, faltando.length);
+        }
+    };
+
+    await Promise.all([trabalhador(), trabalhador()]);
+    return concluidos;
+}
+
+let preparandoOffline = false;
+
+async function prepararUsoOffline() {
+    if (preparandoOffline) return;
+
+    const botao = document.getElementById('prepararOfflineButton');
+    const status = document.getElementById('offlinePrepStatus');
+
+    if (!navigator.onLine) {
+        status.className = 'erro';
+        status.textContent = 'Sem conexão. Conecte-se para baixar as Ordens de Serviço.';
+        return;
+    }
+
+    preparandoOffline = true;
+    botao.disabled = true;
+    status.className = '';
+
+    const chaves = Object.keys(ACTIVITIES).filter(k => k !== 'Irrigacao');
+    let totalOs = 0;
+
+    try {
+        for (let i = 0; i < chaves.length; i++) {
+            const chave = chaves[i];
+            status.textContent = `Baixando ${ACTIVITIES[chave]} (${i + 1}/${chaves.length})...`;
+
+            let ids = [];
+            try {
+                ids = await buscarListaOs(chave, lista => { ids = lista; }) || [];
+            } catch (e) {
+                continue;   // atividade indisponível: segue para a próxima
+            }
+
+            await baixarDetalhesFaltantes(chave, ids, (feitos, total) => {
+                status.textContent = `${ACTIVITIES[chave]}: ${feitos}/${total} Ordens de Serviço...`;
+            });
+            totalOs += ids.length;
+        }
+
+        status.className = 'pronto';
+        status.textContent = `Pronto: ${totalOs} Ordens de Serviço disponíveis sem internet.`;
+        localStorage.setItem('offlinePreparadoEm', String(Date.now()));
+
+    } catch (error) {
+        status.className = 'erro';
+        status.textContent = `Não foi possível concluir: ${error.message}`;
+    } finally {
+        preparandoOffline = false;
+        botao.disabled = false;
+    }
+}
+
+function mostrarEstadoOffline() {
+    const status = document.getElementById('offlinePrepStatus');
+    if (!status || preparandoOffline) return;
+    const quando = parseInt(localStorage.getItem('offlinePreparadoEm') || '0', 10);
+    if (!quando) {
+        status.className = '';
+        status.textContent = 'Baixe antes de ir para o campo para trabalhar sem sinal.';
+        return;
+    }
+    status.className = 'pronto';
+    status.textContent = `Ordens de Serviço baixadas em ${formatClientDateTime(new Date(quando).toISOString())}.`;
+}
+
+
+/* =========================================================================
  * 3. Referências de DOM
  * ========================================================================= */
 
@@ -398,11 +546,13 @@ async function renderOsSelectionForm(activityKey) {
     submitReportButton.style.display = 'none';
 
     try {
-        await fetchWithCache(
-            `osIds:${activityKey}`,
-            `${osAppsScriptUrl}?activity=${encodeURIComponent(activityKey)}`,
-            (osIds, origin, idadeMin) => renderOsIdList(osIds, origin, idadeMin)
-        );
+        const ids = await buscarListaOs(activityKey, renderOsIdList);
+
+        // Com sinal, aproveita para completar o que falta desta atividade em
+        // segundo plano: quem abrir a mesma tela no talhão já encontra tudo.
+        if (navigator.onLine && Array.isArray(ids) && ids.length) {
+            baixarDetalhesFaltantes(activityKey, ids).catch(() => {});
+        }
     } catch (error) {
         osIdRadioContainer.innerHTML = `<p class="error-message">Erro ao carregar OS: ${escapeHtml(error.message)}${
             navigator.onLine ? '' : '<br>Você está sem conexão e esta atividade ainda não foi aberta neste aparelho.'
@@ -561,7 +711,10 @@ async function fetchAndDisplayOsData(osId) {
             }
         );
     } catch (error) {
-        osDetailsContainer.innerHTML = `<p class="error-message">Erro ao buscar detalhes: ${escapeHtml(error.message)}</p>`;
+        const semCache = !navigator.onLine;
+        osDetailsContainer.innerHTML = `<p class="error-message">Erro ao buscar detalhes: ${escapeHtml(error.message)}` +
+            (semCache ? '<br>Esta OS ainda não foi baixada neste aparelho. Com sinal, use "Baixar Ordens de Serviço para uso offline".' : '') +
+            `</p>`;
     }
 }
 
@@ -1540,6 +1693,7 @@ function initializeApp() {
     setMode('novo');
     showActivitySelection();
     atualizarBannerConexao();
+    mostrarEstadoOffline();
     flushPendingReports(false);
 }
 
@@ -1578,6 +1732,7 @@ document.addEventListener('DOMContentLoaded', () => {
     submitReportButton.addEventListener('click', submitReport);
     submitIrrigationReportButton.addEventListener('click', submitReport);
     syncNowButton.addEventListener('click', () => flushPendingReports(true));
+    document.getElementById('prepararOfflineButton').addEventListener('click', prepararUsoOffline);
 
     formContainerDiv.addEventListener('click', event => {
         if (event.target && event.target.id === 'addAbastecimentoFields') {

@@ -164,6 +164,58 @@ await Promise.all(names.map(name =>
 
 Não apliquei porque esse arquivo está na raiz, fora da pasta `ro`.
 
+### Baixar as OS antes de ir para o campo
+
+O cache guardava apenas o que o operador já tinha aberto **com sinal**. Quem
+chegava ao talhão sem ter entrado antes numa atividade encontrava a lista
+vazia — e o detalhe de cada OS só existia se aquela OS específica tivesse sido
+aberta uma a uma. Era o que fazia a lista de caminhões da Colheita não
+aparecer offline: ela é montada a partir dos campos "Caminhão 1/2" da OS.
+
+Agora há um botão **"Baixar Ordens de Serviço para uso offline"** na tela
+inicial. Ele percorre as seis atividades, guarda a lista e o detalhe completo
+de cada OS, e mostra o progresso. Depois disso o aplicativo funciona inteiro
+sem sinal: escolher atividade, escolher OS, conferir os dados, preencher e
+enfileirar o envio.
+
+Além do botão, ao abrir uma atividade **com** sinal o aplicativo completa em
+segundo plano o que faltar daquela atividade.
+
+#### Opcional: uma ação em lote no Apps Script de Ordem de Serviço
+
+Hoje o preparo custa uma requisição por OS. O `doGet` daquele script já lê a
+planilha inteira a cada consulta de detalhe, então devolver tudo de uma vez sai
+pelo mesmo preço. Medido no teste automatizado, com 9 OS:
+
+| | requisições |
+|---|---|
+| como está hoje | 15 |
+| com a ação em lote | **6** |
+
+O cliente já sabe usar as duas formas — ele pede `&detalhes=1` e reconhece pelo
+formato da resposta qual backend está do outro lado. Se você quiser instalar,
+basta acrescentar isto no `doGet` do `appsScript.js` da **raiz**, logo antes do
+trecho que devolve a lista de IDs:
+
+```javascript
+if (params.detalhes) {
+  const valores = sheet.getDataRange().getValues();
+  const cabecalhos = valores.shift();
+  const colId = headerIndex(cabecalhos, ID_HEADER);
+  return createJsonResponse(
+    valores
+      .filter(linha => String(linha[colId]).trim() !== '')
+      .map(linha => {
+        const os = {};
+        cabecalhos.forEach((h, i) => { os[h] = linha[i]; });
+        return os;
+      })
+  );
+}
+```
+
+Sem isso nada quebra — só ficam as 15 requisições em vez de 6.
+
 ## 4. Edição de Relatório de Operações
 
 Na tela inicial há agora um seletor **Nova operação / Consultar · Editar**. No
@@ -194,6 +246,22 @@ relatório sem poder confirmar que a linha ainda existe. O app avisa em vez de
 salvar em silêncio.
 
 ---
+
+## 5. Alinhamento do "Sim/Não" no celular em pé
+
+Na grade de confirmação, com a tela na vertical, o botão "Sim" não ficava
+alinhado com o "Não": o "Sim" aparecia com o rótulo "Confirmado:" à esquerda e
+o rádio no meio da linha, e o "Não" caía numa segunda linha, deslocado.
+
+A causa era o layout: no celular a grade virava `display: block`, e aí cada
+célula passava a ocupar a largura inteira. A regra `flex-grow: 1` que tentava
+juntar os dois não tinha efeito nenhum, porque não havia um contêiner flex.
+
+Agora a grade continua sendo `grid` no celular, com duas colunas: o "Sim"
+ocupa a primeira e o "Não" a segunda, na mesma linha. Os dois rádios também
+ganharam alvo de toque maior (22 px), que no campo, de luva, faz diferença.
+
+Em paisagem nada muda — aquele layout já estava correto.
 
 ## Testes
 

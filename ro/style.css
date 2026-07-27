@@ -140,6 +140,42 @@ hr {
     font-size: 0.95em;
 }
 
+/* Preparação para uso offline */
+.offline-prep {
+    margin-top: 22px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border-color);
+}
+
+.offline-prep button {
+    width: 100%;
+    padding: 13px;
+    border: 2px solid var(--primary-green);
+    background: none;
+    color: var(--primary-green);
+    border-radius: 8px;
+    font-size: 1em;
+    font-weight: bold;
+    font-family: inherit;
+    cursor: pointer;
+}
+
+.offline-prep button:disabled {
+    border-color: #ccc;
+    color: #999;
+    cursor: progress;
+}
+
+.offline-prep p {
+    margin: 8px 0 0;
+    font-size: 0.9em;
+    color: var(--label-color);
+    min-height: 1.2em;
+}
+
+.offline-prep p.pronto { color: var(--primary-green); font-weight: bold; }
+.offline-prep p.erro { color: var(--primary-red); }
+
 /* Botões */
 .activity-buttons {
     display: grid;
@@ -408,25 +444,37 @@ textarea {
         grid-template-columns: 1fr;
     }
 
-    /* A Mágica Acontece Aqui: Reorganizando a Grade de Dados */
+    /* Grade de dados empilhada: cada campo vira um bloco.
+       O layout continua sendo GRID (antes virava "block"), com duas colunas —
+       é o que permite pôr "Sim" e "Não" lado a lado, na mesma linha e com os
+       botões alinhados. Como block, cada um ocupava a largura toda e o "Não"
+       caía numa segunda linha, deslocado do "Sim". */
     .os-data-grid {
-        display: block; /* Remove o layout de grade e empilha os itens */
+        /* minmax(0, 1fr) e não 1fr: sem o piso zero, a coluna cresce até caber
+           o maior conteúdo (o campo "Realizado") e a grade estoura a largura
+           da tela, forçando rolagem horizontal. */
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        gap: 0;
     }
 
     .os-data-grid .grid-header {
-        display: none; /* Esconde os cabeçalhos que não fazem mais sentido */
+        display: none; /* os cabeçalhos não fazem sentido empilhados */
     }
 
     .os-data-grid .grid-item {
+        grid-column: 1 / -1;          /* por padrão, linha inteira */
         display: flex;
-        justify-content: space-between;
         align-items: center;
+        justify-content: space-between;
+        gap: 10px;
         padding: 12px 5px;
         border-bottom: 1px solid #f0f0f0;
         flex-wrap: wrap;
+        min-width: 0;                 /* deixa o conteúdo encolher */
+        overflow-wrap: anywhere;      /* quebra valores longos sem rolagem */
     }
 
-    /* Cria um título de seção para cada grupo de dados */
+    /* 1 de 5 — nome do campo, como título da seção */
     .os-data-grid .grid-item:nth-child(5n + 1) {
         display: block;
         background-color: #f2f2f2;
@@ -436,56 +484,58 @@ textarea {
         border-bottom: none;
         text-align: center;
     }
-    .os-data-grid .grid-item:first-child,
-    .os-data-grid .grid-item:nth-child(2),
-    .os-data-grid .grid-item:nth-child(3),
-    .os-data-grid .grid-item:nth-child(4),
-    .os-data-grid .grid-item:nth-child(5) {
-        margin-top: 0;
+    .os-data-grid .grid-item:nth-child(6) {
+        margin-top: 0;                /* o primeiro grupo começa colado */
     }
 
-    /* Adiciona os rótulos via CSS para clareza */
-    .os-data-grid .grid-item:nth-child(5n + 2)::before,
-    .os-data-grid .grid-item:nth-child(5n + 3)::before,
-    .os-data-grid .grid-item:nth-child(5n + 5)::before {
+    /* 2 de 5 — valor que veio da OS */
+    .os-data-grid .grid-item:nth-child(5n + 2)::before {
+        content: attr(data-label) ":";
         font-weight: bold;
         color: var(--label-color);
         margin-right: 10px;
     }
-    .os-data-grid .grid-item:nth-child(5n + 2)::before { content: "Dados da OS:"; }
-    .os-data-grid .grid-item:nth-child(5n + 3)::before { content: "Confirmado:"; }
-    .os-data-grid .grid-item:nth-child(5n + 5)::before { content: "Realizado:"; }
 
-    /* Agrupamento dos botões Sim/Não */
-    .os-data-grid .grid-item:nth-child(5n + 3) {
-        flex-grow: 1;
-    }
-    .os-data-grid .grid-item:nth-child(5n + 4) {
-        flex-grow: 1;
-        justify-content: flex-end;
-    }
-
+    /* 3 e 4 de 5 — "Sim" e "Não" dividem a mesma linha, uma coluna cada */
     .os-data-grid .grid-item:nth-child(5n + 3),
     .os-data-grid .grid-item:nth-child(5n + 4) {
+        justify-content: flex-start;
+        gap: 8px;
+        padding: 10px 5px;
         border-bottom: none;
-        padding-top: 5px;
-        padding-bottom: 5px;
+        text-align: left;
     }
+    .os-data-grid .grid-item:nth-child(5n + 3) { grid-column: 1; }
+    .os-data-grid .grid-item:nth-child(5n + 4) { grid-column: 2; }
 
-    .os-data-grid .grid-item:nth-child(5n + 3)::after {
-        content: "Sim";
-        padding-left: 5px;
-    }
+    .os-data-grid .grid-item:nth-child(5n + 3)::after,
     .os-data-grid .grid-item:nth-child(5n + 4)::after {
-        content: "Não";
-        padding-left: 5px;
+        content: attr(data-label);
+        font-weight: bold;
+        color: var(--label-color);
     }
 
+    /* Alvo de toque maior: no campo, com luva, o padrão é pequeno demais */
+    .os-data-grid .grid-item input[type="radio"] {
+        width: 22px;
+        height: 22px;
+        margin: 0;
+        flex-shrink: 0;
+    }
+
+    /* 5 de 5 — o que foi realizado */
     .os-data-grid .grid-item:nth-child(5n + 5) {
         border-bottom: 1px solid var(--border-color);
     }
+    .os-data-grid .grid-item:nth-child(5n + 5)::before {
+        content: "Realizado:";
+        font-weight: bold;
+        color: var(--label-color);
+        white-space: nowrap;
+    }
     .os-data-grid .grid-item:nth-child(5n + 5) input[type="text"] {
-        flex-grow: 1;
+        flex: 1 1 auto;
+        min-width: 0;
         text-align: right;
     }
 }
