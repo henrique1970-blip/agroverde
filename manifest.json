@@ -2,20 +2,27 @@
   "name": "Ordem de Serviço Agro",
   "short_name": "OSAgro",
   "description": "Aplicativo para registro de ordens de serviço agrícolas.",
-  "start_url": "/index.html",
+  "id": "./",
+  "start_url": "./index.html",
+  "scope": "./",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#007bff",
+  "orientation": "portrait",
+  "lang": "pt-BR",
+  "dir": "ltr",
+  "background_color": "#EFEFEF",
+  "theme_color": "#28a745",
   "icons": [
     {
       "src": "icon-192x192.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
     },
     {
       "src": "icon-512x512.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
     }
   ]
 }

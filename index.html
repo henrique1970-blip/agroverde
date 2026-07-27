@@ -2,33 +2,46 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#28a745">
     <title>Fazenda Agro Verde - Ordem de Serviço</title>
+
+    <!-- Abre a conexão com o Google antes do primeiro envio: economiza DNS+TLS na hora de gerar o PDF -->
+    <link rel="preconnect" href="https://script.google.com" crossorigin>
+    <link rel="preconnect" href="https://script.googleusercontent.com" crossorigin>
+    <link rel="dns-prefetch" href="https://drive.google.com">
+
     <link rel="stylesheet" href="style.css">
     <link rel="manifest" href="manifest.json">
-    <script>
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/service-worker.js')
-                    .then(registration => console.log('Service Worker registrado com sucesso:', registration))
-                    .catch(error => console.log('Falha ao registrar o Service Worker:', error));
-            });
-        }
-    </script>
+    <link rel="icon" href="icon-192x192.png">
+    <link rel="apple-touch-icon" href="icon-192x192.png">
 </head>
 <body>
     <header class="app-header">
-        <div class="logo"></div>
+        <img class="logo" src="logo-fav.png" width="732" height="390" alt="Fazenda Agro Verde" fetchpriority="high">
         <h1>Ordem de Serviço</h1>
     </header>
 
     <div class="container">
-        <p id="connectionStatus" class="status-message"></p>
+        <div class="status-bar">
+            <p id="connectionStatus" class="status-message"></p>
+            <button id="pendingBadge" class="pending-badge" style="display: none;" type="button"></button>
+        </div>
 
-        <button id="backToActivities" class="back-button" style="display: none;">← Voltar para Atividades</button>
+        <button id="backButton" class="back-button" style="display: none;" type="button">← Voltar</button>
 
         <div id="activitySelection" class="activity-buttons">
             </div>
+
+        <div id="editScreen" class="edit-screen" style="display: none;">
+            <h2>Editar Ordem de Serviço</h2>
+            <input type="search" id="osSearch" class="os-search" placeholder="Buscar por ID, local ou atividade" autocomplete="off">
+            <div class="edit-actions">
+                <button id="refreshOsList" class="secondary-button" type="button">↻ Atualizar lista</button>
+            </div>
+            <p id="editHint" class="edit-hint"></p>
+            <div id="osList" class="os-list"></div>
+        </div>
 
         <div id="formContainer" class="form-container">
             </div>
@@ -39,6 +52,8 @@
             </div>
     </div>
 
-    <script src="script.js"></script>
+    <div id="toastArea" class="toast-area"></div>
+
+    <script src="script.js" defer></script>
 </body>
 </html>

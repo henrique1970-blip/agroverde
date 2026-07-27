@@ -5,28 +5,26 @@
 16:27 22/08/2025
 Estes são os arquivos da primeira parte do aplicativo web da Fazenda Agro Verde, chamada "Ordem de Serviço". Preciso das seguintes atualizações:
 1. nome dos locais
-- Quando o nome do local selecionado for "Fazenda Agro Verde", usar "agroverde" como a parte do nome na geração do ID da OS. Quando o local for "Canto Verde", usar "cantoverde" como a parte do nome na geração do ID da OS.
+- Quando o nome do local selecionado for "Fazenda Agro Verde", usar "Agro Verde" como a parte do nome na geração do ID da OS. Quando o local for "Canto Verde", usar "canto verde" como a parte do nome na geração do ID da OS.
 - Quando o nome for qualquer outro que não os dois acima, usar o último nome como parte do nome na geração do ID da OS. Não considere os parênteses do último nome, caso haja algum.
 
 2. Valores numéricos
-- Em todas as etapas valores numéricos, com decimais separados por "ponto", este "ponto" deverá ser substituído por "vírgula" e devem ser sempre formatados como numéricos antes de serem gravados na planilha e no PDF.
+- Em todas as etapas valores numéricos, com decimais separados por "ponto", este "ponto" deverá ser substituído por "vírgula" e esses valores devem ser sempre formatados como valores numéricos antes de serem gravados na planilha e no PDF.
 
 
 
-16:42 22/08/2025
+12:35 25/07/2026
+Atendido o otimizar.md (carregamento/PDF, offline e edição de OS). Detalhes em LEIA-ME_otimizacao.md.
+Alterados: index.html, script.js, service-worker.js, style.css, manifest.json, appsScript.js.
+Novos: logo-fav.png, offline.html, LEIA-ME_otimizacao.md.
 
-Estes são os arquivos da primeira parte do aplicativo web da Fazenda Agro Verde, chamada "Ordem de Serviço". 
-Explique como o ID da ordem de serviço é gerado.
+Causa raiz do offline nunca ter funcionado de verdade: o registro do service worker apontava para
+'/service-worker.js' (raiz do domínio), mas o app fica em /agroverde/ - dava 404 e o worker jamais
+era instalado. Agora todos os caminhos são relativos.
 
+O appsScript.js desta pasta estava desatualizado (versão sem geração de PDF). O arquivo foi
+reescrito a partir da versão que corresponde ao que está implantado
+(relatorio_atividades/2 - 26jul2025/appsScript.js, confirmada contra a resposta real do /exec).
+PRECISA ser colado na planilha e reimplantado como nova versão, senão a edição de OS não funciona.
 
-07:39 23/08/2025
-
-REVISÃO DE GERAÇÃO DE ID RESOLVIDA E CONCLUIDA
-
-Agora parte dos decimais.
-
-Substituir "ponto" por "vírgula"
-1.5 ---> 1,5 
-
-Feito - funcionando 100%
-
+Pendente (do item 2 acima, não faz parte deste pedido): troca de ponto por vírgula nos decimais.

@@ -1,120 +1,203 @@
-const CACHE_NAME = 'agro-os-cache-v5'; // Aumentamos a versão do cache para forçar a atualização
-const urlsToCache = [
-    '/', // Garante que a raiz do site seja cacheada
-    '/index.html',
-    '/style.css',
-    '/script.js',
-    '/manifest.json',
-    '/icon-192x192.png',
-    '/icon-512x512.png',
-    '/logoFAVbase64.css' // Confirma que o CSS da logo está na lista
+/* =========================================================================
+ * Service Worker — Ordem de Serviço (Fazenda Agro Verde)
+ *
+ * Pontos importantes desta versão:
+ *  - Todos os caminhos são RELATIVOS ao escopo. O app é publicado em
+ *    https://henrique1970-blip.github.io/agroverde/ e a lista antiga
+ *    ('/index.html', '/style.css', …) apontava para a raiz do domínio,
+ *    fazendo o install falhar por completo.
+ *  - HTML: rede primeiro (com queda para o cache) → atualização chega sozinha.
+ *    Demais arquivos: cache primeiro + revalidação em segundo plano.
+ *  - A sincronização em segundo plano é feita AQUI, lendo o outbox do
+ *    IndexedDB. Antes ela só avisava as abas abertas — com o app fechado,
+ *    nada era enviado.
+ *  - O app de Relatório de Operações (/ro/) é ignorado por este worker.
+ * ========================================================================= */
+
+const CACHE_VERSION = 'v6';
+const CACHE_NAME = `agro-os-${CACHE_VERSION}`;
+
+const PRECACHE_URLS = [
+    './',
+    'index.html',
+    'offline.html',
+    'style.css',
+    'script.js',
+    'manifest.json',
+    'logo-fav.png',
+    'icon-192x192.png',
+    'icon-512x512.png'
 ];
 
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyS8G4Yar6Bjx5clsorCNrb_tWOelWbXBdEm97Alj9kWgQGCDUw04zRQW9pH9TT3OHozA/exec';
 
+const DB_NAME = 'osAgroDB';
+const DB_VERSION = 2;
+const STORE_OUTBOX = 'outbox';
+const SYNC_TAG = 'sync-os-data';
 
-// ********* as linhas a seguir foram incluidas manualmente, além das geradas por IA
-// URL do seu Apps Script (precisa ser o mesmo do script.js)
-const appsScriptUrl = 'https://script.google.com/macros/s/AKfycbyS8G4Yar6Bjx5clsorCNrb_tWOelWbXBdEm97Alj9kWgQGCDUw04zRQW9pH9TT3OHozA/exec'; // <-- COLOQUE SEU URL AQUI!
-
-const DB_NAME = 'osAgroDB'; // Nome do DB igual ao script.js
-const STORE_NAME = 'pendingOSData'; // Nome da store igual ao script.js
-
-// Termino de inclusão de linhas além das geradas por IA *****************
-
-
+// --- Instalação / ativação ------------------------------------------------
 self.addEventListener('install', event => {
-    console.log('Service Worker: Evento de instalação iniciado.');
-    event.waitUntil(
-        caches.open(CACHE_NAME)
-            .then(cache => {
-                console.log('Service Worker: Cache aberto. Adicionando shell do aplicativo.');
-                return cache.addAll(urlsToCache);
-            })
-            .catch(error => {
-                console.error('Service Worker: Falha ao cachear durante a instalação:', error);
-            })
-    );
-});
-
-self.addEventListener('fetch', event => {
-    // Ignora requisições que não sejam HTTP/HTTPS (ex: chrome-extension://)
-    if (!event.request.url.startsWith('http')) {
-        return;
-    }
-
-    event.respondWith(
-        caches.match(event.request)
-            .then(response => {
-                // Se a requisição está no cache, retorna a resposta do cache (Cache First)
-                if (response) {
-                    console.log('Service Worker: Servindo do cache:', event.request.url);
-                    return response;
-                }
-
-                // Se não está no cache, tenta buscar da rede (Network Fallback)
-                console.log('Service Worker: Buscando da rede:', event.request.url);
-                return fetch(event.request).then(
-                    networkResponse => {
-                        // Verifica se a resposta da rede é válida para cachear
-                        if(!networkResponse || networkResponse.status !== 200 || networkResponse.type !== 'basic') {
-                            return networkResponse; // Não cacheia respostas inválidas
-                        }
-
-                        // Clona a resposta para que ela possa ser consumida tanto pelo navegador quanto pelo cache
-                        const responseToCache = networkResponse.clone();
-
-                        caches.open(CACHE_NAME)
-                            .then(cache => {
-                                cache.put(event.request, responseToCache);
-                            });
-
-                        return networkResponse;
-                    }
-                ).catch(error => {
-                    // Esta parte é acionada se a busca na rede falhar (provavelmente offline)
-                    console.error('Service Worker: Falha na busca e não encontrado no cache:', event.request.url, error);
-                    // Para requisições de navegação (como recarregar a página), você pode retornar uma página offline customizada
-                    if (event.request.mode === 'navigate') {
-                        // Se você tiver uma página offline.html, pode retorná-la aqui
-                        // return caches.match('/offline.html');
-                        console.log('Service Worker: Requisição de navegação falhou e offline. Nenhuma página offline customizada servida.');
-                    }
-                    // Se não for uma requisição de navegação ou não houver fallback, re-lança o erro.
-                    throw error; 
-                });
-            })
-    );
+    event.waitUntil((async () => {
+        const cache = await caches.open(CACHE_NAME);
+        // addAll() falha inteiro se um único arquivo faltar; aqui cada item é
+        // independente, então uma falha isolada não derruba a instalação.
+        await Promise.all(PRECACHE_URLS.map(url =>
+            cache.add(new Request(url, { cache: 'reload' })).catch(err =>
+                console.warn('SW: não foi possível pré-cachear', url, err))
+        ));
+        self.skipWaiting();
+    })());
 });
 
 self.addEventListener('activate', event => {
-    console.log('Service Worker: Evento de ativação iniciado.');
-    event.waitUntil(
-        caches.keys().then(cacheNames => {
-            return Promise.all(
-                cacheNames.map(cacheName => {
-                    if (cacheName !== CACHE_NAME) { // Deleta caches antigos que não correspondem à versão atual
-                        console.log('Service Worker: Deletando cache antigo:', cacheName);
-                        return caches.delete(cacheName);
-                    }
-                })
-            );
-        })
-    );
+    event.waitUntil((async () => {
+        if (self.registration.navigationPreload) {
+            await self.registration.navigationPreload.enable();
+        }
+        const names = await caches.keys();
+        await Promise.all(names.map(name => (name !== CACHE_NAME ? caches.delete(name) : null)));
+        await self.clients.claim();
+    })());
 });
 
-// Listener para o evento 'sync' (sincronização em segundo plano)
-self.addEventListener('sync', event => {
-    if (event.tag === 'sync-os-data') { // Verifica a tag registrada em script.js
-        console.log('Service Worker: Evento de sincronização em segundo plano acionado para:', event.tag);
-        event.waitUntil(self.clients.matchAll().then(clients => {
-            // Encontra todos os clientes (abas) abertos da aplicação
-            clients.forEach(client => {
-                console.log('Service Worker: Enviando mensagem para o cliente iniciar a sincronização.');
-                // Envia uma mensagem para o cliente (script.js)
-                client.postMessage({ type: 'SYNC_PENDING_DATA' });
-            });
-        }).catch(error => {
-            console.error('Service Worker: Erro em clients.matchAll no evento sync:', error);
-        }));
-    }
+self.addEventListener('message', event => {
+    if (event.data && event.data.type === 'SKIP_WAITING') self.skipWaiting();
 });
+
+// --- Estratégias de cache -------------------------------------------------
+function isUnderScope(url) {
+    const scope = new URL(self.registration.scope);
+    return url.origin === scope.origin
+        && url.pathname.startsWith(scope.pathname)
+        && !url.pathname.startsWith(`${scope.pathname}ro/`); // outro app, outro dono
+}
+
+self.addEventListener('fetch', event => {
+    const request = event.request;
+    if (request.method !== 'GET') return;                 // envios ao Apps Script passam direto
+
+    const url = new URL(request.url);
+    if (!url.protocol.startsWith('http')) return;
+    if (!isUnderScope(url)) return;                       // Drive, Apps Script, /ro/ → rede
+
+    if (request.mode === 'navigate') {
+        event.respondWith(handleNavigation(event));
+        return;
+    }
+
+    event.respondWith(staleWhileRevalidate(request));
+});
+
+async function handleNavigation(event) {
+    const cache = await caches.open(CACHE_NAME);
+    try {
+        const preloaded = await event.preloadResponse;
+        const response = preloaded || await fetch(event.request);
+        if (response && response.ok) cache.put(event.request, response.clone());
+        return response;
+    } catch (error) {
+        return (await cache.match(event.request))
+            || (await cache.match('index.html'))
+            || (await cache.match('offline.html'))
+            || new Response('Aplicativo indisponível offline.', {
+                status: 503,
+                headers: { 'Content-Type': 'text/plain; charset=utf-8' }
+            });
+    }
+}
+
+async function staleWhileRevalidate(request) {
+    const cache = await caches.open(CACHE_NAME);
+    const cached = await cache.match(request);
+
+    const network = fetch(request).then(response => {
+        if (response && response.status === 200 && response.type === 'basic') {
+            cache.put(request, response.clone());
+        }
+        return response;
+    }).catch(() => null);
+
+    return cached || (await network) || new Response('', { status: 504 });
+}
+
+// --- Sincronização em segundo plano ---------------------------------------
+self.addEventListener('sync', event => {
+    if (event.tag === SYNC_TAG) event.waitUntil(syncOutbox());
+});
+
+self.addEventListener('periodicsync', event => {
+    if (event.tag === SYNC_TAG) event.waitUntil(syncOutbox());
+});
+
+function openDb() {
+    return new Promise((resolve, reject) => {
+        const request = indexedDB.open(DB_NAME, DB_VERSION);
+        // Se o worker abrir o banco antes da página (sync logo após a instalação),
+        // ele precisa criar as mesmas stores — senão a versão subiria sem elas e
+        // a página nunca receberia o onupgradeneeded.
+        request.onupgradeneeded = e => {
+            const database = e.target.result;
+            if (!database.objectStoreNames.contains(STORE_OUTBOX)) {
+                database.createObjectStore(STORE_OUTBOX, { keyPath: 'osId' });
+            }
+            if (!database.objectStoreNames.contains('osCache')) {
+                database.createObjectStore('osCache', { keyPath: 'osId' })
+                    .createIndex('updatedAt', 'updatedAt');
+            }
+        };
+        request.onsuccess = e => resolve(e.target.result);
+        request.onerror = e => reject(e.target.error);
+        request.onblocked = () => reject(new Error('IndexedDB bloqueado'));
+    });
+}
+
+function txRequest(database, mode, fn) {
+    return new Promise((resolve, reject) => {
+        const tx = database.transaction([STORE_OUTBOX], mode);
+        const req = fn(tx.objectStore(STORE_OUTBOX));
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = e => reject(e.target.error);
+    });
+}
+
+async function syncOutbox() {
+    let database;
+    try {
+        database = await openDb();
+        if (!database.objectStoreNames.contains(STORE_OUTBOX)) return;
+    } catch (e) {
+        return;
+    }
+
+    let items = [];
+    try {
+        items = await txRequest(database, 'readonly', store => store.getAll());
+    } catch (e) {
+        return;
+    }
+    if (!items.length) return;
+
+    let enviadas = 0;
+    for (const item of items) {
+        try {
+            const response = await fetch(APPS_SCRIPT_URL, {
+                method: 'POST',
+                body: new URLSearchParams(item.data)
+            });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const result = await response.json();
+            if (!result.success) throw new Error(result.message || 'Falha no servidor');
+
+            await txRequest(database, 'readwrite', store => store.delete(item.osId));
+            enviadas++;
+        } catch (e) {
+            // Rede ainda instável: mantém na fila e deixa o navegador reagendar
+            // este evento de sync.
+            throw e;
+        }
+    }
+
+    const clients = await self.clients.matchAll({ includeUncontrolled: true });
+    clients.forEach(client => client.postMessage({ type: 'SYNC_DONE', count: enviadas }));
+}
