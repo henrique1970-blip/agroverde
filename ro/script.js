@@ -9,6 +9,15 @@
  *    envios pendentes é reprocessada sozinha e as OS ficam disponíveis para
  *    preencher relatórios sem sinal;
  *  - edição: relatórios já enviados podem ser consultados e corrigidos.
+ *
+ * Out/2026 (acompanha a atualização do app de Ordem de Serviço):
+ *  - as colunas de controle que a planilha de OS ganhou (PDF ID, PDF URL,
+ *    Atualizado em) não aparecem mais como itens a confirmar;
+ *  - "Dose/tanque" da Pulverização agora é a lista por produto (texto);
+ *  - cada relatório novo leva um ID gerado no aparelho: reenvio da fila não
+ *    duplica linha na planilha, e página e service worker não enviam o mesmo
+ *    relatório ao mesmo tempo;
+ *  - com sinal, as OS são rebaixadas sozinhas para o uso offline a cada 12 h.
  * ========================================================================= */
 
 // ATENÇÃO: URL do App da Web da planilha de "Ordem de Serviço"
@@ -93,6 +102,14 @@ const ACTIVITIES = {
 };
 
 const SIMPLE_ACTIVITIES = ["PreparodeArea", "Plantio", "Pulverizacao", "Lancas"];
+
+// Colunas que não são dados da OS: identificação e controle da planilha de OS.
+// "PDF ID", "PDF URL" e "Atualizado em" chegaram com a edição de OS (jul/2026)
+// e apareciam na grade como se fossem itens a confirmar.
+const OS_NON_DATA_COLUMNS = ["Timestamp", "Nome do Usuário", "ID da OS", "PDF ID", "PDF URL", "Atualizado em"];
+
+// Mesmo nome no service worker: só um dos dois envia a fila por vez.
+const PENDING_LOCK = 'agro-relop-pending';
 
 
 /* =========================================================================
@@ -395,6 +412,15 @@ async function prepararUsoOffline() {
     }
 }
 
+/** Com sinal e dados com mais de 12 h, rebaixa as OS em segundo plano, para
+ *  quem esquecer de tocar no botão antes de ir para o campo. */
+function atualizarOfflineSeVencido() {
+    if (!navigator.onLine || preparandoOffline) return;
+    const quando = parseInt(localStorage.getItem('offlinePreparadoEm') || '0', 10);
+    if (quando && Date.now() - quando < OS_CACHE_TTL_MS) return;
+    prepararUsoOffline().catch(() => {});
+}
+
 function mostrarEstadoOffline() {
     const status = document.getElementById('offlinePrepStatus');
     if (!status || preparandoOffline) return;
@@ -610,13 +636,15 @@ function formatClientNumber(numInput) {
     return num.toFixed(1).replace('.', ',');
 }
 
+// "Dose/tanque" saiu da lista: desde out/2026 é a lista por produto
+// ("Roundup: 90 l; Óleo: 15 l"), não um número.
 const NUMERIC_OS_KEYS = ["Área Total (ha)", "Capacidade do tanque", "Vazão (L/ha)", "Pressão",
-                         "Dose/ha", "Dose/tanque", "Vazão", "Pressao", "Vazao (L/ha)"];
+                         "Dose/ha", "Vazão", "Pressao", "Vazao (L/ha)"];
 
 /** Monta a grade "Confirme os dados da Operação". Usada tanto no fluxo novo
  *  quanto na edição, para que as duas telas nunca divirjam. */
 function renderOsDataGrid(osDetails) {
-    const fieldsToExclude = ["Timestamp", "Nome do Usuário", "ID da OS"];
+    const fieldsToExclude = OS_NON_DATA_COLUMNS;
     let tableHtml = `<div class="os-data-container"><h4>Confirme os dados da Operação:</h4>` +
         `<div class="os-data-grid">` +
         `<div class="grid-header">Item</div><div class="grid-header">Dados da OS</div>` +
@@ -990,6 +1018,10 @@ function coletarDadosRelatorio() {
         reportData.reportId = editingReport.reportId || '';
         reportData.rowIndex = editingReport.rowIndex || '';
         reportData.originalTimestamp = editingReport.timestamp || '';
+    } else if (selectedActivityKey !== 'Irrigacao') {
+        // ID decidido no aparelho: se o envio chegar ao servidor mas a resposta
+        // se perder, o reenvio da fila é reconhecido e não duplica a linha.
+        reportData.reportId = novoIdRelatorio();
     }
 
     if (selectedActivityKey === 'Irrigacao') {
@@ -1015,7 +1047,7 @@ function coletarDadosRelatorio() {
 
     reportData.osId = currentOsDetails['ID da OS'];
     for (const key in currentOsDetails) {
-        if (["Timestamp", "Nome do Usuário", "ID da OS"].includes(key)) continue;
+        if (OS_NON_DATA_COLUMNS.includes(key)) continue;
         const cleanKey = keyMap[key] || key.replace(/[^a-zA-Z0-9]/g, '');
         const realizadoInput = document.getElementById(`realizado_${cleanKey}`);
 
@@ -1072,6 +1104,13 @@ function coletarDadosRelatorio() {
     }
 
     return reportData;
+}
+
+function novoIdRelatorio() {
+    const bytes = new Uint8Array(4);
+    if (window.crypto && window.crypto.getRandomValues) window.crypto.getRandomValues(bytes);
+    else bytes.forEach((_, i) => { bytes[i] = Math.floor(Math.random() * 256); });
+    return 'REL-' + Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('').toUpperCase();
 }
 
 function postReport(reportData) {
@@ -1194,9 +1233,25 @@ async function saveReportOffline(reportData) {
 
 let sincronizando = false;
 
+/** Página e service worker leem a mesma fila; a trava evita o envio em dobro. */
+function comTravaDaFila(fn) {
+    if (navigator.locks && typeof navigator.locks.request === 'function') {
+        return navigator.locks.request(PENDING_LOCK, fn);
+    }
+    return fn();
+}
+
 async function flushPendingReports(manual) {
     if (sincronizando || !navigator.onLine) return;
+    sincronizando = true;
+    try {
+        await comTravaDaFila(() => enviarFilaPendente(manual));
+    } finally {
+        sincronizando = false;
+    }
+}
 
+async function enviarFilaPendente(manual) {
     let pendentes;
     try { pendentes = await idbGetAll(STORE_PENDING); } catch (e) { return; }
     if (!pendentes.length) {
@@ -1204,12 +1259,14 @@ async function flushPendingReports(manual) {
         return;
     }
 
-    sincronizando = true;
     if (manual) showLoading(`Enviando ${pendentes.length} relatório(s) pendente(s)...`);
 
     let enviados = 0;
     let falhou = false;
-    for (const item of pendentes) {
+    for (const snapshot of pendentes) {
+        // O service worker pode ter enviado este enquanto a página esperava a trava.
+        const item = await idbGet(STORE_PENDING, snapshot.id);
+        if (!item) continue;
         const { id, savedAt, __endpoint, ...reportData } = item;
         try {
             const result = await postReport(reportData);
@@ -1225,7 +1282,6 @@ async function flushPendingReports(manual) {
         }
     }
 
-    sincronizando = false;
     if (manual) hideLoading();
     await atualizarBannerPendentes();
 
@@ -1700,6 +1756,8 @@ function initializeApp() {
     atualizarBannerConexao();
     mostrarEstadoOffline();
     flushPendingReports(false);
+    // Espera a tela assentar: o primeiro toque do operador tem prioridade na rede.
+    setTimeout(atualizarOfflineSeVencido, 4000);
 }
 
 function getOrSetUserName() {

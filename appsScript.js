@@ -23,6 +23,18 @@
  *   • Consulta: `?action=list` e `?action=get` para a tela de edição do app.
  *     O contrato antigo (`?activity=` e `?activity=&osId=`), usado pelo app de
  *     Relatório de Operações, continua valendo exatamente como era.
+ *
+ * Out/2026:
+ *   • Pulverização: dose por tanque calculada POR PRODUTO
+ *       área por tanque (ha) = capacidade do tanque ÷ vazão (L/ha)
+ *       dose por tanque      = dosagem (/ha) × área por tanque
+ *     Vai como 3ª coluna da tabela "Produtos Utilizados" do PDF e sai da linha
+ *     "Dose/tanque" abaixo da tabela. Se o template ainda não tiver a coluna,
+ *     ela é criada na cópia de cada PDF; para deixar o template definitivo,
+ *     rode uma vez a função atualizarTemplatePulverizacao() no editor.
+ *     A coluna "Dose/tanque" da planilha passa a guardar a lista por produto.
+ *   • `?activity=X&detalhes=1` devolve todas as OS da aba de uma vez (o app de
+ *     Relatório de Operações usa para baixar tudo para o uso offline).
  * ========================================================================= */
 
 // --- CONFIGURAÇÕES --------------------------------------------------------
@@ -94,6 +106,13 @@ const PRODUCT_HEADERS = [
 
 const DATE_FIELDS = ["dataInicio", "dataTermino"];
 
+// Atividades que têm tanque (capacidade + vazão) e, portanto, dose por tanque.
+const ATIVIDADES_COM_TANQUE = ["Pulverizacao"];
+const PH_NOME_PRODUTO = "{{Nome Produto}}";
+const PH_DOSE_PRODUTO = "{{Dose Produto}}";
+const PH_DOSE_TANQUE_PRODUTO = "{{Dose Tanque Produto}}";
+const TITULO_COLUNA_DOSE_TANQUE = "Dose/tanque";
+
 // --- AUXILIARES -----------------------------------------------------------
 function createJsonResponse(obj) {
   return ContentService.createTextOutput(JSON.stringify(obj))
@@ -162,6 +181,62 @@ function findRowByOsId(sheet, headers, osId) {
   return -1;
 }
 
+/** Primeiro número do texto, aceitando vírgula decimal ("0,5 l/ha" → 0.5). */
+function parseDecimal(value) {
+  if (typeof value === 'number') return isFinite(value) ? value : NaN;
+  const match = String(value == null ? '' : value).match(/-?\d+(?:[.,]\d+)*/);
+  if (!match) return NaN;
+  let text = match[0];
+  text = (text.indexOf('.') !== -1 && text.indexOf(',') !== -1)
+    ? text.replace(/\./g, '').replace(',', '.')
+    : text.replace(',', '.');
+  return parseFloat(text);
+}
+
+/** 90 → "90"; 4.5 → "4,5"; 1/3 → "0,33". */
+function formatDecimal(num) {
+  if (!isFinite(num)) return '';
+  const arredondado = Math.round(num * 100) / 100;
+  return String(arredondado).replace('.', ',');
+}
+
+function areaPorTanque(capacidade, vazao) {
+  const cap = parseDecimal(capacidade);
+  const vaz = parseDecimal(vazao);
+  return (cap > 0 && vaz > 0) ? cap / vaz : NaN;
+}
+
+/** "3 l /ha" com 30 ha/tanque → "90 l". Vazio se a dosagem não for por ha. */
+function doseTanqueTexto(dosagem, area) {
+  const dose = parseDecimal(dosagem);
+  if (!isFinite(dose) || !(area > 0)) return '';
+  const unidade = String(dosagem)
+    .replace(/-?\d+(?:[.,]\d+)*/, '')
+    .replace(/\s*\/\s*ha\b\.?/i, '')
+    .trim();
+  if (unidade.indexOf('/') !== -1) return '';
+  return formatDecimal(dose * area) + (unidade ? ' ' + unidade : '');
+}
+
+/**
+ * Preenche data.areaPorTanque, data['dose_tanque_produto_N'] e
+ * data.doseTanqueConcatenado. O servidor recalcula sempre (é ele quem grava):
+ * OS que estavam na fila do celular antes desta versão chegam sem esses campos.
+ */
+function calcularDosesTanque(data, numProducts) {
+  const area = areaPorTanque(data.capacidadeTanque, data.vazaoLHa);
+  data.areaPorTanque = area > 0 ? formatDecimal(area) : '';
+  let texto = '';
+  for (let i = 1; i <= numProducts; i++) {
+    const nome = data['nome_produto_' + i] || data['product_name_' + i];
+    const dose = data['dose_produto_' + i] || data['product_dosage_' + i];
+    const porTanque = doseTanqueTexto(dose, area);
+    data['dose_tanque_produto_' + i] = porTanque;
+    if (nome && String(nome).trim() !== '') texto += `${nome}: ${porTanque || 'N/A'}; `;
+  }
+  data.doseTanqueConcatenado = texto.trim();
+}
+
 function concatenarProdutos(data, numProducts) {
   let texto = '';
   for (let i = 1; i <= numProducts; i++) {
@@ -194,6 +269,7 @@ function doPost(e) {
     const numProducts = parseInt(data.numProducts || '0', 10) || 0;
     const numTrucks = (activity === "Colheita") ? (parseInt(data.numTrucks || '0', 10) || 0) : 0;
     data.produtosConcatenados = concatenarProdutos(data, numProducts);
+    if (ATIVIDADES_COM_TANQUE.indexOf(activity) !== -1) calcularDosesTanque(data, numProducts);
 
     // --- planilha (com trava: leitura + escrita da mesma linha) ---
     const lock = LockService.getScriptLock();
@@ -339,7 +415,7 @@ function montarDataMap(data, activity, timestampOriginal, agora, numTrucks) {
     "vazao (l/ha)": data.vazaoLHa,
     "pressao": data.pressao,
     "dose/ha": data.doseHa,
-    "dose/tanque": data.doseTanque,
+    "dose/tanque": ATIVIDADES_COM_TANQUE.indexOf(activity) !== -1 ? data.doseTanqueConcatenado : data.doseTanque,
     "produtividade estimada": data.produtividadeEstimada,
     "colhedeira": data.maquina,
     "operador(es) colhedeira": data.operadoresMaquina,
@@ -378,15 +454,22 @@ function gerarPdf(opcoes) {
     let doc = DocumentApp.openById(docId);
     let body = doc.getBody();
 
+    const temTanque = ATIVIDADES_COM_TANQUE.indexOf(opcoes.activity) !== -1;
+    if (temTanque) prepararTemplateDoseTanque(body);
+
     // As linhas de produtos/caminhões precisam ser duplicadas na tabela antes
     // de qualquer substituição em lote.
-    expandirTabela(body, "{{Nome Produto}}", "{{Dose Produto}}", opcoes.numProducts, i => [
+    const placeholdersProduto = temTanque
+      ? [PH_NOME_PRODUTO, PH_DOSE_PRODUTO, PH_DOSE_TANQUE_PRODUTO]
+      : [PH_NOME_PRODUTO, PH_DOSE_PRODUTO];
+    expandirTabela(body, placeholdersProduto, opcoes.numProducts, i => [
       data['nome_produto_' + i] || data['product_name_' + i] || '',
-      data['dose_produto_' + i] || data['product_dosage_' + i] || ''
+      data['dose_produto_' + i] || data['product_dosage_' + i] || '',
+      data['dose_tanque_produto_' + i] || ''
     ]);
 
     if (opcoes.activity === "Colheita") {
-      expandirTabela(body, "{{Caminhao_ID}}", "{{Motorista_ID}}", opcoes.numTrucks, i => [
+      expandirTabela(body, ["{{Caminhao_ID}}", "{{Motorista_ID}}"], opcoes.numTrucks, i => [
         data['identificacao_caminhao_' + i] || data['truck_id_' + i] || '',
         data['motorista_caminhao_' + i] || data['truck_driver_' + i] || ''
       ]);
@@ -456,7 +539,8 @@ function montarPlaceholders(data, timestampEmissao) {
     '{{VAZAO_L_HA}}': data.vazaoLHa,
     '{{PRESSAO}}': data.pressao,
     '{{DOSE_HA}}': data.doseHa,
-    '{{DOSE_TANQUE}}': data.doseTanque,
+    '{{DOSE_TANQUE}}': data.doseTanqueConcatenado || data.doseTanque,
+    '{{AREA_POR_TANQUE}}': data.areaPorTanque,
     '{{PMS}}': data.pms,
     '{{PLANTAS_METRO}}': data.plantasPorMetro,
     '{{QTD_HA_MAX}}': data.qtdHaMax,
@@ -465,51 +549,131 @@ function montarPlaceholders(data, timestampEmissao) {
   };
 }
 
+/** findText()/replaceText() do DocumentApp recebem regex: escapa as chaves. */
+function escaparRegex(texto) {
+  return String(texto).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/** Sobe a partir de um elemento até a TABLE_ROW que o contém (ou null). */
+function linhaDaTabela(elemento) {
+  let atual = elemento;
+  while (atual && atual.getType() !== DocumentApp.ElementType.TABLE_ROW) {
+    if (atual.getType() === DocumentApp.ElementType.BODY_SECTION) return null;
+    atual = atual.getParent();
+  }
+  return atual;
+}
+
 /**
- * Duplica a linha-modelo de uma tabela (uma por item) e preenche os dois
- * placeholders da linha. Se não houver itens, remove a linha-modelo.
+ * Duplica a linha-modelo de uma tabela (uma por item) e preenche os
+ * placeholders da linha, na ordem de `placeholders`. Se não houver itens,
+ * remove a linha-modelo.
  */
-function expandirTabela(body, placeholderA, placeholderB, quantidade, valoresPorIndice) {
-  const encontrado = body.findText(placeholderA);
+function expandirTabela(body, placeholders, quantidade, valoresPorIndice) {
+  const encontrado = body.findText(escaparRegex(placeholders[0]));
   if (!encontrado) return;
 
+  const linhaModelo = linhaDaTabela(encontrado.getElement());
   if (quantidade <= 0) {
     try {
-      const linha = encontrado.getElement().getParent().getParent();
-      if (linha.getType() === DocumentApp.ElementType.TABLE_ROW) linha.removeFromParent();
+      if (linhaModelo) linhaModelo.removeFromParent();
     } catch (err) {
-      Logger.log("Não foi possível remover a linha-modelo de " + placeholderA + ": " + err);
+      Logger.log("Não foi possível remover a linha-modelo de " + placeholders[0] + ": " + err);
     }
     return;
   }
 
   try {
-    let elemento = encontrado.getElement();
-    while (elemento.getParent().getType() !== DocumentApp.ElementType.TABLE_ROW) {
-      elemento = elemento.getParent();
-      if (elemento.getParent().getType() === DocumentApp.ElementType.BODY_SECTION) {
-        throw new Error("O placeholder " + placeholderA + " não está dentro de uma tabela.");
-      }
-    }
-    const linhaModelo = elemento.getParent();
+    if (!linhaModelo) throw new Error("O placeholder " + placeholders[0] + " não está dentro de uma tabela.");
     const tabela = linhaModelo.getParent();
-    if (tabela.getType() !== DocumentApp.ElementType.TABLE) {
-      throw new Error("A linha de " + placeholderA + " não está em uma tabela válida.");
-    }
-
     const indiceModelo = tabela.getChildIndex(linhaModelo);
     for (let i = 1; i <= quantidade; i++) {
       const valores = valoresPorIndice(i);
       const novaLinha = tabela.insertTableRow(indiceModelo + i, linhaModelo.copy());
-      novaLinha.replaceText(placeholderA, valores[0]);
-      novaLinha.replaceText(placeholderB, valores[1]);
+      placeholders.forEach((ph, k) =>
+        novaLinha.replaceText(escaparRegex(ph), String(valores[k] == null ? '' : valores[k])));
     }
     tabela.removeRow(indiceModelo);
   } catch (err) {
-    Logger.log("Erro ao expandir tabela de " + placeholderA + ": " + err);
-    body.replaceText(placeholderA, "");
-    body.replaceText(placeholderB, "");
+    Logger.log("Erro ao expandir tabela de " + placeholders[0] + ": " + err);
+    placeholders.forEach(ph => body.replaceText(escaparRegex(ph), ""));
   }
+}
+
+/**
+ * Garante a coluna "Dose/tanque" na tabela de produtos e tira a linha
+ * "Dose/tanque: {{DOSE_TANQUE}}" de baixo da tabela. Não faz nada se o
+ * template já estiver no formato novo, por isso pode rodar a cada PDF.
+ * Devolve true se alterou alguma coisa.
+ */
+function prepararTemplateDoseTanque(body) {
+  let alterou = false;
+
+  if (!body.findText(escaparRegex(PH_DOSE_TANQUE_PRODUTO))) {
+    const achado = body.findText(escaparRegex(PH_DOSE_PRODUTO));
+    const linhaModelo = achado ? linhaDaTabela(achado.getElement()) : null;
+    if (linhaModelo) {
+      const tabela = linhaModelo.getParent();
+      const indiceModelo = tabela.getChildIndex(linhaModelo);
+      const colunas = linhaModelo.getNumCells();
+      const larguras = [];
+      for (let c = 0; c < colunas; c++) larguras.push(tabela.getColumnWidth(c));
+
+      // Cada linha ganha uma cópia da sua última célula (mantém fonte, fundo e
+      // borda); só o texto da cópia muda.
+      for (let r = 0; r < tabela.getNumRows(); r++) {
+        const linha = tabela.getRow(r);
+        const nova = linha.appendTableCell(linha.getCell(linha.getNumCells() - 1).copy());
+        const texto = r === indiceModelo ? PH_DOSE_TANQUE_PRODUTO
+          : (r === 0 ? TITULO_COLUNA_DOSE_TANQUE : '');
+        trocarTextoDaCelula(nova, texto);
+      }
+
+      // Se o template fixa larguras, redistribui para a tabela não passar da margem.
+      if (colunas === 2 && larguras.every(w => w)) {
+        const total = larguras[0] + larguras[1];
+        tabela.setColumnWidth(0, total * 0.5);
+        tabela.setColumnWidth(1, total * 0.25);
+        tabela.setColumnWidth(2, total * 0.25);
+      }
+      alterou = true;
+    }
+  }
+
+  const linhaAntiga = '\\s*Dose/tanque:\\s*\\{\\{DOSE_TANQUE\\}\\}';
+  if (body.findText(linhaAntiga)) {
+    body.replaceText(linhaAntiga, '');
+    alterou = true;
+  }
+  return alterou;
+}
+
+/** Troca o texto da célula mantendo a formatação do primeiro trecho. */
+function trocarTextoDaCelula(celula, texto) {
+  while (celula.getNumChildren() > 1) celula.removeChild(celula.getChild(celula.getNumChildren() - 1));
+  const paragrafo = celula.getChild(0);
+  const trecho = (paragrafo.getType() === DocumentApp.ElementType.PARAGRAPH && paragrafo.getNumChildren())
+    ? paragrafo.getChild(0) : null;
+  if (trecho && trecho.getType() === DocumentApp.ElementType.TEXT) {
+    while (paragrafo.getNumChildren() > 1) paragrafo.removeChild(paragrafo.getChild(paragrafo.getNumChildren() - 1));
+    trecho.asText().setText(texto || ' ');
+  } else {
+    celula.setText(texto);
+  }
+}
+
+/**
+ * RODAR UMA VEZ, à mão, no editor do Apps Script (escolher a função na lista
+ * e clicar em Executar). Aplica no template de Pulverização a mesma mudança
+ * que hoje é feita em cada cópia: 3ª coluna "Dose/tanque" na tabela de
+ * produtos e remoção da linha "Dose/tanque" abaixo dela. Depois disso o PDF
+ * sai um pouco mais rápido e o visual da coluna pode ser ajustado no Docs.
+ */
+function atualizarTemplatePulverizacao() {
+  const doc = DocumentApp.openById(TEMPLATE_IDS["Pulverizacao"]);
+  const alterou = prepararTemplateDoseTanque(doc.getBody());
+  doc.saveAndClose();
+  Logger.log(alterou ? "Template de Pulverização atualizado." : "O template já estava no formato novo.");
 }
 
 // =========================================================================
@@ -550,6 +714,19 @@ function doGet(e) {
     const headers = readHeaders(sheet);
     const idColumn = headerIndex(headers, ID_HEADER);
     if (idColumn === -1) throw new Error("Coluna 'ID da OS' não encontrada.");
+    // Lote: todas as OS completas numa resposta só. O app de Relatório de
+    // Operações reconhece o formato e evita uma requisição por OS.
+    if (params.detalhes) {
+      const valores = sheet.getRange(2, 1, lastRow - 1, headers.length).getValues();
+      return createJsonResponse(valores
+        .filter(linha => String(linha[idColumn]).trim() !== '')
+        .map(linha => {
+          const os = {};
+          headers.forEach((h, i) => { os[h] = linha[i]; });
+          return os;
+        }));
+    }
+
     const ids = sheet.getRange(2, idColumn + 1, lastRow - 1, 1).getValues().flat().filter(String);
     return createJsonResponse(ids);
 

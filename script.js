@@ -11,6 +11,10 @@
  *  3. Edição               — tela "Editar OS", que carrega a OS da planilha
  *                            (ou do cache local, se offline), reabre o
  *                            formulário preenchido e regrava/regera o PDF.
+ *  4. Out/2026             — dose por tanque calculada por produto
+ *                            (Pulverização); tela de revisão antes do envio;
+ *                            página e Service Worker não enviam mais a mesma
+ *                            OS ao mesmo tempo (gerava PDF em dobro).
  * ========================================================================= */
 
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyS8G4Yar6Bjx5clsorCNrb_tWOelWbXBdEm97Alj9kWgQGCDUw04zRQW9pH9TT3OHozA/exec';
@@ -26,6 +30,8 @@ const SYNC_TAG = 'sync-os-data';
 const POST_TIMEOUT_MS = 90000;  // geração do PDF no Apps Script costuma levar 10-30 s
 const GET_TIMEOUT_MS = 25000;
 const MAX_PRODUCTS = 20;
+// Mesmo nome no Service Worker: os dois disputam a fila por esta trava.
+const OUTBOX_LOCK = 'agro-os-outbox';
 
 let db = null;
 let userName = '';
@@ -38,7 +44,7 @@ let flushDelay = 15000;
 // --- DADOS E CONFIGURAÇÕES ---
 const ACTIVITIES = {"PreparodeArea":"Preparo de Área","TratamentodeSementes":"Tratamento de Sementes","Plantio":"Plantio","Pulverizacao":"Pulverização","Colheita":"Colheita","Lancas":"Lanças"};
 const LOCATIONS_AND_FIELDS = {"AgroVerde":{"P33":32.5,"P15":14.85,"P60":60.57,"P80":80.95,"Hendrik Jan":11.96,"Baaie":18.68, "SOBRAS P33, P15, P60":41.01,"TH 5 SOBRAS PIVO 80":30.04},"Sador":{"Área 20/21":143.86,"Área 22":88.64,"Área 23":56.42,"Área 24":34.96,"Área 25":45.34,"Área 26/27":50.83,"Área 28":14.85,"Área 29":26.1, "Área 18":29.5},"Wieke":{"Barracão":21.04,"P45":50.06,"P17":19.88,"Sobra P45":6.94},"CantoVerde":{"Canto Verde":145.95},"João Paulista":{"Área 31/32/33":224.63,"Área 30":81.18},"Sergio":{"Sergio 46/47":121.44},"Chaparral":{"Fazenda Naturalícia (Chaparral)":282.11},"Cachoeirinha":{"Fazenda Cachoeirinha":290.95},"Kakay":{"P100":102.77,"P103":104.41,"P135":142.42,"P180":213.77,"Sobra 61":44.93,"Sobra 62":51.89,"Sobra 63":21.6,"Sobra 64":59.09,"Sobra 65":11.21,"Área 68":137.00,"Área 69":17.00},"Guimarães":{"Área 54":38.72,"Área 55":76.11},"Maribondo":{"Maribondo":199.92,"M104_1":44.28,"M104_2":20.79},"Fazenda Marcio":{"Área 80":68.1,"Área 81":80.36,"Área 81B":53.34,"Área 82":96.75,"Área 83":57.92,"Área 84":29.91,"Área 85/87":242.97,"Área 86A":188.03,"Área 86B":68.22,"Área 88":56.58,"Área 88B":24.18,"Área 89":66.33,"Área 90":68.3,"Área 91":13.97},"Custódio":{"Custódio 100":61.13,"Custódio 101":53.4}, "Vanderleia": {" V-110": 191.26,"V-111": 55.67,"V-113": 157.43,"V-114": 111.41,"V-115": 137.79,"V-116": 116.49,"V-Nilo": 117.36,"V-milho1": 15.22,"V-milho2": 4.10}};
-const FORM_FIELDS = {"PreparodeArea":[{label:"Data de Início",name:"dataInicio",type:"date"},{label:"Data de Término",name:"dataTermino",type:"date"},{label:"Trator - identificação",name:"trator",type:"text"},{label:"Operador(es)",name:"operadores",type:"text"},{label:"Implemento - Identificação",name:"implemento",type:"text"},{label:"Observação",name:"observacao",type:"textarea"}],"TratamentodeSementes":[{label:"Cultura e Cultivar",name:"culturaCultivar",type:"text"},{label:"Quantidade de Sementes (Kg)",name:"qtdSementesKg",type:"number"},{label:"Data de Início",name:"dataInicio",type:"date"},{label:"Data de Término",name:"dataTermino",type:"date"},{label:"Número de Produtos",name:"numProducts",type:"number",min:0,max:MAX_PRODUCTS},{label:"Produtos e Dosagens",name:"productsContainer",type:"div"},{label:"Máquina - Identificação",name:"maquina",type:"text"},{label:"Operadores",name:"operadores",type:"text"},{label:"Observação",name:"observacao",type:"textarea"}],"Plantio":[{label:"Cultura e Cultivar",name:"culturaCultivar",type:"text"},{label:"Quantidade/ha - Máximo",name:"qtdHaMax",type:"number"},{label:"Quantidade/ha - Mínimo",name:"qtdHaMin",type:"number"},{label:"Número de Insumos",name:"numProducts",type:"number",min:0,max:MAX_PRODUCTS},{label:"Insumos (a serem usados e quantidades)",name:"productsContainer",type:"div"},{label:"Data de Início",name:"dataInicio",type:"date"},{label:"Data de Término",name:"dataTermino",type:"date"},{label:"Trator - identificação",name:"trator",type:"text"},{label:"Implemento",name:"implemento",type:"text"},{label:"Plantas por metro",name:"plantasPorMetro",type:"number"},{label:"Espaçamento entre plantas",name:"espacamentoPlantas",type:"number"},{label:"Peso de mil sementes (PMS)",name:"pms",type:"number"},{label:"Operador(es)",name:"operadores",type:"text"},{label:"Observação",name:"observacao",type:"textarea"}],"Pulverizacao":[{label:"Cultura e Cultivar",name:"culturaCultivar",type:"text"},{label:"Número de Produtos",name:"numProducts",type:"number",min:0,max:MAX_PRODUCTS},{label:"Produtos e quantidade/ha",name:"productsContainer",type:"div"},{label:"Data de Início",name:"dataInicio",type:"date"},{label:"Data de Término",name:"dataTermino",type:"date"},{label:"Máquina - Identificação",name:"maquina",type:"text"},{label:"Bico",name:"bico",type:"text"},{label:"Capacidade do tanque",name:"capacidadeTanque",type:"number"},{label:"Vazão (L/ha)",name:"vazaoLHa",type:"number"},{label:"Operador(es)",name:"operadores",type:"text"},{label:"Pressão",name:"pressao",type:"number"},{label:"Dose/ha",name:"doseHa",type:"number"},{label:"Dose/tanque",name:"doseTanque",type:"number"},{label:"Implemento - Identificação",name:"implemento",type:"text"},{label:"Observação",name:"observacao",type:"textarea"}],"Colheita":[{label:"Cultura e Cultivar",name:"culturaCultivar",type:"text"},{label:"Produtividade estimada",name:"produtividadeEstimada",type:"number"},{label:"Data de Início",name:"dataInicio",type:"date"},{label:"Data de Término",name:"dataTermino",type:"date"},{label:"Colhedeira - Identificação",name:"maquina",type:"text"},{label:"Operador(es) Colhedeira",name:"operadoresMaquina",type:"text"},{label:"Número de Caminhões",name:"numTrucks",type:"number",min:0,max:MAX_PRODUCTS},{label:"Caminhões e Motoristas",name:"trucksContainer",type:"div"},{label:"Trator - marca modelo e número",name:"trator",type:"text"},{label:"Operador(es) Trator",name:"operadoresTrator",type:"text"},{label:"Implemento - Identificação",name:"implemento",type:"text"},{label:"Observação",name:"observacao",type:"textarea"}],"Lancas":[{label:"Cultura e Cultivar",name:"culturaCultivar",type:"text"},{label:"Número de Produtos",name:"numProducts",type:"number",min:0,max:MAX_PRODUCTS},{label:"Produtos e quantidade/hectare",name:"productsContainer",type:"div"},{label:"Data de Início",name:"dataInicio",type:"date"},{label:"Data de Término",name:"dataTermino",type:"date"},{label:"Máquina - Identificação",name:"maquina",type:"text"},{label:"Operador(es)",name:"operadores",type:"text"},{label:"Implemento - Identificação",name:"implemento",type:"text"},{label:"Observação",name:"observacao",type:"textarea"}]};
+const FORM_FIELDS = {"PreparodeArea":[{label:"Data de Início",name:"dataInicio",type:"date"},{label:"Data de Término",name:"dataTermino",type:"date"},{label:"Trator - identificação",name:"trator",type:"text"},{label:"Operador(es)",name:"operadores",type:"text"},{label:"Implemento - Identificação",name:"implemento",type:"text"},{label:"Observação",name:"observacao",type:"textarea"}],"TratamentodeSementes":[{label:"Cultura e Cultivar",name:"culturaCultivar",type:"text"},{label:"Quantidade de Sementes (Kg)",name:"qtdSementesKg",type:"number"},{label:"Data de Início",name:"dataInicio",type:"date"},{label:"Data de Término",name:"dataTermino",type:"date"},{label:"Número de Produtos",name:"numProducts",type:"number",min:0,max:MAX_PRODUCTS},{label:"Produtos e Dosagens",name:"productsContainer",type:"div"},{label:"Máquina - Identificação",name:"maquina",type:"text"},{label:"Operadores",name:"operadores",type:"text"},{label:"Observação",name:"observacao",type:"textarea"}],"Plantio":[{label:"Cultura e Cultivar",name:"culturaCultivar",type:"text"},{label:"Quantidade/ha - Máximo",name:"qtdHaMax",type:"number"},{label:"Quantidade/ha - Mínimo",name:"qtdHaMin",type:"number"},{label:"Número de Insumos",name:"numProducts",type:"number",min:0,max:MAX_PRODUCTS},{label:"Insumos (a serem usados e quantidades)",name:"productsContainer",type:"div"},{label:"Data de Início",name:"dataInicio",type:"date"},{label:"Data de Término",name:"dataTermino",type:"date"},{label:"Trator - identificação",name:"trator",type:"text"},{label:"Implemento",name:"implemento",type:"text"},{label:"Plantas por metro",name:"plantasPorMetro",type:"number"},{label:"Espaçamento entre plantas",name:"espacamentoPlantas",type:"number"},{label:"Peso de mil sementes (PMS)",name:"pms",type:"number"},{label:"Operador(es)",name:"operadores",type:"text"},{label:"Observação",name:"observacao",type:"textarea"}],"Pulverizacao":[{label:"Cultura e Cultivar",name:"culturaCultivar",type:"text"},{label:"Número de Produtos",name:"numProducts",type:"number",min:0,max:MAX_PRODUCTS},{label:"Produtos e quantidade/ha",name:"productsContainer",type:"div"},{label:"Data de Início",name:"dataInicio",type:"date"},{label:"Data de Término",name:"dataTermino",type:"date"},{label:"Máquina - Identificação",name:"maquina",type:"text"},{label:"Bico",name:"bico",type:"text"},{label:"Capacidade do tanque",name:"capacidadeTanque",type:"number"},{label:"Vazão (L/ha)",name:"vazaoLHa",type:"number"},{label:"Operador(es)",name:"operadores",type:"text"},{label:"Pressão",name:"pressao",type:"number"},{label:"Dose/ha",name:"doseHa",type:"number"},{label:"Implemento - Identificação",name:"implemento",type:"text"},{label:"Observação",name:"observacao",type:"textarea"}],"Colheita":[{label:"Cultura e Cultivar",name:"culturaCultivar",type:"text"},{label:"Produtividade estimada",name:"produtividadeEstimada",type:"number"},{label:"Data de Início",name:"dataInicio",type:"date"},{label:"Data de Término",name:"dataTermino",type:"date"},{label:"Colhedeira - Identificação",name:"maquina",type:"text"},{label:"Operador(es) Colhedeira",name:"operadoresMaquina",type:"text"},{label:"Número de Caminhões",name:"numTrucks",type:"number",min:0,max:MAX_PRODUCTS},{label:"Caminhões e Motoristas",name:"trucksContainer",type:"div"},{label:"Trator - marca modelo e número",name:"trator",type:"text"},{label:"Operador(es) Trator",name:"operadoresTrator",type:"text"},{label:"Implemento - Identificação",name:"implemento",type:"text"},{label:"Observação",name:"observacao",type:"textarea"}],"Lancas":[{label:"Cultura e Cultivar",name:"culturaCultivar",type:"text"},{label:"Número de Produtos",name:"numProducts",type:"number",min:0,max:MAX_PRODUCTS},{label:"Produtos e quantidade/hectare",name:"productsContainer",type:"div"},{label:"Data de Início",name:"dataInicio",type:"date"},{label:"Data de Término",name:"dataTermino",type:"date"},{label:"Máquina - Identificação",name:"maquina",type:"text"},{label:"Operador(es)",name:"operadores",type:"text"},{label:"Implemento - Identificação",name:"implemento",type:"text"},{label:"Observação",name:"observacao",type:"textarea"}]};
 
 const activitySelectionDiv = document.getElementById('activitySelection');
 const formContainerDiv = document.getElementById('formContainer');
@@ -169,6 +175,19 @@ function scheduleFlush(delayMs) {
     flushTimer = setTimeout(() => flushOutbox(), delayMs);
 }
 
+/**
+ * A página e o Service Worker leem a mesma fila. Sem uma trava comum, o
+ * registro do Background Sync logo após "Registrar" fazia o worker enviar a
+ * OS ao mesmo tempo que a página: duas execuções no Apps Script, dois PDFs.
+ * Onde o navegador não tem Web Locks, segue sem trava (comportamento antigo).
+ */
+function withOutboxLock(fn) {
+    if (navigator.locks && typeof navigator.locks.request === 'function') {
+        return navigator.locks.request(OUTBOX_LOCK, fn);
+    }
+    return fn();
+}
+
 async function flushOutbox(options = {}) {
     // A trava é ligada antes de qualquer await: sem isso, duas chamadas
     // simultâneas (ex.: evento 'online' + retorno à tela) enviariam a mesma OS
@@ -177,69 +196,88 @@ async function flushOutbox(options = {}) {
     flushing = true;
 
     try {
-        let items;
-        try {
-            items = await getAllOutbox();
-        } catch (e) {
-            return;
-        }
-        if (!items.length) {
-            flushDelay = 15000;
-            return;
-        }
-
-        for (const item of items) {
-            const result = await sendDataToServer(item.data);
-
-            if (result.success) {
-                await deleteOutbox(item.osId);
-                const cached = (await getCache(item.osId)) || {};
-                await putCache({
-                    ...cached,
-                    osId: item.osId,
-                    activity: item.activity,
-                    data: item.data,
-                    local: item.data.local || '',
-                    pdfUrl: result.pdfUrl || cached.pdfUrl || '',
-                    pdfId: result.pdfId || cached.pdfId || '',
-                    syncState: 'synced',
-                    updatedAt: Date.now()
-                });
-
-                if (!options.silent) {
-                    const acao = item.mode === 'update' ? 'atualizada' : 'registrada';
-                    showToast(
-                        `OS <strong>${escapeHtml(item.osId)}</strong> ${acao} e PDF pronto ✅` +
-                        (result.pdfUrl ? `<br><a href="${result.pdfUrl}" target="_blank" rel="noopener">Abrir PDF</a>` : ''),
-                        'success',
-                        15000
-                    );
-                }
-                flushDelay = 15000;
-            } else {
-                await putOutbox({
-                    ...item,
-                    tries: (item.tries || 0) + 1,
-                    lastError: result.message || 'Falha desconhecida',
-                    updatedAt: Date.now()
-                });
-                if (!options.silent) {
-                    showToast(
-                        `OS <strong>${escapeHtml(item.osId)}</strong> ainda não enviada (${escapeHtml(result.message || '')}).<br>Ela continua salva no aparelho e será reenviada sozinha.`,
-                        'error',
-                        12000
-                    );
-                }
-                flushDelay = Math.min(flushDelay * 2, 300000); // recuo exponencial até 5 min
-                scheduleFlush(flushDelay);
-                break; // não insiste nas demais enquanto a rede está ruim
-            }
-            await updatePendingBadge();
-        }
+        await withOutboxLock(() => flushOutboxLocked(options));
     } finally {
         flushing = false;
+        const restantes = await updatePendingBadge();
+        if (restantes > 0) requestBackgroundSync();
+    }
+}
+
+async function flushOutboxLocked(options) {
+    let items;
+    try {
+        items = await getAllOutbox();
+    } catch (e) {
+        return;
+    }
+    if (!items.length) {
+        flushDelay = 15000;
+        return;
+    }
+
+    for (const snapshot of items) {
+        // Relê dentro da trava: o Service Worker pode ter enviado esta OS
+        // enquanto a página esperava.
+        const item = await getOutbox(snapshot.osId);
+        if (!item) continue;
+
+        const result = await sendDataToServer(item.data);
+
+        if (result.success) {
+            // Se o operador editou a OS pendente durante o envio, a versão
+            // nova fica na fila e sobe na próxima passada.
+            const atual = await getOutbox(item.osId);
+            const editadaDuranteEnvio = atual && atual.updatedAt !== item.updatedAt;
+            if (editadaDuranteEnvio) {
+                scheduleFlush(1000);
+            } else {
+                await deleteOutbox(item.osId);
+            }
+            const cached = (await getCache(item.osId)) || {};
+            await putCache({
+                ...cached,
+                osId: item.osId,
+                activity: item.activity,
+                data: editadaDuranteEnvio ? atual.data : item.data,
+                local: item.data.local || '',
+                pdfUrl: result.pdfUrl || cached.pdfUrl || '',
+                pdfId: result.pdfId || cached.pdfId || '',
+                syncState: editadaDuranteEnvio ? 'pending' : 'synced',
+                updatedAt: Date.now()
+            });
+
+            if (!options.silent) {
+                const acao = item.mode === 'update' ? 'atualizada' : 'registrada';
+                showToast(
+                    `OS <strong>${escapeHtml(item.osId)}</strong> ${acao} e PDF pronto ✅` +
+                    (result.pdfUrl ? `<br><a href="${result.pdfUrl}" target="_blank" rel="noopener">Abrir PDF</a>` : ''),
+                    'success',
+                    15000
+                );
+            }
+            flushDelay = 15000;
+        } else {
+            // Grava só a contagem de tentativas sobre o registro ATUAL: regravar
+            // `item` desfaria uma edição feita enquanto o envio falhava.
+            const atual = (await getOutbox(item.osId)) || item;
+            await putOutbox({
+                ...atual,
+                tries: (atual.tries || 0) + 1,
+                lastError: result.message || 'Falha desconhecida'
+            });
+            if (!options.silent) {
+                showToast(
+                    `OS <strong>${escapeHtml(item.osId)}</strong> ainda não enviada (${escapeHtml(result.message || '')}).<br>Ela continua salva no aparelho e será reenviada sozinha.`,
+                    'error',
+                    12000
+                );
+            }
+            flushDelay = Math.min(flushDelay * 2, 300000); // recuo exponencial até 5 min
+            scheduleFlush(flushDelay);
+            break; // não insiste nas demais enquanto a rede está ruim
+        }
         await updatePendingBadge();
-        requestBackgroundSync();
     }
 }
 
@@ -251,6 +289,7 @@ function requestBackgroundSync() {
     }
 }
 
+/** Atualiza o contador e devolve quantas OS ainda esperam envio. */
 async function updatePendingBadge() {
     try {
         const items = await getAllOutbox();
@@ -261,7 +300,10 @@ async function updatePendingBadge() {
         } else {
             pendingBadge.style.display = 'none';
         }
-    } catch (e) { /* banco ainda não aberto */ }
+        return items.length;
+    } catch (e) {
+        return 0; // banco ainda não aberto
+    }
 }
 
 // =========================================================================
@@ -636,7 +678,24 @@ function renderForm(activityKey, prefill = null) {
 
     dynamicForm.addEventListener('submit', handleFormSubmit);
 
+    if (ACTIVITIES_WITH_TANK.includes(activityKey)) {
+        const vazaoInput = document.getElementById('vazaoLHa');
+        if (vazaoInput) {
+            const areaDisplay = document.createElement('p');
+            areaDisplay.id = 'areaPorTanqueDisplay';
+            areaDisplay.className = 'calc-info';
+            vazaoInput.insertAdjacentElement('afterend', areaDisplay);
+        }
+        dynamicForm.addEventListener('input', event => {
+            const id = event.target.id || '';
+            if (id === 'capacidadeTanque' || id === 'vazaoLHa' || id.startsWith('product_dosage_')) {
+                updateTankCalculations();
+            }
+        });
+    }
+
     if (isEdit) applyPrefill(prefill, activityKey);
+    updateTankCalculations();
 }
 
 function formatValueForInput(type, value) {
@@ -695,18 +754,88 @@ function applyPrefill(prefill, activityKey) {
     }
 }
 
+// =========================================================================
+// Dose por tanque (Pulverização)
+//   área por tanque (ha) = capacidade do tanque (L) ÷ vazão (L/ha)
+//   dose por tanque      = dosagem (/ha) × área por tanque (ha)
+// A mesma conta é refeita no appsScript.js, que é quem grava — aqui ela só
+// serve para o operador ver o resultado enquanto preenche.
+// =========================================================================
+const ACTIVITIES_WITH_TANK = ['Pulverizacao'];
+
+/** Primeiro número do texto, aceitando vírgula decimal ("0,5 l/ha" → 0.5). */
+function parseDecimal(value) {
+    if (typeof value === 'number') return isFinite(value) ? value : NaN;
+    const match = String(value == null ? '' : value).match(/-?\d+(?:[.,]\d+)*/);
+    if (!match) return NaN;
+    let text = match[0];
+    text = (text.includes('.') && text.includes(',')) ? text.replace(/\./g, '').replace(',', '.') : text.replace(',', '.');
+    return parseFloat(text);
+}
+
+function formatDecimal(num, maxDecimals = 2) {
+    if (!isFinite(num)) return '';
+    return num.toLocaleString('pt-BR', { maximumFractionDigits: maxDecimals, useGrouping: false });
+}
+
+function areaPorTanque(capacidade, vazao) {
+    const cap = parseDecimal(capacidade);
+    const vaz = parseDecimal(vazao);
+    return (cap > 0 && vaz > 0) ? cap / vaz : NaN;
+}
+
+/**
+ * "3 l /ha" com 30 ha por tanque → "90 l". Devolve '' quando a dosagem não
+ * é por hectare (ex.: "200 ml/100 L") ou falta capacidade/vazão — melhor
+ * nada do que um número errado no PDF.
+ */
+function doseTanqueTexto(dosagem, area) {
+    const dose = parseDecimal(dosagem);
+    if (!isFinite(dose) || !(area > 0)) return '';
+    const unidade = String(dosagem)
+        .replace(/-?\d+(?:[.,]\d+)*/, '')
+        .replace(/\s*\/\s*ha\b\.?/i, '')
+        .trim();
+    if (unidade.includes('/')) return '';
+    return `${formatDecimal(dose * area)}${unidade ? ' ' + unidade : ''}`;
+}
+
+function updateTankCalculations() {
+    if (!ACTIVITIES_WITH_TANK.includes(currentActivityKey)) return;
+    const area = areaPorTanque(
+        (document.getElementById('capacidadeTanque') || {}).value,
+        (document.getElementById('vazaoLHa') || {}).value);
+
+    const areaDisplay = document.getElementById('areaPorTanqueDisplay');
+    if (areaDisplay) {
+        areaDisplay.textContent = area > 0
+            ? `Área por tanque: ${formatDecimal(area)} ha`
+            : 'Área por tanque: informe capacidade do tanque e vazão';
+    }
+    document.querySelectorAll('[data-dose-tanque]').forEach(out => {
+        const i = out.getAttribute('data-dose-tanque');
+        const dosagem = (document.getElementById(`product_dosage_${i}`) || {}).value;
+        const texto = doseTanqueTexto(dosagem, area);
+        out.textContent = `Dose/tanque: ${texto || '—'}`;
+    });
+}
+
 function renderProductFields(num, container, activityKey) {
     container.innerHTML = '';
     const productLabel = activityKey === "Plantio" ? "Insumo" : "Produto";
+    const withTank = ACTIVITIES_WITH_TANK.includes(activityKey);
     let html = '';
     for (let i = 1; i <= num; i++) {
         html += `<div class="product-group"><h3>${productLabel} ${i}</h3>` +
             `<label for="product_name_${i}">${productLabel} ${i} Nome:<span class="required">*</span></label>` +
             `<input type="text" id="product_name_${i}" name="product_name_${i}" required>` +
-            `<label for="product_dosage_${i}">${productLabel} ${i} Dosagem:<span class="required">*</span></label>` +
-            `<input type="text" id="product_dosage_${i}" name="product_dosage_${i}" required></div>`;
+            `<label for="product_dosage_${i}">${productLabel} ${i} Dosagem${withTank ? ' (por ha)' : ''}:<span class="required">*</span></label>` +
+            `<input type="text" id="product_dosage_${i}" name="product_dosage_${i}" required>` +
+            (withTank ? `<p class="calc-info" data-dose-tanque="${i}">Dose/tanque: —</p>` : '') +
+            `</div>`;
     }
     container.innerHTML = html;
+    updateTankCalculations();
 }
 
 function renderTruckFields(num, container) {
@@ -739,11 +868,9 @@ function renderTalhoesCheckboxes(locationName, talhoesListElement, allTalhoesChe
 }
 
 // =========================================================================
-// Envio
+// Envio: coleta → revisão → grava no aparelho → envia
 // =========================================================================
-async function handleFormSubmit(event) {
-    event.preventDefault();
-    const form = event.target;
+function collectFormData(form) {
     const formData = new FormData(form);
     const isEdit = !!currentEditingOsId;
 
@@ -751,7 +878,7 @@ async function handleFormSubmit(event) {
     form.querySelectorAll('input[name="talhoes"]:checked').forEach(cb => selectedTalhoes.push(cb.value));
     if (!selectedTalhoes.length) {
         showToast('Selecione ao menos um talhão.', 'error');
-        return;
+        return null;
     }
 
     const data = { activity: currentActivityKey, userName };
@@ -770,6 +897,14 @@ async function handleFormSubmit(event) {
         data[`dose_produto_${i}`] = (i <= numProducts) ? (formData.get(`product_dosage_${i}`) || "") : "";
     }
 
+    if (ACTIVITIES_WITH_TANK.includes(currentActivityKey)) {
+        const area = areaPorTanque(data.capacidadeTanque, data.vazaoLHa);
+        data.areaPorTanque = area > 0 ? formatDecimal(area) : '';
+        for (let i = 1; i <= numProducts; i++) {
+            data[`dose_tanque_produto_${i}`] = doseTanqueTexto(data[`dose_produto_${i}`], area);
+        }
+    }
+
     if (currentActivityKey === "Colheita") {
         const numTrucks = parseInt(formData.get('numTrucks') || '0', 10);
         for (let i = 1; i <= MAX_PRODUCTS; i++) {
@@ -777,7 +912,93 @@ async function handleFormSubmit(event) {
             data[`motorista_caminhao_${i}`] = (i <= numTrucks) ? (formData.get(`truck_driver_${i}`) || "") : "";
         }
     }
+    return data;
+}
 
+function formatDateBR(value) {
+    const m = String(value || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    return m ? `${m[3]}/${m[2]}/${m[1]}` : String(value || '');
+}
+
+/** Resumo da OS mostrado na revisão antes do envio. */
+function buildReviewHtml(data) {
+    const linhas = [
+        ['Atividade', ACTIVITIES[data.activity] || data.activity],
+        ['ID da OS', data.osId],
+        ['Local', data.local],
+        ['Talhões', data.talhoes],
+        ['Área total (ha)', data.areaTotalHectares]
+    ];
+    (FORM_FIELDS[data.activity] || []).forEach(field => {
+        if (field.type === 'div' || field.name === 'numProducts' || field.name === 'numTrucks') return;
+        const valor = field.type === 'date' ? formatDateBR(data[field.name]) : data[field.name];
+        linhas.push([field.label, valor]);
+        if (field.name === 'vazaoLHa' && data.areaPorTanque) linhas.push(['Área por tanque (ha)', data.areaPorTanque]);
+    });
+
+    let html = '<table class="review-table"><tbody>' + linhas
+        .filter(([, valor]) => valor !== undefined && valor !== null && String(valor).trim() !== '')
+        .map(([rotulo, valor]) => `<tr><th>${escapeHtml(rotulo)}</th><td>${escapeHtml(valor)}</td></tr>`)
+        .join('') + '</tbody></table>';
+
+    const numProducts = parseInt(data.numProducts || '0', 10);
+    if (numProducts > 0) {
+        const comTanque = ACTIVITIES_WITH_TANK.includes(data.activity);
+        const rotulo = data.activity === 'Plantio' ? 'Insumo' : 'Produto';
+        html += `<table class="review-table products"><thead><tr><th>${rotulo}</th><th>Dosagem</th>` +
+            (comTanque ? '<th>Dose/tanque</th>' : '') + '</tr></thead><tbody>';
+        for (let i = 1; i <= numProducts; i++) {
+            html += `<tr><td>${escapeHtml(data[`nome_produto_${i}`])}</td><td>${escapeHtml(data[`dose_produto_${i}`])}</td>` +
+                (comTanque ? `<td>${escapeHtml(data[`dose_tanque_produto_${i}`] || '—')}</td>` : '') + '</tr>';
+        }
+        html += '</tbody></table>';
+    }
+
+    const numTrucks = parseInt(data.numTrucks || '0', 10);
+    if (data.activity === 'Colheita' && numTrucks > 0) {
+        html += '<table class="review-table products"><thead><tr><th>Caminhão</th><th>Motorista(s)</th></tr></thead><tbody>';
+        for (let i = 1; i <= numTrucks; i++) {
+            html += `<tr><td>${escapeHtml(data[`identificacao_caminhao_${i}`])}</td><td>${escapeHtml(data[`motorista_caminhao_${i}`])}</td></tr>`;
+        }
+        html += '</tbody></table>';
+    }
+    return html;
+}
+
+/** Mostra o resumo e resolve true (enviar) ou false (voltar ao formulário). */
+function confirmBeforeSending(data) {
+    return new Promise(resolve => {
+        const acao = data.mode === 'update' ? 'Salvar alterações' : 'Confirmar e registrar';
+        showNotification(
+            `<div class="review"><h3>Confira antes de enviar</h3>${buildReviewHtml(data)}` +
+            `<div class="modal-buttons">` +
+            `<button type="button" class="secondary" id="reviewEdit">✏️ Corrigir</button>` +
+            `<button type="button" id="reviewConfirm">✅ ${acao}</button></div></div>`);
+        modalContent.classList.add('review-mode');
+
+        const fechar = resposta => {
+            modalOverlay.removeEventListener('click', foraDoModal);
+            modalContent.classList.remove('review-mode');
+            hideNotification();
+            resolve(resposta);
+        };
+        const foraDoModal = e => { if (e.target === modalOverlay) fechar(false); };
+        modalOverlay.addEventListener('click', foraDoModal);
+        document.getElementById('reviewEdit').addEventListener('click', () => fechar(false));
+        document.getElementById('reviewConfirm').addEventListener('click', () => fechar(true));
+    });
+}
+
+async function handleFormSubmit(event) {
+    event.preventDefault();
+    const form = event.target;
+    const data = collectFormData(form);
+    if (!data) return;
+
+    // "Corrigir" devolve o formulário exatamente como estava.
+    if (!(await confirmBeforeSending(data))) return;
+
+    const isEdit = data.mode === 'update';
     const submitButton = form.querySelector('button[type="submit"]');
     submitButton.disabled = true;
 
@@ -810,17 +1031,19 @@ async function handleFormSubmit(event) {
     }
 
     await updatePendingBadge();
-    requestBackgroundSync();
 
     const acaoTexto = isEdit ? 'alterações salvas' : 'OS registrada';
     showActivitySelection();
     const toast = navigator.onLine
         ? showToast(`<span class="spinner"></span><strong>${escapeHtml(data.osId)}</strong> — ${acaoTexto} no aparelho. Gerando o PDF…`, 'info', 0)
-        : showToast(`<strong>${escapeHtml(data.osId)}</strong> — ${acaoTexto} no aparelho 💾<br>Será enviada automaticamente quando houver internet.`, 'info', 12000);
+        : showToast(`<strong>${escapeHtml(data.osId)}</strong> — ${acaoTexto} no aparelho 💾<br>Será enviada automaticamente quando houver internet.<br>Até lá, dá para corrigi-la em "Editar Ordem de Serviço".`, 'info', 12000);
 
     if (navigator.onLine) {
         // O envio segue em segundo plano: o operador já pode abrir a próxima OS.
+        // O Background Sync só é pedido se sobrar algo na fila (ver flushOutbox).
         flushOutbox().finally(() => toast.remove());
+    } else {
+        requestBackgroundSync();
     }
 }
 
