@@ -31,6 +31,22 @@
 * Sem isso o script continua funcionando: ele detecta que o serviço não está
 * disponível e cai automaticamente no método antigo (só mais lento).
 * ---------------------------------------------------------------------------
+*
+* ---------------------------------------------------------------------------
+* OUT/2026
+*  - PDF em segundo plano: o envio grava a linha e responde em 1-2 s; o PDF é
+*    gerado logo depois por um acionador (fila na aba oculta "_fila_pdf").
+*    Para voltar ao PDF na hora: PDF_EM_SEGUNDO_PLANO = false.
+*  - Pulverização: "Produtos e quantidades" vira tabela Produto | Dose/ha |
+*    Dose/tanque no PDF; as linhas soltas Dose/ha e Dose/tanque saem. A
+*    Dose/tanque realizada é recalculada com a capacidade e a vazão realizadas.
+*  - Colunas novas: "Safra", "Status PDF" e "Confirmado RT" (caixa de seleção).
+*  - Arquivamento: marcar "Confirmado RT" move o relatório (linha + PDF) para a
+*    pasta da safra e, quando a OS não tem mais relatório por confirmar, pede o
+*    arquivamento dela ao projeto de OS (aba "_arquivar_os").
+*
+*  >>> Depois de publicar, rode UMA VEZ instalarAcionadores() no editor.
+* ---------------------------------------------------------------------------
 */
 
 const REPORT_SPREADSHEET_ID = "1b8LMyDTfkqIfl0bftvQNdpGRg0O1PRvNjrOV0LkEtf8";
@@ -65,7 +81,22 @@ const REPORT_HEADERS_CONFIG = {
 
 // Colunas de controle acrescentadas automaticamente à direita das planilhas
 // existentes. Servem para localizar e reescrever a linha na edição.
-const CONTROL_HEADERS = ["ID do Relatorio", "ID do PDF", "URL do PDF", "Ultima Edicao", "Editado Por"];
+const CONTROL_HEADERS = ["ID do Relatorio", "ID do PDF", "URL do PDF", "Ultima Edicao", "Editado Por", "Safra", "Status PDF", "Confirmado RT"];
+
+const PDF_EM_SEGUNDO_PLANO = true;
+const FILA_PDF_ABA = "_fila_pdf";
+const FILA_PDF_CABECALHOS = ["Chave", "Atividade", "Versao", "Status", "Tentativas", "Erro", "Payload"];
+const FILA_PDF_MAX_TENTATIVAS = 5;
+const FILA_PDF_LIMITE_MS = 4.5 * 60 * 1000;
+
+const COLUNA_CONFIRMACAO = "Confirmado RT";
+const FILA_ARQUIVO_OS_ABA = "_arquivar_os";
+const FILA_ARQUIVO_OS_CABECALHOS = ["ID da OS", "Atividade", "Safra", "Nao antes de", "Pedido em"];
+// Mesma pasta-raiz usada pelo projeto de OS (a pasta das OS emitidas): as
+// pastas "Safra ..." são compartilhadas pelos dois projetos.
+const ARQUIVO_PASTA_RAIZ_ID = "13lV62jPEHN76jMl_rEr0IEzy12YwK754";
+const ATIVIDADES_ARQUIVAVEIS = ["PreparodeArea", "TratamentodeSementes", "Plantio", "Pulverizacao", "Colheita", "Lancas"];
+
 
 /*
  * Mapa único usado tanto para GRAVAR quanto para LER de volta um relatório.
@@ -194,6 +225,11 @@ function garantirColunas(sheet, headers, desejados) {
   if (novos.length > 0) {
     sheet.getRange(1, headers.length + 1, 1, novos.length).setValues([novos]);
     headers = headers.concat(novos);
+    // Coluna do RT recém-criada: caixas de seleção nos relatórios que já existem.
+    const col = headers.indexOf(COLUNA_CONFIRMACAO);
+    if (novos.indexOf(COLUNA_CONFIRMACAO) !== -1 && sheet.getLastRow() > 1) {
+      sheet.getRange(2, col + 1, sheet.getLastRow() - 1, 1).insertCheckboxes();
+    }
   }
   return headers;
 }
@@ -227,7 +263,7 @@ function abrirAbaRelatorio(activity, criarSeNaoExistir) {
  * @param {Object=} abastecimento { cfg, linhas: [{h, l}] } — expande a tabela.
  * @return {{id: string, url: string}}
  */
-function gerarPdf(templateId, nomeArquivo, substituicoes, abastecimento) {
+function gerarPdf(templateId, nomeArquivo, substituicoes, abastecimento, produtos) {
   const pdfFolder = DriveApp.getFolderById(PDF_REPORT_FOLDER_ID);
   // makeCopy(nome, pasta) já nomeia na cópia — evita um setName() depois.
   const tempDocFile = DriveApp.getFileById(templateId).makeCopy(nomeArquivo + ' (tmp)', pdfFolder);
@@ -239,13 +275,18 @@ function gerarPdf(templateId, nomeArquivo, substituicoes, abastecimento) {
     mapa[k] = (v === null || v === undefined || v === '') ? ' ' : String(v);
   });
 
-  // ---- 1. Tabela de abastecimentos (precisa do DocumentApp: cria/apaga linhas)
-  if (abastecimento && abastecimento.cfg) {
-    const cfg = abastecimento.cfg;
-    const linhas = abastecimento.linhas || [];
+  // ---- 1. Tabelas (precisam do DocumentApp: cria/apaga linhas)
+  const temAbastecimento = !!(abastecimento && abastecimento.cfg);
+  if (temAbastecimento || produtos) {
     const doc = DocumentApp.openById(docId);
     const body = doc.getBody();
-    const achou = body.findText(escapeParaFindText(cfg.tplH));
+    if (produtos) {
+      try { inserirTabelaProdutos(body, produtos, mapa); }
+      catch (err) { Logger.log("Tabela de produtos: " + err); }
+    }
+    const cfg = temAbastecimento ? abastecimento.cfg : null;
+    const linhas = temAbastecimento ? (abastecimento.linhas || []) : [];
+    const achou = cfg ? body.findText(escapeParaFindText(cfg.tplH)) : null;
 
     if (achou) {
       try {
@@ -325,6 +366,7 @@ function aplicarSubstituicoes(docId, mapa) {
 
 function doPost(e) {
   const lock = LockService.getScriptLock();
+  let gerarPendentesAoSair = false;
   try {
     // Sem o lock, dois envios simultâneos podiam acrescentar colunas de
     // abastecimento em cima um do outro e desalinhar a linha inteira.
@@ -402,27 +444,21 @@ function doPost(e) {
     let templateId = (activity === 'Colheita')
       ? (REPORT_TEMPLATE_IDS[activity] || {})[equipamento]
       : REPORT_TEMPLATE_IDS[activity];
+    const emSegundoPlano = PDF_EM_SEGUNDO_PLANO && !!templateId;
+
+    rowDataMap["Safra"] = data.Safra || (linhaAtual ? linhaAtual[headers.indexOf("Safra")] : '') || '';
+    rowDataMap["Status PDF"] = emSegundoPlano ? 'gerando' : (templateId ? 'ok' : '');
+    if (linhaAtual) {
+      // Na edição o PDF atual vale até o novo ficar pronto; a confirmação do RT
+      // (se houver) também não é apagada.
+      rowDataMap["ID do PDF"] = linhaAtual[headers.indexOf("ID do PDF")];
+      rowDataMap["URL do PDF"] = linhaAtual[headers.indexOf("URL do PDF")];
+      rowDataMap[COLUNA_CONFIRMACAO] = linhaAtual[headers.indexOf(COLUNA_CONFIRMACAO)];
+    }
 
     let pdf = null;
-    if (templateId) {
-      let nomeArquivo = 'Relatorio - ' + activity;
-      if (activity === 'Colheita') nomeArquivo += ' (' + equipamento + ')';
-      nomeArquivo += ' - OS ' + osId + ' - ' + (rowDataMap["OS Realizado - Local"] || 'local') +
-                     ' - ' + Utilities.formatDate(agora, Session.getScriptTimeZone(), "dd-MM-yyyy");
-      if (ehEdicao) nomeArquivo += ' (rev)';
-
-      const linhas = [];
-      for (let i = 1; i <= numAbastecimentos; i++) {
-        linhas.push({ h: data[cfg.formH + i], l: data[cfg.formL + i] });
-      }
-
-      pdf = gerarPdf(
-        templateId,
-        nomeArquivo,
-        montarPlaceholders(data, activity, agora, osId, equipamento),
-        ATIVIDADES_COM_ABASTECIMENTO.indexOf(activity) >= 0 ? { cfg: cfg, linhas: linhas } : null
-      );
-
+    if (templateId && !emSegundoPlano) {
+      pdf = gerarPdfRelatorio(data, activity, agora, ehEdicao);
       rowDataMap["ID do PDF"] = pdf.id;
       rowDataMap["URL do PDF"] = pdf.url;
 
@@ -438,22 +474,32 @@ function doPost(e) {
 
     // ---- Grava a linha
     const rowValues = headers.map(h => rowDataMap[h] !== undefined ? rowDataMap[h] : '');
+    let linhaGravada = linhaAlvo;
     if (ehEdicao) {
       sheet.getRange(linhaAlvo, 1, 1, headers.length).setValues([rowValues]);
     } else {
       sheet.appendRow(rowValues);
+      linhaGravada = sheet.getLastRow();
+      const colRt = headers.indexOf(COLUNA_CONFIRMACAO);
+      if (colRt !== -1) sheet.getRange(linhaGravada, colRt + 1).insertCheckboxes();
     }
 
     if (!templateId) {
       return createJsonResponse({ success: true, message: "Dados registrados! Template PDF não configurado." });
     }
+    if (emSegundoPlano) {
+      enfileirarPdf(String(reportId), activity, { data: data, agora: agora.toISOString(), ehEdicao: ehEdicao });
+      // Sem acionador autorizado: gera ao fim deste envio, como antes.
+      if (!agendarFilaPdf()) gerarPendentesAoSair = true;
+      return createJsonResponse({ success: true, pdfPending: true, folderUrl: folderUrl(), reportId: reportId });
+    }
     return createJsonResponse({ success: true, pdfUrl: pdf.url, folderUrl: folderUrl(), reportId: reportId });
-
   } catch (error) {
     Logger.log("Erro no servidor: " + error + " Stack: " + error.stack);
     return createJsonResponse({ success: false, message: "Ocorreu um erro no servidor: " + error });
   } finally {
     lock.releaseLock();
+    if (gerarPendentesAoSair) processarFilaPdf();
   }
 }
 
@@ -502,7 +548,8 @@ function montarLinhaRelatorio(data, activity, timestampReport, osId, numAbasteci
     "OS Planejado - Vazão (L/ha)": formatNumberForSheet(data.vazaoLHa), "OS Realizado - Vazão (L/ha)": formatNumberForSheet(data.realizado_vazaoLHa),
     "OS Planejado - Pressão": formatNumberForSheet(data.pressao), "OS Realizado - Pressão": formatNumberForSheet(data.realizado_pressao),
     "OS Planejado - Dose/ha": formatNumberForSheet(data.Doseha), "OS Realizado - Dose/ha": formatNumberForSheet(data.realizado_Doseha),
-    "OS Planejado - Dose/tanque": formatNumeroOuTexto(data.Dosetanque, formatNumberForSheet), "OS Realizado - Dose/tanque": formatNumeroOuTexto(data.realizado_Dosetanque, formatNumberForSheet),
+    "OS Planejado - Dose/tanque": formatNumeroOuTexto(data.Dosetanque, formatNumberForSheet),
+    "OS Realizado - Dose/tanque": activity === "Pulverizacao" ? doseTanqueRealizada(data) : formatNumeroOuTexto(data.realizado_Dosetanque, formatNumberForSheet),
     "OS Planejado - Máquina (Pulverizador)": data.maquina, "OS Realizado - Máquina (Pulverizador)": data.realizado_maquina,
     "Relatorio - Equipamento": data.equipmentType,
     "OS Planejado - Produtividade estimada": formatNumberForSheet(data.ProdutividadeEstimada), "OS Realizado - Produtividade estimada": formatNumberForSheet(data.realizado_ProdutividadeEstimada),
@@ -893,4 +940,465 @@ function handleIrrigationPost(data) {
   }, null);
 
   return createJsonResponse({ success: true, pdfUrl: pdf.url, folderUrl: folderUrl() });
+}
+
+// =========================================================================
+// PDF do relatório (usado no envio e na fila em segundo plano)
+// =========================================================================
+function gerarPdfRelatorio(data, activity, agora, ehEdicao) {
+  const osId = data.osId;
+  const equipamento = (activity === "Colheita") ? data.equipmentType : null;
+  const cfg = ABASTECIMENTO_CFG[equipamento || 'Simples'];
+  const numAbastecimentos = contarAbastecimentos(data, activity, equipamento);
+  const templateId = (activity === 'Colheita')
+    ? (REPORT_TEMPLATE_IDS[activity] || {})[equipamento]
+    : REPORT_TEMPLATE_IDS[activity];
+
+  let nomeArquivo = 'Relatorio - ' + activity;
+  if (activity === 'Colheita') nomeArquivo += ' (' + equipamento + ')';
+  nomeArquivo += ' - OS ' + osId + ' - ' + (data.realizado_Local || data.Local || 'local') +
+                 ' - ' + Utilities.formatDate(agora, Session.getScriptTimeZone(), "dd-MM-yyyy");
+  if (ehEdicao) nomeArquivo += ' (rev)';
+
+  const linhas = [];
+  for (let i = 1; i <= numAbastecimentos; i++) {
+    linhas.push({ h: data[cfg.formH + i], l: data[cfg.formL + i] });
+  }
+
+  return gerarPdf(
+    templateId,
+    nomeArquivo,
+    montarPlaceholders(data, activity, agora, osId, equipamento),
+    ATIVIDADES_COM_ABASTECIMENTO.indexOf(activity) >= 0 ? { cfg: cfg, linhas: linhas } : null,
+    activity === 'Pulverizacao' ? produtosRealizados(data) : null
+  );
+}
+
+// =========================================================================
+// Pulverização: produtos em tabela (Produto | Dose/ha | Dose/tanque)
+//   área por tanque = capacidade ÷ vazão;  dose/tanque = dose/ha × área
+// =========================================================================
+function parseDecimal(value) {
+  if (typeof value === 'number') return isFinite(value) ? value : NaN;
+  const match = String(value == null ? '' : value).match(/-?\d+(?:[.,]\d+)*/);
+  if (!match) return NaN;
+  let text = match[0];
+  text = (text.indexOf('.') !== -1 && text.indexOf(',') !== -1)
+    ? text.replace(/\./g, '').replace(',', '.')
+    : text.replace(',', '.');
+  return parseFloat(text);
+}
+
+function formatDecimal(num) {
+  if (!isFinite(num)) return '';
+  return String(Math.round(num * 100) / 100).replace('.', ',');
+}
+
+function doseTanqueTexto(dosagem, area) {
+  const dose = parseDecimal(dosagem);
+  if (!isFinite(dose) || !(area > 0)) return '';
+  const unidade = String(dosagem)
+    .replace(/-?\d+(?:[.,]\d+)*/, '')
+    .replace(/\s*\/\s*ha\b\.?/i, '')
+    .trim();
+  if (unidade.indexOf('/') !== -1) return '';
+  return formatDecimal(dose * area) + (unidade ? ' ' + unidade : '');
+}
+
+/** "Roundup: 3 l/ha; Óleo: 0,5 l/ha;" → [{nome, dose}] */
+function produtosDoTexto(texto) {
+  return String(texto || '').split(';').map(p => p.trim()).filter(Boolean).map(parte => {
+    const i = parte.indexOf(':');
+    const nome = i === -1 ? parte : parte.substring(0, i).trim();
+    const dose = i === -1 ? '' : parte.substring(i + 1).trim();
+    return { nome: nome, dose: dose === 'N/A' ? '' : dose };
+  });
+}
+
+/** Produtos como foram aplicados, com a dose/tanque refeita pelo realizado. */
+function produtosRealizados(data) {
+  const cap = parseDecimal(data.realizado_Capacidadedotanque || data.Capacidadedotanque);
+  const vaz = parseDecimal(data.realizado_vazaoLHa || data.vazaoLHa);
+  const area = (cap > 0 && vaz > 0) ? cap / vaz : NaN;
+  return produtosDoTexto(data.realizado_produtosQuantidade || data.produtosQuantidade).map(p => ({
+    nome: p.nome, dose: p.dose, tanque: doseTanqueTexto(p.dose, area)
+  }));
+}
+
+function doseTanqueRealizada(data) {
+  return produtosRealizados(data)
+    .map(p => p.nome + ': ' + (p.tanque || 'N/A') + ';').join(' ');
+}
+
+/**
+ * Troca o texto "{{PRODUTOS_QTD_HA}}" por uma tabela logo abaixo do parágrafo
+ * e tira as linhas "Dose/ha: {{DOSE_HA}}" e "Dose/tanque: {{DOSE_TANQUE}}".
+ */
+function inserirTabelaProdutos(body, produtos, mapa) {
+  const achado = body.findText(escapeParaFindText('{{PRODUTOS_QTD_HA}}'));
+  if (achado) {
+    let paragrafo = achado.getElement();
+    while (paragrafo.getParent() && paragrafo.getParent().getType() !== DocumentApp.ElementType.BODY_SECTION) {
+      paragrafo = paragrafo.getParent();
+    }
+    const celulas = [['Produto', 'Dose/ha', 'Dose/tanque']].concat(
+      produtos.length ? produtos.map(p => [p.nome || '', p.dose || '', p.tanque || '']) : [['—', '', '']]);
+    const tabela = body.insertTable(body.getChildIndex(paragrafo) + 1, celulas);
+    try { tabela.getRow(0).editAsText().setBold(true); } catch (err) { /* só estética */ }
+    paragrafo.replaceText('Produtos e quantidades:', 'Produtos utilizados:');
+    paragrafo.replaceText(escapeParaFindText('{{PRODUTOS_QTD_HA}}'), '');
+    delete mapa['{{PRODUTOS_QTD_HA}}'];
+  }
+  ['Dose/ha:\\s*\\{\\{DOSE_HA\\}\\}', 'Dose/tanque:\\s*\\{\\{DOSE_TANQUE\\}\\}'].forEach(padrao => {
+    for (let n = 0; n < 5; n++) {
+      const r = body.findText(padrao);
+      if (!r) break;
+      const elemento = r.getElement();
+      const par = elemento.getParent();
+      const textoPar = par && par.getText ? par.getText() : '';
+      if (par && new RegExp('^\\s*' + padrao + '\\s*$').test(textoPar)) {
+        try { par.removeFromParent(); continue; } catch (err) { /* último parágrafo: só limpa */ }
+      }
+      body.replaceText(padrao, '');
+    }
+  });
+}
+
+// =========================================================================
+// FILA DE PDF (geração em segundo plano) — mesmo desenho do projeto de OS
+// =========================================================================
+function planilhaRelatorios() { return SpreadsheetApp.openById(REPORT_SPREADSHEET_ID); }
+
+function abaFilaPdf(ss) {
+  let aba = ss.getSheetByName(FILA_PDF_ABA);
+  if (!aba) {
+    aba = ss.insertSheet(FILA_PDF_ABA);
+    aba.appendRow(FILA_PDF_CABECALHOS);
+    try { aba.hideSheet(); } catch (err) { /* visível não atrapalha */ }
+  }
+  return aba;
+}
+
+function lerFilaPdf(ss) {
+  const aba = abaFilaPdf(ss);
+  const ultima = aba.getLastRow();
+  if (ultima < 2) return [];
+  return aba.getRange(2, 1, ultima - 1, FILA_PDF_CABECALHOS.length).getValues().map((v, i) => ({
+    linha: i + 2, chave: String(v[0]), atividade: String(v[1]), versao: String(v[2]),
+    status: String(v[3]), tentativas: Number(v[4]) || 0, erro: String(v[5] || ''), payload: String(v[6] || '')
+  }));
+}
+
+/** Chamar DENTRO da trava (o doPost já está nela). */
+function enfileirarPdf(chave, atividade, pacote) {
+  const ss = planilhaRelatorios();
+  const aba = abaFilaPdf(ss);
+  const linha = [chave, atividade, Utilities.getUuid(), 'pendente', 0, '', JSON.stringify(pacote)];
+  const existente = lerFilaPdf(ss).filter(i => i.chave === String(chave))[0];
+  if (existente) aba.getRange(existente.linha, 1, 1, linha.length).setValues([linha]);
+  else aba.appendRow(linha);
+}
+
+/** Devolve false se não foi possível agendar (acionadores sem autorização). */
+function agendarFilaPdf() {
+  try {
+    const jaAgendado = ScriptApp.getProjectTriggers().some(t => t.getHandlerFunction() === 'processarFilaPdf');
+    if (!jaAgendado) ScriptApp.newTrigger('processarFilaPdf').timeBased().after(10 * 1000).create();
+    return true;
+  } catch (err) {
+    Logger.log("Não foi possível agendar a fila de PDF: " + err);
+    return false;
+  }
+}
+
+function removerGatilhosAvulsos(nomeFuncao) {
+  try {
+    ScriptApp.getProjectTriggers()
+      .filter(t => t.getHandlerFunction() === nomeFuncao)
+      .forEach(t => ScriptApp.deleteTrigger(t));
+  } catch (err) { /* sem permissão */ }
+}
+
+function processarFilaPdf() {
+  removerGatilhosAvulsos('processarFilaPdf');
+  const props = PropertiesService.getScriptProperties();
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(10000)) { agendarFilaPdf(); return; }
+  try {
+    if (Number(props.getProperty('fila_pdf_ocupada_ate') || 0) > Date.now()) { agendarFilaPdf(); return; }
+    props.setProperty('fila_pdf_ocupada_ate', String(Date.now() + 6 * 60 * 1000));
+  } finally {
+    lock.releaseLock();
+  }
+
+  const inicio = Date.now();
+  const tentados = {};
+  const ss = planilhaRelatorios();
+  try {
+    while (Date.now() - inicio < FILA_PDF_LIMITE_MS) {
+      const item = lerFilaPdf(ss).filter(i => i.status === 'pendente' && !tentados[i.chave + i.versao])[0];
+      if (!item) break;
+      tentados[item.chave + item.versao] = true;
+      processarItemPdf(ss, item);
+    }
+  } finally {
+    props.deleteProperty('fila_pdf_ocupada_ate');
+  }
+  if (lerFilaPdf(ss).some(i => i.status === 'pendente')) agendarFilaPdf();
+}
+
+function processarItemPdf(ss, item) {
+  let pdf;
+  try {
+    const pacote = JSON.parse(item.payload);
+    pdf = gerarPdfRelatorio(pacote.data, item.atividade, new Date(pacote.agora), pacote.ehEdicao);
+  } catch (err) {
+    Logger.log("PDF do relatório " + item.chave + " falhou: " + err);
+    registrarFalhaFila(ss, item, err);
+    return;
+  }
+
+  let pdfAnterior = '';
+  let descartarNovo = false;
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    const atual = lerFilaPdf(ss).filter(i => i.chave === item.chave)[0];
+    if (!atual || atual.versao !== item.versao) {
+      descartarNovo = true;   // relatório corrigido durante a geração
+    } else {
+      const sheet = ss.getSheetByName(item.atividade);
+      const headers = sheet ? sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0] : [];
+      const linha = sheet ? localizarLinhaRelatorio(sheet, headers, item.chave, '') : -1;
+      if (linha < 0) {
+        descartarNovo = true;
+      } else {
+        const iId = headers.indexOf("ID do PDF");
+        pdfAnterior = iId >= 0 ? sheet.getRange(linha, iId + 1).getValue() : '';
+        if (iId >= 0) sheet.getRange(linha, iId + 1).setValue(pdf.id);
+        const iUrl = headers.indexOf("URL do PDF");
+        if (iUrl >= 0) sheet.getRange(linha, iUrl + 1).setValue(pdf.url);
+        const iStatus = headers.indexOf("Status PDF");
+        if (iStatus >= 0) sheet.getRange(linha, iStatus + 1).setValue('ok');
+      }
+      abaFilaPdf(ss).deleteRow(atual.linha);
+    }
+  } finally {
+    lock.releaseLock();
+  }
+
+  const descartar = descartarNovo ? pdf.id : (pdfAnterior && pdfAnterior !== pdf.id ? pdfAnterior : '');
+  if (descartar) {
+    try { DriveApp.getFileById(descartar).setTrashed(true); } catch (err) { Logger.log("PDF não descartado: " + err); }
+  }
+}
+
+function registrarFalhaFila(ss, item, err) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    const atual = lerFilaPdf(ss).filter(i => i.chave === item.chave)[0];
+    if (!atual || atual.versao !== item.versao) return;
+    const tentativas = atual.tentativas + 1;
+    abaFilaPdf(ss).getRange(atual.linha, 4, 1, 3).setValues([[
+      tentativas >= FILA_PDF_MAX_TENTATIVAS ? 'erro' : 'pendente', tentativas, String(err).slice(0, 500)]]);
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+// =========================================================================
+// CONFIRMAÇÃO DO RT E ARQUIVAMENTO POR SAFRA
+// =========================================================================
+
+/**
+ * RODAR UMA VEZ no editor depois de publicar esta versão: cria o acionador da
+ * caixa "Confirmado RT" e a rotina de hora em hora, e pede as autorizações.
+ */
+function instalarAcionadores() {
+  ScriptApp.getProjectTriggers()
+    .filter(t => ['aoEditarPlanilha', 'rotinaHoraria'].indexOf(t.getHandlerFunction()) !== -1)
+    .forEach(t => ScriptApp.deleteTrigger(t));
+  ScriptApp.newTrigger('aoEditarPlanilha').forSpreadsheet(REPORT_SPREADSHEET_ID).onEdit().create();
+  ScriptApp.newTrigger('rotinaHoraria').timeBased().everyHours(1).create();
+  DriveApp.getFolderById(ARQUIVO_PASTA_RAIZ_ID).getName();
+  // Caixas de seleção nas abas que já existem.
+  const ss = planilhaRelatorios();
+  ATIVIDADES_ARQUIVAVEIS.forEach(atividade => {
+    const sheet = ss.getSheetByName(atividade);
+    if (!sheet || sheet.getLastRow() < 1) return;
+    const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+    garantirColunas(sheet, headers, [COLUNA_CONFIRMACAO]);
+  });
+  Logger.log("Acionadores instalados.");
+}
+
+function rotinaHoraria() {
+  processarFilaPdf();
+  arquivarRelatoriosConfirmados();
+}
+
+/** Acionador de edição: só reage à coluna "Confirmado RT". */
+function aoEditarPlanilha(e) {
+  try {
+    const aba = e.range.getSheet();
+    if (ATIVIDADES_ARQUIVAVEIS.indexOf(aba.getName()) === -1) return;
+    const headers = aba.getRange(1, 1, 1, aba.getLastColumn()).getValues()[0];
+    const col = headers.indexOf(COLUNA_CONFIRMACAO) + 1;
+    if (col < 1 || e.range.getColumn() > col || e.range.getLastColumn() < col) return;
+  } catch (err) {
+    return;
+  }
+  arquivarRelatoriosConfirmados();
+}
+
+function nomeSafraPasta(safra) {
+  const texto = String(safra || '').replace(/[\/\\]/g, '-').replace(/\s+/g, ' ').trim();
+  return texto || 'Sem safra';
+}
+
+function safraPorData(valor) {
+  const data = parseDateForSheet(valor);
+  if (!(data instanceof Date) || isNaN(data.getTime())) return '';
+  const ano = data.getMonth() >= 6 ? data.getFullYear() : data.getFullYear() - 1;
+  return 'Safra ' + ano + '/' + String((ano + 1) % 100).padStart(2, '0');
+}
+
+function obterArquivoSafra(safra) {
+  const nome = nomeSafraPasta(safra);
+  const raiz = DriveApp.getFolderById(ARQUIVO_PASTA_RAIZ_ID);
+  const pastas = raiz.getFoldersByName(nome);
+  const pasta = pastas.hasNext() ? pastas.next() : raiz.createFolder(nome);
+  const nomePlanilha = 'Arquivo - ' + nome;
+  const arquivos = pasta.getFilesByName(nomePlanilha);
+  let planilha;
+  if (arquivos.hasNext()) {
+    planilha = SpreadsheetApp.openById(arquivos.next().getId());
+  } else {
+    planilha = SpreadsheetApp.create(nomePlanilha);
+    DriveApp.getFileById(planilha.getId()).moveTo(pasta);
+  }
+  return { pasta: pasta, planilha: planilha };
+}
+
+function arquivarLinha(planilha, nomeAba, cabecalhos, valores) {
+  const colunas = cabecalhos.concat(['Arquivado em']);
+  let aba = planilha.getSheetByName(nomeAba);
+  if (!aba) {
+    aba = planilha.insertSheet(nomeAba);
+    aba.appendRow(colunas);
+    planilha.getSheets().forEach(s => {
+      if (s.getName() !== nomeAba && s.getLastRow() === 0 && planilha.getSheets().length > 1) planilha.deleteSheet(s);
+    });
+  }
+  let atuais = aba.getRange(1, 1, 1, aba.getLastColumn()).getValues()[0];
+  const faltam = colunas.filter(h => h && atuais.indexOf(h) === -1);
+  if (faltam.length) {
+    aba.getRange(1, atuais.length + 1, 1, faltam.length).setValues([faltam]);
+    atuais = atuais.concat(faltam);
+  }
+  aba.appendRow(atuais.map(h => {
+    if (h === 'Arquivado em') return new Date();
+    const i = cabecalhos.indexOf(h);
+    return i >= 0 ? valores[i] : '';
+  }));
+}
+
+/** Pede ao projeto de OS que arquive a OS (ele lê esta aba de hora em hora). */
+function pedirArquivoOs(ss, osId, atividade, safra, naoAntes) {
+  let aba = ss.getSheetByName(FILA_ARQUIVO_OS_ABA);
+  if (!aba) {
+    aba = ss.insertSheet(FILA_ARQUIVO_OS_ABA);
+    aba.appendRow(FILA_ARQUIVO_OS_CABECALHOS);
+    try { aba.hideSheet(); } catch (err) { /* ok */ }
+  }
+  const linha = [osId, atividade, safra, naoAntes, new Date()];
+  const n = aba.getLastRow();
+  const existentes = n > 1 ? aba.getRange(2, 1, n - 1, 2).getValues() : [];
+  const i = existentes.findIndex(r => String(r[0]) === String(osId) && String(r[1]) === atividade);
+  if (i >= 0) aba.getRange(i + 2, 1, 1, linha.length).setValues([linha]);
+  else aba.appendRow(linha);
+}
+
+/** Pedidos com mais de 120 dias já foram atendidos: limpa a aba. */
+function limparPedidosAntigos(ss) {
+  const aba = ss.getSheetByName(FILA_ARQUIVO_OS_ABA);
+  if (!aba || aba.getLastRow() < 2) return;
+  const limite = Date.now() - 120 * 24 * 3600 * 1000;
+  const valores = aba.getRange(2, 1, aba.getLastRow() - 1, FILA_ARQUIVO_OS_CABECALHOS.length).getValues();
+  for (let i = valores.length - 1; i >= 0; i--) {
+    const pedido = valores[i][4] ? new Date(valores[i][4]).getTime() : 0;
+    if (pedido && pedido < limite) aba.deleteRow(i + 2);
+  }
+}
+
+/**
+ * Move para a pasta da safra cada relatório com "Confirmado RT" marcado:
+ * a linha vai para a planilha "Arquivo - Safra ..." (aba "RO - atividade") e o
+ * PDF para a pasta. Relatório com PDF ainda em geração espera a próxima volta.
+ */
+function arquivarRelatoriosConfirmados() {
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(30000)) return 0;
+  const movimentos = [];
+  let arquivados = 0;
+  try {
+    const ss = planilhaRelatorios();
+    const destinos = {};
+    ATIVIDADES_ARQUIVAVEIS.forEach(atividade => {
+      const sheet = ss.getSheetByName(atividade);
+      if (!sheet || sheet.getLastRow() < 2) return;
+      const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+      const iRt = headers.indexOf(COLUNA_CONFIRMACAO);
+      if (iRt === -1) return;
+      const valores = sheet.getRange(2, 1, sheet.getLastRow() - 1, headers.length).getValues();
+      const col = nome => headers.indexOf(nome);
+      const osAfetadas = {};
+
+      for (let i = valores.length - 1; i >= 0; i--) {
+        const linha = valores[i];
+        if (linha[iRt] !== true) continue;
+        if (col("Status PDF") !== -1 && linha[col("Status PDF")] === 'gerando') continue;
+
+        const safra = (col("Safra") !== -1 && linha[col("Safra")]) ||
+          safraPorData(linha[col("OS Planejado - Data de Inicio")]);
+        const nome = nomeSafraPasta(safra);
+        if (!destinos[nome]) destinos[nome] = obterArquivoSafra(safra);
+        arquivarLinha(destinos[nome].planilha, 'RO - ' + atividade, headers, linha);
+        const pdfId = col("ID do PDF") !== -1 ? String(linha[col("ID do PDF")] || '') : '';
+        if (pdfId) movimentos.push({ pdfId: pdfId, pasta: destinos[nome].pasta });
+        sheet.deleteRow(i + 2);
+        arquivados++;
+
+        const osId = String(linha[col("ID da OS")] || '');
+        if (osId) osAfetadas[osId] = { safra: safra, termino: linha[col("OS Planejado - Data de Termino")] };
+      }
+
+      // A OS só é arquivada quando não sobra relatório dela por confirmar. Na
+      // Colheita (vários relatórios por OS) espera ainda o fim previsto da OS.
+      const restantes = sheet.getLastRow() > 1
+        ? sheet.getRange(2, col("ID da OS") + 1, sheet.getLastRow() - 1, 1).getValues().map(r => String(r[0]))
+        : [];
+      Object.keys(osAfetadas).forEach(osId => {
+        if (restantes.indexOf(osId) !== -1) return;
+        let naoAntes = new Date();
+        if (atividade === 'Colheita') {
+          const termino = parseDateForSheet(osAfetadas[osId].termino);
+          if (termino instanceof Date && !isNaN(termino.getTime())) {
+            naoAntes = new Date(termino.getTime() + 24 * 3600 * 1000);
+          }
+        }
+        pedirArquivoOs(ss, osId, atividade, osAfetadas[osId].safra, naoAntes);
+      });
+    });
+    limparPedidosAntigos(ss);
+  } finally {
+    lock.releaseLock();
+  }
+
+  movimentos.forEach(m => {
+    try { DriveApp.getFileById(m.pdfId).moveTo(m.pasta); }
+    catch (err) { Logger.log("PDF " + m.pdfId + " não pôde ser movido: " + err); }
+  });
+  return arquivados;
 }

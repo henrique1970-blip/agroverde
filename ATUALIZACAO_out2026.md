@@ -151,3 +151,66 @@ proteção contra duplicata até o passo c.
    pasta deve ter um PDF só por OS.
 4. No RO, abrir essa OS. A grade não deve listar PDF ID, PDF URL nem Atualizado em, e
    Dose/tanque deve aparecer como lista.
+
+---
+
+# 2ª rodada (07/10/2026): PDF em segundo plano, Safra, confirmação do RT e arquivo
+
+## O que muda para quem usa
+
+| | Antes | Agora |
+|---|---|---|
+| Enviar OS ou relatório | esperava o PDF, de 10 s a 3 min | responde em 1 a 2 s; o PDF fica pronto cerca de 1 min depois |
+| Link do PDF | aparecia na hora | aparece em "Ordens emitidas" e em "Consultar / Editar" do RO, marcado "PDF em preparação" até ficar pronto |
+| Tabela de produtos da Pulverização (OS e RO) | Produto \| Dosagem \| Dose/tanque, com Dose/ha e Dose/tanque soltos embaixo | **Produto \| Dose/ha \| Dose/tanque**. Dose/ha por produto é opcional; sem ela, a Dose/tanque daquele produto fica em branco |
+| PDF do relatório de Pulverização | "Produtos e quantidades: …" em texto corrido | a mesma tabela, com a Dose/tanque refeita pela capacidade e vazão **realizadas** |
+| Formulário da OS | — | campo **Safra**, sugerido pela data ("Safra 2026/27") e editável (ex.: "Safrinha 2027") |
+| Lista de OS no RO | todas as OS | só as que ainda não têm relatório (a Colheita mostra todas, porque recebe vários relatórios) |
+| Trocar de atividade no RO | buscava na hora | as listas das 6 atividades são carregadas ao abrir o app |
+| Planilha de relatórios | — | colunas **Safra**, **Status PDF** e **Confirmado RT** (caixa de seleção) |
+
+## Fluxo de arquivamento
+
+```
+OS enviada ──► relatório enviado ──► RT marca "Confirmado RT" ──► relatório arquivado ──► OS arquivada
+              (a OS sai da lista       (na planilha de           (na hora)                (na rotina horária)
+               do celular)              relatórios)
+```
+
+- Os arquivos ficam em **Ordens emitidas / Safra 2026-27 /**: os PDFs da OS e do relatório, mais a
+  planilha **"Arquivo - Safra 2026-27"**, com as abas `OS - <atividade>` e `RO - <atividade>`.
+- A OS só sai quando **todos** os relatórios dela foram confirmados. Na **Colheita**, além disso,
+  a OS espera passar a data de término prevista, para que caminhão e trator ainda possam reportar.
+- Relatório confirmado com o PDF ainda em geração espera o PDF ficar pronto.
+- Sem safra informada (OS antigas), a safra é deduzida pela data de início, de julho a junho.
+- Depois de arquivados, a OS e o relatório não podem mais ser editados pelos apps. Isso é de
+  propósito: o RT já confirmou.
+- **Irrigação** fica fora do arquivamento, porque não tem OS.
+
+## Como publicar (ordem)
+
+1. **Apps Script da OS**: colar `appsScript.js` e publicar uma **Nova versão**. Depois, no editor,
+   escolher **`instalarAcionadores`** e clicar em **Executar**. O Google vai pedir autorização nova
+   (acionadores, Drive e a planilha de relatórios): aceite.
+2. **Apps Script de Relatórios**: colar `ro/appsScript.js`, publicar uma **Nova versão** e executar
+   **`instalarAcionadores`** do mesmo jeito. Essa função também cria a coluna "Confirmado RT" com
+   as caixas de seleção.
+3. **Site**: integrar o pull request.
+
+Se `instalarAcionadores` não for executada, nada trava: o PDF volta a ser gerado no próprio envio,
+como antes, só que mais lento. O arquivamento, porém, só funciona depois dela.
+
+**Voltar atrás:** em cada `appsScript.js`, trocar `PDF_EM_SEGUNDO_PLANO = true` por `false`
+devolve o PDF na hora. O arquivamento só acontece quando alguém marca "Confirmado RT".
+
+## Testes desta rodada
+
+`node testes/test_fila_arquivo.mjs` roda **os dois Apps Scripts juntos** sobre um Google simulado
+(`testes/mundo_google.mjs`): fila de PDF, edição durante a geração, falha do Docs (5 tentativas),
+lista do RO, tabela de produtos nos dois PDFs, confirmação do RT, pasta e planilha da safra,
+Colheita e script publicado sem acionadores. No total são 12 conjuntos e 384 verificações, todas
+passando.
+
+**Não testado, porque depende do Google de verdade:** os acionadores reais, o
+`insertTable`/`moveTo` no Drive real e as permissões entre os dois projetos. Os dois scripts
+precisam ser do mesmo dono (a conta que publica) para que um leia a planilha do outro.

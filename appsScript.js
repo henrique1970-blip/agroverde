@@ -35,6 +35,22 @@
  *     A coluna "Dose/tanque" da planilha passa a guardar a lista por produto.
  *   • `?activity=X&detalhes=1` devolve todas as OS da aba de uma vez (o app de
  *     Relatório de Operações usa para baixar tudo para o uso offline).
+ *
+ * Out/2026 (2ª rodada):
+ *   • PDF em segundo plano: o envio grava a planilha e responde em 1-2 s; o PDF
+ *     é gerado logo depois por um acionador (fila na aba oculta "_fila_pdf").
+ *     Para voltar ao PDF na hora, troque PDF_EM_SEGUNDO_PLANO para false.
+ *   • Pulverização: a tabela de produtos fica Produto | Dose/ha | Dose/tanque;
+ *     Dose/ha e Dose/tanque saem da linha abaixo da tabela.
+ *   • Campo "Safra" em todas as atividades.
+ *   • `pendentes=1` na consulta antiga: o app de Relatório de Operações deixa
+ *     de listar as OS que já receberam relatório (exceto Colheita).
+ *   • Arquivamento: quando o RT confirma o relatório (planilha de relatórios),
+ *     a OS e o PDF dela vão para a pasta da safra (rotinaHoraria).
+ *
+ * INSTALAÇÃO DESTA VERSÃO: depois de colar e publicar, rode UMA VEZ a função
+ * instalarAcionadores() no editor (pede autorização para acionadores, Drive e
+ * a planilha de relatórios).
  * ========================================================================= */
 
 // --- CONFIGURAÇÕES --------------------------------------------------------
@@ -52,23 +68,41 @@ const ID_HEADER = "ID da OS";
 const LIST_CACHE_KEY = "os_list_v1";
 const LIST_CACHE_SECONDS = 60;
 
+// PDF gerado depois da resposta (acionador). false = comportamento antigo.
+const PDF_EM_SEGUNDO_PLANO = true;
+const FILA_PDF_ABA = "_fila_pdf";
+const FILA_PDF_CABECALHOS = ["Chave", "Atividade", "Versao", "Status", "Tentativas", "Erro", "Payload"];
+const FILA_PDF_MAX_TENTATIVAS = 5;
+const FILA_PDF_LIMITE_MS = 4.5 * 60 * 1000;   // execução de acionador para em 6 min
+
+// Planilha do app de Relatório de Operações (outro projeto de Apps Script).
+const RO_SPREADSHEET_ID = "1b8LMyDTfkqIfl0bftvQNdpGRg0O1PRvNjrOV0LkEtf8";
+const FILA_ARQUIVO_OS_ABA = "_arquivar_os";   // escrita pelo RO quando o RT confirma
+// As pastas "Safra ..." são criadas aqui dentro (a pasta de OS emitidas).
+const ARQUIVO_PASTA_RAIZ_ID = PDF_FOLDER_ID;
+// Atividades com vários relatórios por OS: a OS nunca some da lista do RO.
+const ATIVIDADES_VARIOS_RELATORIOS = ["Colheita"];
+
 const HEADERS_CONFIG = {
   "PreparodeArea": ["Timestamp", "ID da OS", "Nome do Usuário", "Local", "Talhoes (Area)", "Área Total (ha)", "Data de Inicio", "Data de Termino", "Trator", "Operador(es)", "Implemento", "Observacao"],
   "TratamentodeSementes": ["Timestamp", "ID da OS", "Nome do Usuário", "Local", "Talhoes (Area)", "Área Total (ha)", "Data de Inicio", "Data de Termino", "Cultura e Cultivar", "Qtd Sementes (Kg)", "Produtos e Dosagens", "Maquina", "Operadores", "Observacao"],
   "Plantio": ["Timestamp", "ID da OS", "Nome do Usuário", "Local", "Talhoes (Area)", "Área Total (ha)", "Data de Inicio", "Data de Termino", "Cultura e Cultivar", "Qtd/ha - Maximo", "Qtd/ha - Minimo", "Insumos", "Trator", "Implemento", "Plantas por metro", "Espacamento entre plantas", "PMS", "Operador(es)", "Observacao"],
-  "Pulverizacao": ["Timestamp", "ID da OS", "Nome do Usuário", "Local", "Talhoes (Area)", "Área Total (ha)", "Data de Inicio", "Data de Termino", "Cultura e Cultivar", "Produto(s) e quantidade/ha", "Maquina", "Bico", "Capacidade do tanque", "Vazao (L/ha)", "Operador(es)", "Pressao", "Dose/ha", "Dose/tanque", "Implemento", "Observacao"],
+  "Pulverizacao": ["Timestamp", "ID da OS", "Nome do Usuário", "Local", "Talhoes (Area)", "Área Total (ha)", "Data de Inicio", "Data de Termino", "Cultura e Cultivar", "Produto(s) e quantidade/ha", "Maquina", "Bico", "Capacidade do tanque", "Vazao (L/ha)", "Operador(es)", "Pressao", "Dose/tanque", "Implemento", "Observacao"],
   "Colheita": ["Timestamp", "ID da OS", "Nome do Usuário", "Local", "Talhoes (Area)", "Área Total (ha)", "Data de Inicio", "Data de Termino", "Cultura e Cultivar", "Produtividade estimada", "Colhedeira", "Operador(es) Colhedeira", "Trator", "Operador(es) Trator", "Implemento", "Observacao"],
   "Lancas": ["Timestamp", "ID da OS", "Nome do Usuário", "Local", "Talhoes (Area)", "Área Total (ha)", "Data de Inicio", "Data de Termino", "Cultura e Cultivar", "Quantidade de produto/hectare", "Maquina", "Operador(es)", "Implemento", "Observacao"]
 };
 
 // Colunas de controle acrescentadas automaticamente às abas existentes.
-const CONTROL_HEADERS = ["PDF ID", "PDF URL", "Atualizado em"];
+// "Safra" vale para todas as atividades; nas abas existentes entra no fim.
+const EXTRA_HEADERS = ["Safra"];
+const CONTROL_HEADERS = ["PDF ID", "PDF URL", "Status PDF", "Atualizado em"];
 
 // Cabeçalho da planilha  ->  nome do campo usado pelo formulário do app.
 const HEADER_TO_FIELD = {
   "id da os": "osId",
   "nome do usuario": "userName",
   "local": "local",
+  "safra": "safra",
   "talhoes (area)": "talhoes",
   "area total (ha)": "areaTotalHectares",
   "data de inicio": "dataInicio",
@@ -112,6 +146,7 @@ const PH_NOME_PRODUTO = "{{Nome Produto}}";
 const PH_DOSE_PRODUTO = "{{Dose Produto}}";
 const PH_DOSE_TANQUE_PRODUTO = "{{Dose Tanque Produto}}";
 const TITULO_COLUNA_DOSE_TANQUE = "Dose/tanque";
+const TITULO_COLUNA_DOSE_HA = "Dose/ha";
 
 // --- AUXILIARES -----------------------------------------------------------
 function createJsonResponse(obj) {
@@ -128,6 +163,10 @@ function normalizeHeader(header) {
 
 function formatDateForPdf(dateInput) {
   if (!dateInput) return '';
+  // "2026-10-07" vindo do formulário: new Date() leria como meia-noite UTC, que
+  // no fuso de Brasília ainda é o dia anterior. Monta o texto direto.
+  const iso = String(dateInput).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (iso) return iso[3] + '/' + iso[2] + '/' + iso[1];
   try {
     const date = (dateInput instanceof Date) ? dateInput : new Date(dateInput);
     if (isNaN(date.getTime())) return dateInput;
@@ -271,6 +310,10 @@ function doPost(e) {
     data.produtosConcatenados = concatenarProdutos(data, numProducts);
     if (ATIVIDADES_COM_TANQUE.indexOf(activity) !== -1) calcularDosesTanque(data, numProducts);
 
+    const templateId = TEMPLATE_IDS[activity];
+    const emSegundoPlano = PDF_EM_SEGUNDO_PLANO && !!templateId;
+    data.statusPdf = emSegundoPlano ? 'gerando' : '';
+
     // --- planilha (com trava: leitura + escrita da mesma linha) ---
     const lock = LockService.getScriptLock();
     lock.waitLock(30000);
@@ -280,7 +323,7 @@ function doPost(e) {
       const ss = SpreadsheetApp.getActiveSpreadsheet();
       sheet = ss.getSheetByName(activity);
 
-      let headersDesejados = HEADERS_CONFIG[activity].slice();
+      let headersDesejados = HEADERS_CONFIG[activity].concat(EXTRA_HEADERS);
       for (let i = 1; i <= numTrucks; i++) {
         headersDesejados.push('Caminhão ' + i);
         headersDesejados.push('Motorista ' + i);
@@ -307,19 +350,20 @@ function doPost(e) {
 
       const agora = new Date();
       timestampOriginal = agora;
+      let linhaAtual = null;
       if (isUpdate) {
+        linhaAtual = sheet.getRange(rowNumber, 1, 1, headers.length).getValues()[0];
         const tsIndex = headerIndex(headers, "Timestamp");
-        if (tsIndex !== -1) {
-          const valorAtual = sheet.getRange(rowNumber, tsIndex + 1).getValue();
-          if (valorAtual) timestampOriginal = valorAtual;
-        }
+        if (tsIndex !== -1 && linhaAtual[tsIndex]) timestampOriginal = linhaAtual[tsIndex];
         const pdfIdIndex = headerIndex(headers, "PDF ID");
-        if (pdfIdIndex !== -1) pdfIdAnterior = sheet.getRange(rowNumber, pdfIdIndex + 1).getValue();
+        if (pdfIdIndex !== -1) pdfIdAnterior = linhaAtual[pdfIdIndex];
       }
 
       const dataMap = montarDataMap(data, activity, timestampOriginal, agora, numTrucks);
-      const rowValues = headers.map(header => {
+      const rowValues = headers.map((header, i) => {
         const chave = normalizeHeader(header);
+        // Na edição o PDF atual continua valendo até o novo ficar pronto.
+        if (linhaAtual && (chave === 'pdf id' || chave === 'pdf url')) return linhaAtual[i];
         return dataMap.hasOwnProperty(chave) ? dataMap[chave] : '';
       });
 
@@ -329,14 +373,21 @@ function doPost(e) {
         sheet.appendRow(rowValues);
         rowNumber = sheet.getLastRow();
       }
+
+      if (emSegundoPlano) {
+        enfileirarPdf(ss, osId, activity, {
+          data: data,
+          numProducts: numProducts,
+          numTrucks: numTrucks,
+          timestampEmissao: new Date(timestampOriginal).toISOString()
+        });
+      }
     } finally {
       lock.releaseLock();
     }
 
     CacheService.getScriptCache().remove(LIST_CACHE_KEY);
 
-    // --- PDF ---
-    const templateId = TEMPLATE_IDS[activity];
     if (!templateId) {
       return createJsonResponse({
         success: true, osId: osId, mode: isUpdate ? 'update' : 'create',
@@ -345,6 +396,22 @@ function doPost(e) {
       });
     }
 
+    if (emSegundoPlano) {
+      // Sem acionador (instalarAcionadores ainda não rodou): gera agora, como
+      // antes, para o PDF não ficar preso na fila.
+      if (!agendarFilaPdf()) processarFilaPdf();
+      return createJsonResponse({
+        success: true,
+        mode: isUpdate ? 'update' : 'create',
+        message: isUpdate ? "Ordem de serviço atualizada. O PDF novo fica pronto em instantes." : "Dados registrados. O PDF fica pronto em instantes.",
+        osId: osId,
+        pdfPending: true,
+        folderUrl: 'https://drive.google.com/drive/folders/' + PDF_FOLDER_ID,
+        elapsedMs: Date.now() - inicio
+      });
+    }
+
+    // --- PDF na hora (PDF_EM_SEGUNDO_PLANO = false) ---
     const pdfFolder = DriveApp.getFolderById(PDF_FOLDER_ID);
     const arquivo = gerarPdf({
       templateId: templateId,
@@ -422,6 +489,8 @@ function montarDataMap(data, activity, timestampOriginal, agora, numTrucks) {
     "operador(es) trator": data.operadoresTrator,
     "quantidade de produto/hectare": data.produtosConcatenados,
     "produto(s) e quantidade/ha": data.produtosConcatenados,
+    "safra": data.safra,
+    "status pdf": data.statusPdf || '',
     "atualizado em": agora
   };
 
@@ -640,11 +709,28 @@ function prepararTemplateDoseTanque(body) {
     }
   }
 
-  const linhaAntiga = '\\s*Dose/tanque:\\s*\\{\\{DOSE_TANQUE\\}\\}';
-  if (body.findText(linhaAntiga)) {
-    body.replaceText(linhaAntiga, '');
-    alterou = true;
+  // A coluna "Dosagem" já é por hectare: passa a se chamar "Dose/ha".
+  const achadoNome = body.findText(escaparRegex(PH_NOME_PRODUTO));
+  const linhaProduto = achadoNome ? linhaDaTabela(achadoNome.getElement()) : null;
+  if (linhaProduto) {
+    const tabela = linhaProduto.getParent();
+    const cabecalho = tabela.getRow(0);
+    if (cabecalho !== linhaProduto && cabecalho.getNumCells() > 1) {
+      const celula = cabecalho.getCell(1);
+      if (/^\s*dosagem\s*$/i.test(celula.getText())) {
+        trocarTextoDaCelula(celula, TITULO_COLUNA_DOSE_HA);
+        alterou = true;
+      }
+    }
   }
+
+  // Dose/tanque e Dose/ha agora estão na tabela: saem da linha de baixo.
+  ['\\s*Dose/tanque:\\s*\\{\\{DOSE_TANQUE\\}\\}', '\\s*Dose/ha:\\s*\\{\\{DOSE_HA\\}\\}'].forEach(padrao => {
+    if (body.findText(padrao)) {
+      body.replaceText(padrao, '');
+      alterou = true;
+    }
+  });
   return alterou;
 }
 
@@ -714,12 +800,16 @@ function doGet(e) {
     const headers = readHeaders(sheet);
     const idColumn = headerIndex(headers, ID_HEADER);
     if (idColumn === -1) throw new Error("Coluna 'ID da OS' não encontrada.");
+    // `pendentes=1`: só as OS que ainda não receberam relatório de operação
+    // (a Colheita recebe vários relatórios por OS e fica sempre na lista).
+    const jaReportadas = params.pendentes ? osComRelatorio(activity) : {};
+
     // Lote: todas as OS completas numa resposta só. O app de Relatório de
     // Operações reconhece o formato e evita uma requisição por OS.
     if (params.detalhes) {
       const valores = sheet.getRange(2, 1, lastRow - 1, headers.length).getValues();
       return createJsonResponse(valores
-        .filter(linha => String(linha[idColumn]).trim() !== '')
+        .filter(linha => String(linha[idColumn]).trim() !== '' && !jaReportadas[String(linha[idColumn]).trim()])
         .map(linha => {
           const os = {};
           headers.forEach((h, i) => { os[h] = linha[i]; });
@@ -727,7 +817,8 @@ function doGet(e) {
         }));
     }
 
-    const ids = sheet.getRange(2, idColumn + 1, lastRow - 1, 1).getValues().flat().filter(String);
+    const ids = sheet.getRange(2, idColumn + 1, lastRow - 1, 1).getValues().flat()
+      .filter(String).filter(id => !jaReportadas[String(id).trim()]);
     return createJsonResponse(ids);
 
   } catch (error) {
@@ -866,4 +957,348 @@ function obterOs(osId, activity) {
   }
 
   throw new Error("OS com ID '" + osId + "' não encontrada.");
+}
+
+// =========================================================================
+// FILA DE PDF (geração em segundo plano)
+//
+// O doPost grava a OS e põe na aba oculta "_fila_pdf" o mesmo pacote de dados
+// que antes ia direto para o gerarPdf(). Um acionador avulso, criado logo em
+// seguida, roda processarFilaPdf() em ~10-60 s. A rotinaHoraria() é a rede de
+// segurança: se o acionador avulso falhar, a fila anda na hora seguinte.
+// =========================================================================
+function abaFilaPdf(ss) {
+  let aba = ss.getSheetByName(FILA_PDF_ABA);
+  if (!aba) {
+    aba = ss.insertSheet(FILA_PDF_ABA);
+    aba.appendRow(FILA_PDF_CABECALHOS);
+    try { aba.hideSheet(); } catch (err) { /* aba visível não atrapalha */ }
+  }
+  return aba;
+}
+
+function lerFilaPdf(ss) {
+  const aba = abaFilaPdf(ss);
+  const ultima = aba.getLastRow();
+  if (ultima < 2) return [];
+  return aba.getRange(2, 1, ultima - 1, FILA_PDF_CABECALHOS.length).getValues().map((v, i) => ({
+    linha: i + 2,
+    chave: String(v[0]),
+    atividade: String(v[1]),
+    versao: String(v[2]),
+    status: String(v[3]),
+    tentativas: Number(v[4]) || 0,
+    erro: String(v[5] || ''),
+    payload: String(v[6] || '')
+  }));
+}
+
+/** Chamar DENTRO da trava. Uma entrada por chave: reenvio/edição substitui. */
+function enfileirarPdf(ss, chave, atividade, pacote) {
+  const aba = abaFilaPdf(ss);
+  const linha = [chave, atividade, Utilities.getUuid(), 'pendente', 0, '', JSON.stringify(pacote)];
+  const existente = lerFilaPdf(ss).filter(i => i.chave === String(chave))[0];
+  if (existente) aba.getRange(existente.linha, 1, 1, linha.length).setValues([linha]);
+  else aba.appendRow(linha);
+}
+
+/** Devolve false se não foi possível agendar (acionadores sem autorização). */
+function agendarFilaPdf() {
+  try {
+    const jaAgendado = ScriptApp.getProjectTriggers().some(t => t.getHandlerFunction() === 'processarFilaPdf');
+    if (!jaAgendado) ScriptApp.newTrigger('processarFilaPdf').timeBased().after(10 * 1000).create();
+    return true;
+  } catch (err) {
+    // Sem permissão de acionador (instalarAcionadores ainda não rodou): a
+    // rotina horária, ou o próximo envio, processa a fila.
+    Logger.log("Não foi possível agendar a fila de PDF: " + err);
+    return false;
+  }
+}
+
+function removerGatilhosAvulsos(nomeFuncao) {
+  try {
+    ScriptApp.getProjectTriggers()
+      .filter(t => t.getHandlerFunction() === nomeFuncao)
+      .forEach(t => ScriptApp.deleteTrigger(t));
+  } catch (err) { /* sem permissão: nada a limpar */ }
+}
+
+function processarFilaPdf() {
+  removerGatilhosAvulsos('processarFilaPdf');
+  const props = PropertiesService.getScriptProperties();
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(10000)) { agendarFilaPdf(); return; }
+  try {
+    // Uma execução por vez: a geração de cada PDF fica fora da trava (senão os
+    // envios do app esperariam), então a exclusão é feita por esta marca.
+    if (Number(props.getProperty('fila_pdf_ocupada_ate') || 0) > Date.now()) {
+      agendarFilaPdf();
+      return;
+    }
+    props.setProperty('fila_pdf_ocupada_ate', String(Date.now() + 6 * 60 * 1000));
+  } finally {
+    lock.releaseLock();
+  }
+
+  const inicio = Date.now();
+  const tentados = {};
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    while (Date.now() - inicio < FILA_PDF_LIMITE_MS) {
+      const item = lerFilaPdf(ss).filter(i => i.status === 'pendente' && !tentados[i.chave + i.versao])[0];
+      if (!item) break;
+      tentados[item.chave + item.versao] = true;
+      processarItemPdf(ss, item);
+    }
+  } finally {
+    props.deleteProperty('fila_pdf_ocupada_ate');
+  }
+  if (lerFilaPdf(SpreadsheetApp.getActiveSpreadsheet()).some(i => i.status === 'pendente')) agendarFilaPdf();
+}
+
+function processarItemPdf(ss, item) {
+  let arquivo;
+  try {
+    const pacote = JSON.parse(item.payload);
+    arquivo = gerarPdf({
+      templateId: TEMPLATE_IDS[item.atividade],
+      pdfFolder: DriveApp.getFolderById(PDF_FOLDER_ID),
+      activity: item.atividade,
+      data: pacote.data,
+      numProducts: pacote.numProducts,
+      numTrucks: pacote.numTrucks,
+      timestampEmissao: new Date(pacote.timestampEmissao)
+    });
+  } catch (err) {
+    Logger.log("PDF da OS " + item.chave + " falhou: " + err);
+    registrarFalhaFila(ss, item, err);
+    return;
+  }
+
+  let pdfAnterior = '';
+  let descartarNovo = false;
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    const atual = lerFilaPdf(ss).filter(i => i.chave === item.chave)[0];
+    if (!atual || atual.versao !== item.versao) {
+      // A OS foi editada enquanto o PDF era gerado: a versão nova vem a seguir.
+      descartarNovo = true;
+    } else {
+      const sheet = ss.getSheetByName(item.atividade);
+      const headers = sheet ? readHeaders(sheet) : [];
+      const rowNumber = sheet ? findRowByOsId(sheet, headers, item.chave) : -1;
+      if (rowNumber < 0) {
+        descartarNovo = true;   // OS apagada ou arquivada nesse meio-tempo
+      } else {
+        const idIndex = headerIndex(headers, "PDF ID");
+        if (idIndex !== -1) pdfAnterior = sheet.getRange(rowNumber, idIndex + 1).getValue();
+        gravarDadosDoPdf(sheet, headers, rowNumber, arquivo.getId(), arquivo.getUrl());
+        const statusIndex = headerIndex(headers, "Status PDF");
+        if (statusIndex !== -1) sheet.getRange(rowNumber, statusIndex + 1).setValue('ok');
+      }
+      abaFilaPdf(ss).deleteRow(atual.linha);
+    }
+  } finally {
+    lock.releaseLock();
+  }
+
+  const descartar = descartarNovo ? arquivo.getId() : (pdfAnterior && pdfAnterior !== arquivo.getId() ? pdfAnterior : '');
+  if (descartar) {
+    try { DriveApp.getFileById(descartar).setTrashed(true); }
+    catch (err) { Logger.log("PDF não pôde ser descartado: " + err); }
+  }
+  CacheService.getScriptCache().remove(LIST_CACHE_KEY);
+}
+
+function registrarFalhaFila(ss, item, err) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    const atual = lerFilaPdf(ss).filter(i => i.chave === item.chave)[0];
+    if (!atual || atual.versao !== item.versao) return;
+    const tentativas = atual.tentativas + 1;
+    const status = tentativas >= FILA_PDF_MAX_TENTATIVAS ? 'erro' : 'pendente';
+    abaFilaPdf(ss).getRange(atual.linha, 4, 1, 3).setValues([[status, tentativas, String(err).slice(0, 500)]]);
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/**
+ * RODAR UMA VEZ no editor depois de publicar esta versão. Cria a rotina de hora
+ * em hora (fila de PDF + arquivamento) e pede as autorizações novas.
+ */
+function instalarAcionadores() {
+  ScriptApp.getProjectTriggers()
+    .filter(t => t.getHandlerFunction() === 'rotinaHoraria')
+    .forEach(t => ScriptApp.deleteTrigger(t));
+  ScriptApp.newTrigger('rotinaHoraria').timeBased().everyHours(1).create();
+  // Toca nos serviços uma vez para o Google pedir todas as autorizações agora.
+  DriveApp.getFolderById(ARQUIVO_PASTA_RAIZ_ID).getName();
+  SpreadsheetApp.openById(RO_SPREADSHEET_ID).getName();
+  Logger.log("Acionadores instalados.");
+}
+
+function rotinaHoraria() {
+  processarFilaPdf();
+  arquivarOsConfirmadas();
+}
+
+// =========================================================================
+// ARQUIVAMENTO POR SAFRA
+//
+// Quem decide é o RT, marcando "Confirmado RT" na planilha de relatórios. O
+// projeto de Relatórios arquiva o relatório e, quando não sobra relatório da
+// OS por confirmar, anota a OS na aba "_arquivar_os" daquela planilha. Esta
+// rotina lê essa aba e arquiva a OS e o PDF dela — cada projeto só mexe nas
+// próprias planilhas, dentro da própria trava.
+// =========================================================================
+function nomeSafraPasta(safra) {
+  const texto = String(safra || '').replace(/[\/\\]/g, '-').replace(/\s+/g, ' ').trim();
+  return texto || 'Sem safra';
+}
+
+/** Safra de julho a junho pela data: 07/2026 a 06/2027 = "Safra 2026/27". */
+function safraPorData(valor) {
+  const data = (valor instanceof Date) ? valor : new Date(valor);
+  if (!valor || isNaN(data.getTime())) return '';
+  const ano = data.getMonth() >= 6 ? data.getFullYear() : data.getFullYear() - 1;
+  return 'Safra ' + ano + '/' + String((ano + 1) % 100).padStart(2, '0');
+}
+
+/** Pasta "Safra 2026-27" e a planilha "Arquivo - Safra 2026-27" dentro dela. */
+function obterArquivoSafra(safra) {
+  const nome = nomeSafraPasta(safra);
+  const raiz = DriveApp.getFolderById(ARQUIVO_PASTA_RAIZ_ID);
+  const pastas = raiz.getFoldersByName(nome);
+  const pasta = pastas.hasNext() ? pastas.next() : raiz.createFolder(nome);
+
+  const nomePlanilha = 'Arquivo - ' + nome;
+  const arquivos = pasta.getFilesByName(nomePlanilha);
+  let planilha;
+  if (arquivos.hasNext()) {
+    planilha = SpreadsheetApp.openById(arquivos.next().getId());
+  } else {
+    planilha = SpreadsheetApp.create(nomePlanilha);
+    DriveApp.getFileById(planilha.getId()).moveTo(pasta);
+  }
+  return { pasta: pasta, planilha: planilha };
+}
+
+/** Acrescenta a linha na aba do arquivo, casando as colunas pelo cabeçalho. */
+function arquivarLinha(planilha, nomeAba, cabecalhos, valores) {
+  const colunas = cabecalhos.concat(['Arquivado em']);
+  let aba = planilha.getSheetByName(nomeAba);
+  if (!aba) {
+    aba = planilha.insertSheet(nomeAba);
+    aba.appendRow(colunas);
+    // A planilha nova vem com uma aba vazia ("Página1"/"Sheet1"): sai.
+    planilha.getSheets().forEach(s => {
+      if (s.getName() !== nomeAba && s.getLastRow() === 0 && planilha.getSheets().length > 1) planilha.deleteSheet(s);
+    });
+  }
+  let atuais = aba.getRange(1, 1, 1, aba.getLastColumn()).getValues()[0];
+  const faltam = colunas.filter(h => h && atuais.indexOf(h) === -1);
+  if (faltam.length) {
+    aba.getRange(1, atuais.length + 1, 1, faltam.length).setValues([faltam]);
+    atuais = atuais.concat(faltam);
+  }
+  aba.appendRow(atuais.map(h => {
+    if (h === 'Arquivado em') return new Date();
+    const i = cabecalhos.indexOf(h);
+    return i >= 0 ? valores[i] : '';
+  }));
+}
+
+/** Lê "_arquivar_os" da planilha de relatórios e arquiva as OS liberadas. */
+function arquivarOsConfirmadas() {
+  let pedidos;
+  try {
+    const aba = SpreadsheetApp.openById(RO_SPREADSHEET_ID).getSheetByName(FILA_ARQUIVO_OS_ABA);
+    if (!aba || aba.getLastRow() < 2) return 0;
+    pedidos = aba.getRange(2, 1, aba.getLastRow() - 1, 4).getValues();
+  } catch (err) {
+    Logger.log("Sem acesso à planilha de relatórios: " + err);
+    return 0;
+  }
+
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let arquivadas = 0;
+  pedidos.forEach(([osId, atividade, safraPedido, naoAntes]) => {
+    if (!osId || !atividade) return;
+    if (naoAntes && new Date(naoAntes).getTime() > Date.now()) return;
+
+    let pdfId = '';
+    let destino = null;
+    const lock = LockService.getScriptLock();
+    lock.waitLock(30000);
+    try {
+      const sheet = ss.getSheetByName(String(atividade));
+      if (!sheet) return;
+      const headers = readHeaders(sheet);
+      const rowNumber = findRowByOsId(sheet, headers, String(osId));
+      if (rowNumber < 0) return;   // já arquivada
+      const valores = sheet.getRange(rowNumber, 1, 1, headers.length).getValues()[0];
+      const statusIndex = headerIndex(headers, "Status PDF");
+      if (statusIndex !== -1 && valores[statusIndex] === 'gerando') return;   // espera o PDF
+
+      const safraIndex = headerIndex(headers, "Safra");
+      const inicioIndex = headerIndex(headers, "Data de Inicio");
+      const safra = safraPedido || (safraIndex !== -1 && valores[safraIndex]) ||
+        safraPorData(inicioIndex !== -1 ? valores[inicioIndex] : '');
+      destino = obterArquivoSafra(safra);
+      arquivarLinha(destino.planilha, 'OS - ' + atividade, headers, valores);
+      const pdfIndex = headerIndex(headers, "PDF ID");
+      if (pdfIndex !== -1) pdfId = String(valores[pdfIndex] || '');
+      sheet.deleteRow(rowNumber);
+      arquivadas++;
+    } finally {
+      lock.releaseLock();
+    }
+
+    if (pdfId && destino) {
+      try { DriveApp.getFileById(pdfId).moveTo(destino.pasta); }
+      catch (err) { Logger.log("PDF da OS " + osId + " não pôde ser movido: " + err); }
+    }
+  });
+
+  if (arquivadas) CacheService.getScriptCache().remove(LIST_CACHE_KEY);
+  return arquivadas;
+}
+
+/** IDs de OS desta atividade que já têm relatório (para `pendentes=1`). */
+function osComRelatorio(activity) {
+  if (ATIVIDADES_VARIOS_RELATORIOS.indexOf(activity) !== -1) return {};
+  const cache = CacheService.getScriptCache();
+  const chave = 'com_relatorio_' + activity;
+  const emCache = cache.get(chave);
+  if (emCache) {
+    try { return JSON.parse(emCache); } catch (err) { /* segue */ }
+  }
+
+  const ids = {};
+  try {
+    const ro = SpreadsheetApp.openById(RO_SPREADSHEET_ID);
+    const coletar = (aba, coluna, filtroAtividade) => {
+      if (!aba || aba.getLastRow() < 2) return;
+      const cab = aba.getRange(1, 1, 1, aba.getLastColumn()).getValues()[0];
+      const iId = cab.indexOf(coluna);
+      if (iId === -1) return;
+      const iAtv = cab.indexOf('Atividade');
+      aba.getRange(2, 1, aba.getLastRow() - 1, cab.length).getValues().forEach(l => {
+        if (filtroAtividade && iAtv !== -1 && String(l[iAtv]) !== activity) return;
+        if (l[iId]) ids[String(l[iId]).trim()] = 1;
+      });
+    };
+    coletar(ro.getSheetByName(activity), 'ID da OS', false);
+    coletar(ro.getSheetByName(FILA_ARQUIVO_OS_ABA), 'ID da OS', true);
+  } catch (err) {
+    // Sem acesso à planilha de relatórios: lista tudo, como antes.
+    Logger.log("osComRelatorio: " + err);
+    return {};
+  }
+  try { cache.put(chave, JSON.stringify(ids), 60); } catch (err) { /* grande demais */ }
+  return ids;
 }
