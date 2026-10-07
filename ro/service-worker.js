@@ -25,7 +25,7 @@
 // os mesmos caches. Por isso a limpeza de versões antigas filtra pelo prefixo —
 // apagar "tudo que não é meu" derrubaria o cache offline do outro aplicativo.
 const CACHE_PREFIX = 'agro-relop-';
-const CACHE_VERSION = 'v4';
+const CACHE_VERSION = 'v5';
 const CACHE_NAME = CACHE_PREFIX + CACHE_VERSION;
 
 const PRECACHE_URLS = [
@@ -52,6 +52,8 @@ const DB_NAME = 'reportAgroDB';
 const DB_VERSION = 2;
 const STORE_PENDING = 'pendingReports';
 const SYNC_TAG = 'sync-report-data';
+// Mesma trava usada pela página (script.js): só um dos dois envia a fila por vez.
+const PENDING_LOCK = 'agro-relop-pending';
 
 
 /* ---------------------------- instalação ---------------------------- */
@@ -180,12 +182,27 @@ async function avisarClientes(mensagem) {
     clients.forEach(client => client.postMessage(mensagem));
 }
 
-async function enviarPendentes() {
+async function lerPendente(id) {
+    const db = await abrirDB();
+    return pedido(db.transaction(STORE_PENDING, 'readonly').objectStore(STORE_PENDING).get(id));
+}
+
+function enviarPendentes() {
+    if (self.navigator && self.navigator.locks && typeof self.navigator.locks.request === 'function') {
+        return self.navigator.locks.request(PENDING_LOCK, enviarPendentesComTrava);
+    }
+    return enviarPendentesComTrava();
+}
+
+async function enviarPendentesComTrava() {
     const pendentes = await listarPendentes();
     if (!pendentes.length) return;
 
     let enviados = 0;
-    for (const item of pendentes) {
+    for (const snapshot of pendentes) {
+        // A página pode ter enviado este relatório enquanto o worker esperava a trava.
+        const item = await lerPendente(snapshot.id);
+        if (!item) continue;
         const { id, savedAt, __endpoint, ...reportData } = item;
         try {
             const resposta = await fetch(__endpoint || REPORT_APPS_SCRIPT_URL_FALLBACK, {

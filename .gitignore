@@ -1,0 +1,7 @@
+node_modules/
+package.json
+package-lock.json
+testes/
+ro/testes/
+ro/HANDOFF_relatorio_operacoes.md
+_preview.html

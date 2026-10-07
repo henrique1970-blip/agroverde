@@ -28,3 +28,10 @@ reescrito a partir da versão que corresponde ao que está implantado
 PRECISA ser colado na planilha e reimplantado como nova versão, senão a edição de OS não funciona.
 
 Pendente (do item 2 acima, não faz parte deste pedido): troca de ponto por vírgula nos decimais.
+
+14:10 07/10/2026
+Projeto passou a viver em D:\projetos\lavoura (clone git do repositório + testes dos dois apps).
+Atendido: dose por tanque por produto na Pulverização (3ª coluna da tabela do PDF; fórmula correta é
+dosagem × capacidade ÷ vazão), revisão antes do envio, correções de envio duplicado e offline nos
+dois apps, RO acompanhando as mudanças da OS. Detalhes e passos de publicação em ATUALIZACAO_out2026.md.
+Continua pendente: troca de ponto por vírgula nos decimais (item 2 de 22/08/2025).

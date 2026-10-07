@@ -517,8 +517,71 @@ body {
     margin-left: 10px;
 }
 
+/* --- Cálculo de tanque (Pulverização) --- */
+.calc-info {
+    margin: -6px 0 14px;
+    padding: 6px 10px;
+    background: #eef7f0;
+    border-left: 3px solid #28a745;
+    border-radius: 3px;
+    font-size: 0.95em;
+    color: #1e5631;
+}
+
+/* --- Revisão antes do envio --- */
+.modal-content.review-mode {
+    box-sizing: border-box;
+    width: 640px;
+    max-width: 96%;
+    max-height: 90vh;
+    overflow-y: auto;
+    padding: 20px;
+    text-align: left;
+}
+
+.review h3 {
+    margin: 0 0 12px;
+    text-align: center;
+}
+
+.review-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 14px;
+    font-size: 0.95em;
+}
+
+.review-table th,
+.review-table td {
+    border: 1px solid #ddd;
+    padding: 6px 8px;
+    vertical-align: top;
+    word-break: break-word;
+}
+
+.review-table tbody th {
+    width: 40%;
+    background: #f6f6f6;
+    text-align: left;
+    font-weight: 600;
+}
+
+.review-table.products thead th {
+    background: #28a745;
+    color: #fff;
+    text-align: left;
+}
+
+.review .modal-buttons {
+    position: sticky;
+    bottom: -20px;
+    background: #fff;
+    padding: 10px 0 0;
+}
+
 @media (max-width: 480px) {
     body { padding: 10px; }
+    .modal-content.review-mode { padding: 14px; }
     .container { padding: 18px; }
     .app-header { padding: 8px 15px; }
     .app-header .logo { width: 120px; }

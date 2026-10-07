@@ -20,7 +20,7 @@
 // derrubaria o cache do outro app, que então só voltaria a abrir offline depois
 // de ser aberto uma vez com sinal.
 const CACHE_PREFIX = 'agro-os-';
-const CACHE_VERSION = 'v6';
+const CACHE_VERSION = 'v7';
 const CACHE_NAME = `${CACHE_PREFIX}${CACHE_VERSION}`;
 
 const PRECACHE_URLS = [
@@ -41,6 +41,8 @@ const DB_NAME = 'osAgroDB';
 const DB_VERSION = 2;
 const STORE_OUTBOX = 'outbox';
 const SYNC_TAG = 'sync-os-data';
+// Mesma trava usada pela página (script.js): só um dos dois envia a fila por vez.
+const OUTBOX_LOCK = 'agro-os-outbox';
 
 // --- Instalação / ativação ------------------------------------------------
 self.addEventListener('install', event => {
@@ -169,7 +171,18 @@ function txRequest(database, mode, fn) {
     });
 }
 
-async function syncOutbox() {
+function withOutboxLock(fn) {
+    if (self.navigator && self.navigator.locks && typeof self.navigator.locks.request === 'function') {
+        return self.navigator.locks.request(OUTBOX_LOCK, fn);
+    }
+    return fn();
+}
+
+function syncOutbox() {
+    return withOutboxLock(syncOutboxLocked);
+}
+
+async function syncOutboxLocked() {
     let database;
     try {
         database = await openDb();
@@ -187,25 +200,30 @@ async function syncOutbox() {
     if (!items.length) return;
 
     let enviadas = 0;
-    for (const item of items) {
-        try {
-            const response = await fetch(APPS_SCRIPT_URL, {
-                method: 'POST',
-                body: new URLSearchParams(item.data)
-            });
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-            const result = await response.json();
-            if (!result.success) throw new Error(result.message || 'Falha no servidor');
+    for (const snapshot of items) {
+        // A página pode ter enviado esta OS enquanto o worker esperava a trava.
+        const item = await txRequest(database, 'readonly', store => store.get(snapshot.osId));
+        if (!item) continue;
 
+        // Uma falha propaga o erro: a OS fica na fila e o navegador reagenda
+        // este evento de sync.
+        const response = await fetch(APPS_SCRIPT_URL, {
+            method: 'POST',
+            body: new URLSearchParams(item.data)
+        });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const result = await response.json();
+        if (!result.success) throw new Error(result.message || 'Falha no servidor');
+
+        // Editada no aparelho durante o envio: a versão nova continua na fila.
+        const atual = await txRequest(database, 'readonly', store => store.get(item.osId));
+        if (!atual || atual.updatedAt === item.updatedAt) {
             await txRequest(database, 'readwrite', store => store.delete(item.osId));
-            enviadas++;
-        } catch (e) {
-            // Rede ainda instável: mantém na fila e deixa o navegador reagendar
-            // este evento de sync.
-            throw e;
         }
+        enviadas++;
     }
 
+    if (!enviadas) return;
     const clients = await self.clients.matchAll({ includeUncontrolled: true });
     clients.forEach(client => client.postMessage({ type: 'SYNC_DONE', count: enviadas }));
 }

@@ -94,7 +94,7 @@ const OS_FIELDS = [
   ["Vazão (L/ha)",              "vazaoLHa",                "Vazão (L/ha)",              "num"],
   ["Pressão",                   "pressao",                 "Pressão",                   "num"],
   ["Dose/ha",                   "Doseha",                  "Dose/ha",                   "num"],
-  ["Dose/tanque",               "Dosetanque",              "Dose/tanque",               "num"],
+  ["Dose/tanque",               "Dosetanque",              "Dose/tanque",               "txt"],   // lista por produto desde out/2026
   ["Maquina",                   "maquina",                 "Máquina",                   "txt"],
   ["Máquina (Pulverizador)",    "maquina",                 "Máquina (Pulverizador)",    "txt"],
   ["Trator",                    "Trator",                  "Trator",                    "txt"],
@@ -165,6 +165,13 @@ function formatNumberForPdf(numInput) {
   if (numInput === null || numInput === undefined || numInput.toString().trim() === '') return ' ';
   const num = parseFloat(numInput.toString().replace(',', '.'));
   return isNaN(num) ? numInput : num.toFixed(2).replace('.', ',');
+}
+
+/** "Dose/tanque" virou texto ("Roundup: 90 l; Óleo: 15 l") na OS; OS antigas
+ *  ainda trazem um número. Formata só o que for número puro. */
+function formatNumeroOuTexto(valor, formatador) {
+  if (valor === null || valor === undefined) return valor;
+  return /^\s*-?\d+(?:[.,]\d+)?\s*$/.test(String(valor)) ? formatador(valor) : String(valor);
 }
 
 function formatNumberForSheet(numInput) {
@@ -369,7 +376,19 @@ function doPost(e) {
     const timestampReport = (ehEdicao && linhaAtual && linhaAtual[idxTs]) ? linhaAtual[idxTs] : agora;
 
     const idxIdRel = headers.indexOf("ID do Relatorio");
-    const reportId = (ehEdicao && linhaAtual && linhaAtual[idxIdRel]) ? linhaAtual[idxIdRel] : gerarIdRelatorio();
+    // Relatório novo chega com o ID gerado no aparelho. Se ele já está na
+    // planilha, é reenvio (resposta perdida, ou página e service worker
+    // mandando a mesma fila): devolve o que já foi gravado, sem duplicar.
+    const idDoAparelho = String(data.reportId || '').trim();
+    if (!ehEdicao && idDoAparelho) {
+      const linhaExistente = localizarLinhaRelatorio(sheet, headers, idDoAparelho, '');
+      if (linhaExistente > 0) {
+        const urlPdf = sheet.getRange(linhaExistente, headers.indexOf("URL do PDF") + 1).getValue();
+        return createJsonResponse({ success: true, duplicate: true, pdfUrl: urlPdf || '', folderUrl: folderUrl(), reportId: idDoAparelho });
+      }
+    }
+    const reportId = (ehEdicao && linhaAtual && linhaAtual[idxIdRel]) ? linhaAtual[idxIdRel]
+      : (idDoAparelho || gerarIdRelatorio());
 
     const rowDataMap = montarLinhaRelatorio(data, activity, timestampReport, osId, numAbastecimentos, cfg);
     rowDataMap["ID do Relatorio"] = reportId;
@@ -483,7 +502,7 @@ function montarLinhaRelatorio(data, activity, timestampReport, osId, numAbasteci
     "OS Planejado - Vazão (L/ha)": formatNumberForSheet(data.vazaoLHa), "OS Realizado - Vazão (L/ha)": formatNumberForSheet(data.realizado_vazaoLHa),
     "OS Planejado - Pressão": formatNumberForSheet(data.pressao), "OS Realizado - Pressão": formatNumberForSheet(data.realizado_pressao),
     "OS Planejado - Dose/ha": formatNumberForSheet(data.Doseha), "OS Realizado - Dose/ha": formatNumberForSheet(data.realizado_Doseha),
-    "OS Planejado - Dose/tanque": formatNumberForSheet(data.Dosetanque), "OS Realizado - Dose/tanque": formatNumberForSheet(data.realizado_Dosetanque),
+    "OS Planejado - Dose/tanque": formatNumeroOuTexto(data.Dosetanque, formatNumberForSheet), "OS Realizado - Dose/tanque": formatNumeroOuTexto(data.realizado_Dosetanque, formatNumberForSheet),
     "OS Planejado - Máquina (Pulverizador)": data.maquina, "OS Realizado - Máquina (Pulverizador)": data.realizado_maquina,
     "Relatorio - Equipamento": data.equipmentType,
     "OS Planejado - Produtividade estimada": formatNumberForSheet(data.ProdutividadeEstimada), "OS Realizado - Produtividade estimada": formatNumberForSheet(data.realizado_ProdutividadeEstimada),
@@ -555,7 +574,7 @@ function montarPlaceholders(data, activity, agora, osId, equipamento) {
     '{{PRODUTOS_QTD_HA}}': data.realizado_produtosQuantidade || data.produtosQuantidade,
     '{{BICO}}': data.realizado_Bico, '{{CAPACIDADE_TANQUE}}': formatNumberForPdf(data.realizado_Capacidadedotanque),
     '{{VAZAO_L_HA}}': formatNumberForPdf(data.realizado_vazaoLHa), '{{PRESSAO}}': formatNumberForPdf(data.realizado_pressao), '{{DOSE_HA}}': formatNumberForPdf(data.realizado_Doseha),
-    '{{DOSE_TANQUE}}': formatNumberForPdf(data.realizado_Dosetanque),
+    '{{DOSE_TANQUE}}': formatNumeroOuTexto(data.realizado_Dosetanque, formatNumberForPdf),
     '{{PRODUTIVIDADE_ESTIMADA}}': formatNumberForPdf(data.realizado_ProdutividadeEstimada),
     '{{OPERADORES_MAQUINA}}': data.realizado_OperadoresColhedeira,
     '{{horimetro_colhe_inicio}}': formatNumberForPdf(data.horimetro_colhe_inicio), '{{horimetro_colhe_fim}}': formatNumberForPdf(data.horimetro_colhe_fim),

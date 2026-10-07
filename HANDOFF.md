@@ -5,6 +5,10 @@ Estado em 27/07/2026. Leia junto com `LEIA-ME_otimizacao.md` (detalhe técnico) 
 
 ---
 
+> **07/10/2026:** houve uma nova rodada de mudanças, descrita em `ATUALIZACAO_out2026.md`
+> (ler primeiro). A pasta de trabalho agora é `D:\projetos\lavoura`, um clone git. O que
+> segue abaixo é o histórico de julho.
+
 ## Situação em uma linha
 
 O pedido de `otimizar.md` (carregamento/PDF, offline, edição de OS) está **implementado e
