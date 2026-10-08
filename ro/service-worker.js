@@ -25,7 +25,7 @@
 // os mesmos caches. Por isso a limpeza de versões antigas filtra pelo prefixo —
 // apagar "tudo que não é meu" derrubaria o cache offline do outro aplicativo.
 const CACHE_PREFIX = 'agro-relop-';
-const CACHE_VERSION = 'v5';
+const CACHE_VERSION = 'v6';
 const CACHE_NAME = CACHE_PREFIX + CACHE_VERSION;
 
 const PRECACHE_URLS = [

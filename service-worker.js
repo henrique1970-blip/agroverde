@@ -20,7 +20,7 @@
 // derrubaria o cache do outro app, que então só voltaria a abrir offline depois
 // de ser aberto uma vez com sinal.
 const CACHE_PREFIX = 'agro-os-';
-const CACHE_VERSION = 'v7';
+const CACHE_VERSION = 'v8';
 const CACHE_NAME = `${CACHE_PREFIX}${CACHE_VERSION}`;
 
 const PRECACHE_URLS = [

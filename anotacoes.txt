@@ -35,3 +35,9 @@ Atendido: dose por tanque por produto na Pulverização (3ª coluna da tabela do
 dosagem × capacidade ÷ vazão), revisão antes do envio, correções de envio duplicado e offline nos
 dois apps, RO acompanhando as mudanças da OS. Detalhes e passos de publicação em ATUALIZACAO_out2026.md.
 Continua pendente: troca de ponto por vírgula nos decimais (item 2 de 22/08/2025).
+
+
+08/10/2026
+Handoff atualizado em HANDOFF.md (topo = estado atual). 2ª rodada (PDF em segundo plano, Safra,
+Dose/ha na tabela, Confirmado RT + arquivo por safra) está no PR #4, não integrado. Falta: publicar
+os dois Apps Scripts e rodar instalarAcionadores() em cada um; depois integrar o PR.

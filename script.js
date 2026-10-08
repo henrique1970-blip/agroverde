@@ -15,6 +15,10 @@
  *                            (Pulverização); tela de revisão antes do envio;
  *                            página e Service Worker não enviam mais a mesma
  *                            OS ao mesmo tempo (gerava PDF em dobro).
+ *  5. Out/2026 (2ª rodada)   — campo Safra; na Pulverização a dosagem de cada
+ *                            produto é a Dose/ha (opcional) e o campo solto
+ *                            "Dose/ha" saiu; o PDF é gerado em segundo plano
+ *                            no servidor (o envio responde em 1-2 s).
  * ========================================================================= */
 
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyS8G4Yar6Bjx5clsorCNrb_tWOelWbXBdEm97Alj9kWgQGCDUw04zRQW9pH9TT3OHozA/exec';
@@ -44,7 +48,7 @@ let flushDelay = 15000;
 // --- DADOS E CONFIGURAÇÕES ---
 const ACTIVITIES = {"PreparodeArea":"Preparo de Área","TratamentodeSementes":"Tratamento de Sementes","Plantio":"Plantio","Pulverizacao":"Pulverização","Colheita":"Colheita","Lancas":"Lanças"};
 const LOCATIONS_AND_FIELDS = {"AgroVerde":{"P33":32.5,"P15":14.85,"P60":60.57,"P80":80.95,"Hendrik Jan":11.96,"Baaie":18.68, "SOBRAS P33, P15, P60":41.01,"TH 5 SOBRAS PIVO 80":30.04},"Sador":{"Área 20/21":143.86,"Área 22":88.64,"Área 23":56.42,"Área 24":34.96,"Área 25":45.34,"Área 26/27":50.83,"Área 28":14.85,"Área 29":26.1, "Área 18":29.5},"Wieke":{"Barracão":21.04,"P45":50.06,"P17":19.88,"Sobra P45":6.94},"CantoVerde":{"Canto Verde":145.95},"João Paulista":{"Área 31/32/33":224.63,"Área 30":81.18},"Sergio":{"Sergio 46/47":121.44},"Chaparral":{"Fazenda Naturalícia (Chaparral)":282.11},"Cachoeirinha":{"Fazenda Cachoeirinha":290.95},"Kakay":{"P100":102.77,"P103":104.41,"P135":142.42,"P180":213.77,"Sobra 61":44.93,"Sobra 62":51.89,"Sobra 63":21.6,"Sobra 64":59.09,"Sobra 65":11.21,"Área 68":137.00,"Área 69":17.00},"Guimarães":{"Área 54":38.72,"Área 55":76.11},"Maribondo":{"Maribondo":199.92,"M104_1":44.28,"M104_2":20.79},"Fazenda Marcio":{"Área 80":68.1,"Área 81":80.36,"Área 81B":53.34,"Área 82":96.75,"Área 83":57.92,"Área 84":29.91,"Área 85/87":242.97,"Área 86A":188.03,"Área 86B":68.22,"Área 88":56.58,"Área 88B":24.18,"Área 89":66.33,"Área 90":68.3,"Área 91":13.97},"Custódio":{"Custódio 100":61.13,"Custódio 101":53.4}, "Vanderleia": {" V-110": 191.26,"V-111": 55.67,"V-113": 157.43,"V-114": 111.41,"V-115": 137.79,"V-116": 116.49,"V-Nilo": 117.36,"V-milho1": 15.22,"V-milho2": 4.10}};
-const FORM_FIELDS = {"PreparodeArea":[{label:"Data de Início",name:"dataInicio",type:"date"},{label:"Data de Término",name:"dataTermino",type:"date"},{label:"Trator - identificação",name:"trator",type:"text"},{label:"Operador(es)",name:"operadores",type:"text"},{label:"Implemento - Identificação",name:"implemento",type:"text"},{label:"Observação",name:"observacao",type:"textarea"}],"TratamentodeSementes":[{label:"Cultura e Cultivar",name:"culturaCultivar",type:"text"},{label:"Quantidade de Sementes (Kg)",name:"qtdSementesKg",type:"number"},{label:"Data de Início",name:"dataInicio",type:"date"},{label:"Data de Término",name:"dataTermino",type:"date"},{label:"Número de Produtos",name:"numProducts",type:"number",min:0,max:MAX_PRODUCTS},{label:"Produtos e Dosagens",name:"productsContainer",type:"div"},{label:"Máquina - Identificação",name:"maquina",type:"text"},{label:"Operadores",name:"operadores",type:"text"},{label:"Observação",name:"observacao",type:"textarea"}],"Plantio":[{label:"Cultura e Cultivar",name:"culturaCultivar",type:"text"},{label:"Quantidade/ha - Máximo",name:"qtdHaMax",type:"number"},{label:"Quantidade/ha - Mínimo",name:"qtdHaMin",type:"number"},{label:"Número de Insumos",name:"numProducts",type:"number",min:0,max:MAX_PRODUCTS},{label:"Insumos (a serem usados e quantidades)",name:"productsContainer",type:"div"},{label:"Data de Início",name:"dataInicio",type:"date"},{label:"Data de Término",name:"dataTermino",type:"date"},{label:"Trator - identificação",name:"trator",type:"text"},{label:"Implemento",name:"implemento",type:"text"},{label:"Plantas por metro",name:"plantasPorMetro",type:"number"},{label:"Espaçamento entre plantas",name:"espacamentoPlantas",type:"number"},{label:"Peso de mil sementes (PMS)",name:"pms",type:"number"},{label:"Operador(es)",name:"operadores",type:"text"},{label:"Observação",name:"observacao",type:"textarea"}],"Pulverizacao":[{label:"Cultura e Cultivar",name:"culturaCultivar",type:"text"},{label:"Número de Produtos",name:"numProducts",type:"number",min:0,max:MAX_PRODUCTS},{label:"Produtos e quantidade/ha",name:"productsContainer",type:"div"},{label:"Data de Início",name:"dataInicio",type:"date"},{label:"Data de Término",name:"dataTermino",type:"date"},{label:"Máquina - Identificação",name:"maquina",type:"text"},{label:"Bico",name:"bico",type:"text"},{label:"Capacidade do tanque",name:"capacidadeTanque",type:"number"},{label:"Vazão (L/ha)",name:"vazaoLHa",type:"number"},{label:"Operador(es)",name:"operadores",type:"text"},{label:"Pressão",name:"pressao",type:"number"},{label:"Dose/ha",name:"doseHa",type:"number"},{label:"Implemento - Identificação",name:"implemento",type:"text"},{label:"Observação",name:"observacao",type:"textarea"}],"Colheita":[{label:"Cultura e Cultivar",name:"culturaCultivar",type:"text"},{label:"Produtividade estimada",name:"produtividadeEstimada",type:"number"},{label:"Data de Início",name:"dataInicio",type:"date"},{label:"Data de Término",name:"dataTermino",type:"date"},{label:"Colhedeira - Identificação",name:"maquina",type:"text"},{label:"Operador(es) Colhedeira",name:"operadoresMaquina",type:"text"},{label:"Número de Caminhões",name:"numTrucks",type:"number",min:0,max:MAX_PRODUCTS},{label:"Caminhões e Motoristas",name:"trucksContainer",type:"div"},{label:"Trator - marca modelo e número",name:"trator",type:"text"},{label:"Operador(es) Trator",name:"operadoresTrator",type:"text"},{label:"Implemento - Identificação",name:"implemento",type:"text"},{label:"Observação",name:"observacao",type:"textarea"}],"Lancas":[{label:"Cultura e Cultivar",name:"culturaCultivar",type:"text"},{label:"Número de Produtos",name:"numProducts",type:"number",min:0,max:MAX_PRODUCTS},{label:"Produtos e quantidade/hectare",name:"productsContainer",type:"div"},{label:"Data de Início",name:"dataInicio",type:"date"},{label:"Data de Término",name:"dataTermino",type:"date"},{label:"Máquina - Identificação",name:"maquina",type:"text"},{label:"Operador(es)",name:"operadores",type:"text"},{label:"Implemento - Identificação",name:"implemento",type:"text"},{label:"Observação",name:"observacao",type:"textarea"}]};
+const FORM_FIELDS = {"PreparodeArea":[{label:"Data de Início",name:"dataInicio",type:"date"},{label:"Data de Término",name:"dataTermino",type:"date"},{label:"Trator - identificação",name:"trator",type:"text"},{label:"Operador(es)",name:"operadores",type:"text"},{label:"Implemento - Identificação",name:"implemento",type:"text"},{label:"Observação",name:"observacao",type:"textarea"}],"TratamentodeSementes":[{label:"Cultura e Cultivar",name:"culturaCultivar",type:"text"},{label:"Quantidade de Sementes (Kg)",name:"qtdSementesKg",type:"number"},{label:"Data de Início",name:"dataInicio",type:"date"},{label:"Data de Término",name:"dataTermino",type:"date"},{label:"Número de Produtos",name:"numProducts",type:"number",min:0,max:MAX_PRODUCTS},{label:"Produtos e Dosagens",name:"productsContainer",type:"div"},{label:"Máquina - Identificação",name:"maquina",type:"text"},{label:"Operadores",name:"operadores",type:"text"},{label:"Observação",name:"observacao",type:"textarea"}],"Plantio":[{label:"Cultura e Cultivar",name:"culturaCultivar",type:"text"},{label:"Quantidade/ha - Máximo",name:"qtdHaMax",type:"number"},{label:"Quantidade/ha - Mínimo",name:"qtdHaMin",type:"number"},{label:"Número de Insumos",name:"numProducts",type:"number",min:0,max:MAX_PRODUCTS},{label:"Insumos (a serem usados e quantidades)",name:"productsContainer",type:"div"},{label:"Data de Início",name:"dataInicio",type:"date"},{label:"Data de Término",name:"dataTermino",type:"date"},{label:"Trator - identificação",name:"trator",type:"text"},{label:"Implemento",name:"implemento",type:"text"},{label:"Plantas por metro",name:"plantasPorMetro",type:"number"},{label:"Espaçamento entre plantas",name:"espacamentoPlantas",type:"number"},{label:"Peso de mil sementes (PMS)",name:"pms",type:"number"},{label:"Operador(es)",name:"operadores",type:"text"},{label:"Observação",name:"observacao",type:"textarea"}],"Pulverizacao":[{label:"Cultura e Cultivar",name:"culturaCultivar",type:"text"},{label:"Número de Produtos",name:"numProducts",type:"number",min:0,max:MAX_PRODUCTS},{label:"Produtos e quantidade/ha",name:"productsContainer",type:"div"},{label:"Data de Início",name:"dataInicio",type:"date"},{label:"Data de Término",name:"dataTermino",type:"date"},{label:"Máquina - Identificação",name:"maquina",type:"text"},{label:"Bico",name:"bico",type:"text"},{label:"Capacidade do tanque",name:"capacidadeTanque",type:"number"},{label:"Vazão (L/ha)",name:"vazaoLHa",type:"number"},{label:"Operador(es)",name:"operadores",type:"text"},{label:"Pressão",name:"pressao",type:"number"},{label:"Implemento - Identificação",name:"implemento",type:"text"},{label:"Observação",name:"observacao",type:"textarea"}],"Colheita":[{label:"Cultura e Cultivar",name:"culturaCultivar",type:"text"},{label:"Produtividade estimada",name:"produtividadeEstimada",type:"number"},{label:"Data de Início",name:"dataInicio",type:"date"},{label:"Data de Término",name:"dataTermino",type:"date"},{label:"Colhedeira - Identificação",name:"maquina",type:"text"},{label:"Operador(es) Colhedeira",name:"operadoresMaquina",type:"text"},{label:"Número de Caminhões",name:"numTrucks",type:"number",min:0,max:MAX_PRODUCTS},{label:"Caminhões e Motoristas",name:"trucksContainer",type:"div"},{label:"Trator - marca modelo e número",name:"trator",type:"text"},{label:"Operador(es) Trator",name:"operadoresTrator",type:"text"},{label:"Implemento - Identificação",name:"implemento",type:"text"},{label:"Observação",name:"observacao",type:"textarea"}],"Lancas":[{label:"Cultura e Cultivar",name:"culturaCultivar",type:"text"},{label:"Número de Produtos",name:"numProducts",type:"number",min:0,max:MAX_PRODUCTS},{label:"Produtos e quantidade/hectare",name:"productsContainer",type:"div"},{label:"Data de Início",name:"dataInicio",type:"date"},{label:"Data de Término",name:"dataTermino",type:"date"},{label:"Máquina - Identificação",name:"maquina",type:"text"},{label:"Operador(es)",name:"operadores",type:"text"},{label:"Implemento - Identificação",name:"implemento",type:"text"},{label:"Observação",name:"observacao",type:"textarea"}]};
 
 const activitySelectionDiv = document.getElementById('activitySelection');
 const formContainerDiv = document.getElementById('formContainer');
@@ -249,9 +253,11 @@ async function flushOutboxLocked(options) {
 
             if (!options.silent) {
                 const acao = item.mode === 'update' ? 'atualizada' : 'registrada';
-                showToast(
-                    `OS <strong>${escapeHtml(item.osId)}</strong> ${acao} e PDF pronto ✅` +
-                    (result.pdfUrl ? `<br><a href="${result.pdfUrl}" target="_blank" rel="noopener">Abrir PDF</a>` : ''),
+                showToast(result.pdfPending
+                    ? `OS <strong>${escapeHtml(item.osId)}</strong> ${acao} na planilha ✅<br>` +
+                      `O PDF fica pronto em cerca de 1 minuto, em <a href="https://drive.google.com/drive/folders/${PDF_FOLDER_ID}" target="_blank" rel="noopener">Ordens emitidas</a>.`
+                    : `OS <strong>${escapeHtml(item.osId)}</strong> ${acao} e PDF pronto ✅` +
+                      (result.pdfUrl ? `<br><a href="${result.pdfUrl}" target="_blank" rel="noopener">Abrir PDF</a>` : ''),
                     'success',
                     15000
                 );
@@ -560,6 +566,20 @@ function generateOsId(user, localName) {
     return `${userChar}-${localPart}-${randomNum}${letraAleatoria}${caracterAleatorio}`;
 }
 
+/** Safra de julho a junho: em 10/2026 sugere "Safra 2026/27". */
+function safraSugerida(data = new Date()) {
+    const ano = data.getMonth() >= 6 ? data.getFullYear() : data.getFullYear() - 1;
+    return `Safra ${ano}/${String((ano + 1) % 100).padStart(2, '0')}`;
+}
+
+function safrasSugeridas(data = new Date()) {
+    const atual = safraSugerida(data);
+    const ano = parseInt(atual.slice(6, 10), 10);
+    const anterior = `Safra ${ano - 1}/${String(ano % 100).padStart(2, '0')}`;
+    const seguinte = `Safra ${ano + 1}/${String((ano + 2) % 100).padStart(2, '0')}`;
+    return [anterior, atual, seguinte, `Safrinha ${ano + 1}`, `Safrinha ${ano}`];
+}
+
 function updateTotalArea(talhoesListElement) {
     const totalAreaDisplay = document.getElementById('totalAreaDisplay');
     if (!totalAreaDisplay) return;
@@ -593,6 +613,10 @@ function renderForm(activityKey, prefill = null) {
         `<input type="hidden" name="osId" value="${escapeHtml(osIdValue)}">` +
         `<p class="form-info-display">Registrando como: <strong>${escapeHtml(userName || "N/A")}</strong></p>` +
         `<p class="form-info-display">ID da Ordem de Serviço: <strong id="displayedOsId">${escapeHtml(osIdValue || 'Aguardando local...')}</strong></p>` +
+        `<label for="safra">Safra: <span class="required">*</span></label>` +
+        `<input type="text" id="safra" name="safra" list="safrasSugeridas" required autocomplete="off" ` +
+        `value="${escapeHtml(isEdit && prefill.safra ? prefill.safra : safraSugerida())}">` +
+        `<datalist id="safrasSugeridas">${safrasSugeridas().map(sf => `<option value="${escapeHtml(sf)}">`).join('')}</datalist>` +
         `<label for="local">Local da Atividade: <span class="required">*</span></label>` +
         `<select id="local" name="local" required><option value="">Selecione o Local</option>`;
     for (const locationName in LOCATIONS_AND_FIELDS) {
@@ -829,8 +853,11 @@ function renderProductFields(num, container, activityKey) {
         html += `<div class="product-group"><h3>${productLabel} ${i}</h3>` +
             `<label for="product_name_${i}">${productLabel} ${i} Nome:<span class="required">*</span></label>` +
             `<input type="text" id="product_name_${i}" name="product_name_${i}" required>` +
-            `<label for="product_dosage_${i}">${productLabel} ${i} Dosagem${withTank ? ' (por ha)' : ''}:<span class="required">*</span></label>` +
-            `<input type="text" id="product_dosage_${i}" name="product_dosage_${i}" required>` +
+            (withTank
+                ? `<label for="product_dosage_${i}">${productLabel} ${i} Dose/ha (opcional):</label>` +
+                  `<input type="text" id="product_dosage_${i}" name="product_dosage_${i}" placeholder="ex.: 3 L/ha">`
+                : `<label for="product_dosage_${i}">${productLabel} ${i} Dosagem:<span class="required">*</span></label>` +
+                  `<input type="text" id="product_dosage_${i}" name="product_dosage_${i}" required>`) +
             (withTank ? `<p class="calc-info" data-dose-tanque="${i}">Dose/tanque: —</p>` : '') +
             `</div>`;
     }
@@ -925,6 +952,7 @@ function buildReviewHtml(data) {
     const linhas = [
         ['Atividade', ACTIVITIES[data.activity] || data.activity],
         ['ID da OS', data.osId],
+        ['Safra', data.safra],
         ['Local', data.local],
         ['Talhões', data.talhoes],
         ['Área total (ha)', data.areaTotalHectares]
@@ -945,7 +973,7 @@ function buildReviewHtml(data) {
     if (numProducts > 0) {
         const comTanque = ACTIVITIES_WITH_TANK.includes(data.activity);
         const rotulo = data.activity === 'Plantio' ? 'Insumo' : 'Produto';
-        html += `<table class="review-table products"><thead><tr><th>${rotulo}</th><th>Dosagem</th>` +
+        html += `<table class="review-table products"><thead><tr><th>${rotulo}</th><th>${comTanque ? 'Dose/ha' : 'Dosagem'}</th>` +
             (comTanque ? '<th>Dose/tanque</th>' : '') + '</tr></thead><tbody>';
         for (let i = 1; i <= numProducts; i++) {
             html += `<tr><td>${escapeHtml(data[`nome_produto_${i}`])}</td><td>${escapeHtml(data[`dose_produto_${i}`])}</td>` +
@@ -1035,7 +1063,7 @@ async function handleFormSubmit(event) {
     const acaoTexto = isEdit ? 'alterações salvas' : 'OS registrada';
     showActivitySelection();
     const toast = navigator.onLine
-        ? showToast(`<span class="spinner"></span><strong>${escapeHtml(data.osId)}</strong> — ${acaoTexto} no aparelho. Gerando o PDF…`, 'info', 0)
+        ? showToast(`<span class="spinner"></span><strong>${escapeHtml(data.osId)}</strong> — ${acaoTexto} no aparelho. Enviando…`, 'info', 0)
         : showToast(`<strong>${escapeHtml(data.osId)}</strong> — ${acaoTexto} no aparelho 💾<br>Será enviada automaticamente quando houver internet.<br>Até lá, dá para corrigi-la em "Editar Ordem de Serviço".`, 'info', 12000);
 
     if (navigator.onLine) {

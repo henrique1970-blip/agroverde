@@ -539,3 +539,17 @@ textarea {
         text-align: right;
     }
 }
+
+/* PDF gerado em segundo plano (out/2026) */
+.pdf-pending-hint {
+    background: #fff8e1;
+    border-left: 3px solid #f0ad4e;
+    padding: 8px 10px;
+    border-radius: 3px;
+    text-align: left;
+}
+.pdf-pendente {
+    font-size: 0.85em;
+    color: #8a6d3b;
+    white-space: nowrap;
+}

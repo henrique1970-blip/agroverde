@@ -18,6 +18,14 @@
  *    duplica linha na planilha, e página e service worker não enviam o mesmo
  *    relatório ao mesmo tempo;
  *  - com sinal, as OS são rebaixadas sozinhas para o uso offline a cada 12 h.
+ *
+ * Out/2026 (2ª rodada):
+ *  - ao abrir com sinal, as OS de todas as atividades são carregadas em
+ *    segundo plano: trocar de atividade não espera a rede;
+ *  - a lista de OS não mostra as que já receberam relatório (exceto Colheita);
+ *  - o PDF é gerado no servidor depois do envio: a tela libera em segundos;
+ *  - Safra, Dose/ha e Dose/tanque seguem no envio, mas não aparecem para
+ *    confirmar (Dose/tanque é recalculada no servidor).
  * ========================================================================= */
 
 // ATENÇÃO: URL do App da Web da planilha de "Ordem de Serviço"
@@ -106,7 +114,16 @@ const SIMPLE_ACTIVITIES = ["PreparodeArea", "Plantio", "Pulverizacao", "Lancas"]
 // Colunas que não são dados da OS: identificação e controle da planilha de OS.
 // "PDF ID", "PDF URL" e "Atualizado em" chegaram com a edição de OS (jul/2026)
 // e apareciam na grade como se fossem itens a confirmar.
-const OS_NON_DATA_COLUMNS = ["Timestamp", "Nome do Usuário", "ID da OS", "PDF ID", "PDF URL", "Atualizado em"];
+const OS_NON_DATA_COLUMNS = ["Timestamp", "Nome do Usuário", "ID da OS", "PDF ID", "PDF URL", "Atualizado em", "Status PDF"];
+
+// Dados da OS que vão no relatório sem passar pela grade de confirmação:
+// Safra (para o arquivamento), Dose/tanque (recalculada no servidor) e o
+// antigo campo único Dose/ha (hoje a dose/ha está em cada produto).
+const OS_HIDDEN_FIELDS = ["Safra", "Dose/tanque", "Dose/ha"];
+
+// Busca de lista em andamento por atividade: a pré-carga da abertura e o
+// toque do operador na mesma atividade compartilham a mesma requisição.
+const listasEmAndamento = new Map();
 
 // Mesmo nome no service worker: só um dos dois envia a fila por vez.
 const PENDING_LOCK = 'agro-relop-pending';
@@ -303,7 +320,14 @@ async function buscarListaOs(activityKey, onData) {
     if (cached) onData(cached.data, 'cache');
 
     try {
-        const bruto = await apiFetch(`${osAppsScriptUrl}?activity=${encodeURIComponent(activityKey)}&detalhes=1`);
+        // pendentes=1: o servidor tira da lista as OS que já têm relatório.
+        let pedido = listasEmAndamento.get(activityKey);
+        if (!pedido) {
+            pedido = apiFetch(`${osAppsScriptUrl}?activity=${encodeURIComponent(activityKey)}&detalhes=1&pendentes=1`)
+                .finally(() => listasEmAndamento.delete(activityKey));
+            listasEmAndamento.set(activityKey, pedido);
+        }
+        const bruto = await pedido;
         let ids;
 
         if (respostaEhLote(bruto)) {
@@ -419,6 +443,20 @@ function atualizarOfflineSeVencido() {
     const quando = parseInt(localStorage.getItem('offlinePreparadoEm') || '0', 10);
     if (quando && Date.now() - quando < OS_CACHE_TTL_MS) return;
     prepararUsoOffline().catch(() => {});
+}
+
+/** Com sinal, carrega as OS de todas as atividades logo na abertura, duas
+ *  de cada vez. Quem tocar numa atividade já encontra a lista pronta. */
+async function preCarregarAtividades() {
+    if (!navigator.onLine || preparandoOffline) return;
+    const fila = Object.keys(ACTIVITIES).filter(k => k !== 'Irrigacao');
+    const trabalhador = async () => {
+        while (fila.length && navigator.onLine) {
+            const chave = fila.shift();
+            try { await buscarListaOs(chave, () => {}); } catch (e) { /* segue */ }
+        }
+    };
+    await Promise.all([trabalhador(), trabalhador()]);
 }
 
 function mostrarEstadoOffline() {
@@ -652,7 +690,8 @@ function renderOsDataGrid(osDetails) {
         `<div class="grid-header" style="color: grey;">Realizado/Usado</div>`;
 
     for (const key in osDetails) {
-        if (fieldsToExclude.includes(key) || key.toLowerCase().includes('observa') || !osDetails[key]) continue;
+        if (fieldsToExclude.includes(key) || OS_HIDDEN_FIELDS.includes(key) ||
+            key.toLowerCase().includes('observa') || !osDetails[key]) continue;
 
         const cleanKey = keyMap[key] || key.replace(/[^a-zA-Z0-9]/g, '');
         const isDate = key.includes("Data");
@@ -1052,6 +1091,10 @@ function coletarDadosRelatorio() {
         const realizadoInput = document.getElementById(`realizado_${cleanKey}`);
 
         reportData[cleanKey] = currentOsDetails[key];
+        if (OS_HIDDEN_FIELDS.includes(key)) {
+            reportData[`realizado_${cleanKey}`] = currentOsDetails[key];
+            continue;
+        }
         if (realizadoInput) {
             reportData[`realizado_${cleanKey}`] = realizadoInput.disabled ? currentOsDetails[key] : realizadoInput.value;
         }
@@ -1167,8 +1210,9 @@ async function submitReport() {
 
     try {
         const result = await postReport(reportData);
-        if (result.success && result.pdfUrl) {
+        if (result.success && (result.pdfUrl || result.pdfPending)) {
             invalidarCacheRelatorios(selectedActivityKey);
+            if (!editando) esquecerOsReportada(selectedActivityKey, reportData.osId);
             showSuccessModal(result.pdfUrl, result.folderUrl, editando);
         } else if (result.success) {
             invalidarCacheRelatorios(selectedActivityKey);
@@ -1190,10 +1234,26 @@ async function submitReport() {
     }
 }
 
+/** A OS que acabou de receber relatório sai da lista guardada no aparelho
+ *  (o servidor já a tira da próxima consulta). Colheita recebe vários. */
+async function esquecerOsReportada(activityKey, osId) {
+    if (!osId || activityKey === 'Colheita') return;
+    const chave = `osIds:${activityKey}`;
+    const cached = await readCache(chave);
+    if (cached && Array.isArray(cached.data)) {
+        await writeCache(chave, cached.data.filter(id => String(id) !== String(osId)));
+    }
+}
+
 function showSuccessModal(pdfUrl, folderUrl, editando) {
     const modal = document.getElementById('successModal');
     document.getElementById('successTitle').textContent = editando ? 'Relatório Atualizado!' : 'Relatório Enviado!';
-    document.getElementById('pdfLink').href = pdfUrl;
+    const pdfLink = document.getElementById('pdfLink');
+    const aviso = document.getElementById('pdfPendingHint');
+    // PDF gerado em segundo plano: o link só existe daqui a ~1 minuto.
+    pdfLink.style.display = pdfUrl ? '' : 'none';
+    if (aviso) aviso.hidden = !!pdfUrl;
+    document.getElementById('pdfLink').href = pdfUrl || '#';
     document.getElementById('folderLink').href = folderUrl;
     modal.style.display = 'flex';
 
@@ -1215,6 +1275,7 @@ async function saveReportOffline(reportData) {
         // precisa de uma cópia da URL: se o Apps Script for reimplantado num
         // endereço novo, basta trocar aqui em cima, num lugar só.
         await idbAdd(STORE_PENDING, { ...reportData, __endpoint: reportAppsScriptUrl, savedAt: Date.now() });
+        if (!reportData.isUpdate) esquecerOsReportada(reportData.activity, reportData.osId).catch(() => {});
         await atualizarBannerPendentes();
         alert('Relatório salvo no aparelho. Ele será enviado automaticamente quando houver conexão.');
         showActivitySelection();
@@ -1359,7 +1420,7 @@ function renderReportList(reports) {
                     r.local ? ' · ' + escapeHtml(r.local) : ''}</span>
             </div>
             <div class="report-actions">
-                ${r.pdfUrl ? `<a class="pdf" href="${escapeHtml(r.pdfUrl)}" target="_blank" rel="noopener">PDF</a>` : ''}
+                ${r.pdfUrl ? `<a class="pdf" href="${escapeHtml(r.pdfUrl)}" target="_blank" rel="noopener">PDF</a>` : '<span class="pdf-pendente">PDF em preparação</span>'}
                 <button type="button" data-report-id="${escapeHtml(r.reportId)}" data-row="${escapeHtml(r.rowIndex)}">Editar</button>
             </div>
         </li>`).join('')}</ul>`;
@@ -1756,6 +1817,7 @@ function initializeApp() {
     atualizarBannerConexao();
     mostrarEstadoOffline();
     flushPendingReports(false);
+    preCarregarAtividades().catch(() => {});
     // Espera a tela assentar: o primeiro toque do operador tem prioridade na rede.
     setTimeout(atualizarOfflineSeVencido, 4000);
 }
